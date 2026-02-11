@@ -30,9 +30,25 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _services.tournamentsChanged.addListener(_handleTournamentsChanged);
     _items = _load();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkSongMaster();
+    });
+  }
+
+  @override
+  void dispose() {
+    _services.tournamentsChanged.removeListener(_handleTournamentsChanged);
+    super.dispose();
+  }
+
+  void _handleTournamentsChanged() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refresh();
+      }
     });
   }
 

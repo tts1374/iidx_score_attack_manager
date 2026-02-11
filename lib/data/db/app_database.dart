@@ -33,6 +33,7 @@ CREATE TABLE tournaments (
   hashtag TEXT NOT NULL,
   start_date TEXT NOT NULL,
   end_date TEXT NOT NULL,
+  is_imported INTEGER NOT NULL DEFAULT 0,
   background_image_path TEXT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL

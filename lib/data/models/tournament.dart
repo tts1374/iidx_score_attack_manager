@@ -6,6 +6,7 @@ class Tournament {
     required this.hashtag,
     required this.startDate,
     required this.endDate,
+    required this.isImported,
     required this.backgroundImagePath,
     required this.createdAt,
     required this.updatedAt,
@@ -17,6 +18,7 @@ class Tournament {
   final String hashtag;
   final String startDate;
   final String endDate;
+  final bool isImported;
   final String? backgroundImagePath;
   final String createdAt;
   final String updatedAt;
@@ -29,6 +31,7 @@ class Tournament {
       'hashtag': hashtag,
       'start_date': startDate,
       'end_date': endDate,
+      'is_imported': isImported ? 1 : 0,
       'background_image_path': backgroundImagePath,
       'created_at': createdAt,
       'updated_at': updatedAt,
@@ -43,6 +46,7 @@ class Tournament {
       hashtag: map['hashtag'] as String,
       startDate: map['start_date'] as String,
       endDate: map['end_date'] as String,
+      isImported: (map['is_imported'] as int? ?? 0) == 1,
       backgroundImagePath: map['background_image_path'] as String?,
       createdAt: map['created_at'] as String,
       updatedAt: map['updated_at'] as String,

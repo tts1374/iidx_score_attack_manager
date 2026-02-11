@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'data/db/app_database.dart';
 import 'data/db/song_master_database.dart';
 import 'data/repositories/app_settings_repository.dart';
@@ -29,4 +31,10 @@ class AppServices {
   late final EvidenceService evidenceService =
       EvidenceService(evidenceRepo);
   final QrService qrService = QrService();
+
+  final ValueNotifier<int> tournamentsChanged = ValueNotifier<int>(0);
+
+  void notifyTournamentsChanged() {
+    tournamentsChanged.value = tournamentsChanged.value + 1;
+  }
 }

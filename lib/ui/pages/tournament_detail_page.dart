@@ -390,36 +390,39 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            FilledButton(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFFE2E8F0),
-                                foregroundColor: const Color(0xFF334155),
+                            if (!detail.tournament.isImported)
+                              FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  foregroundColor: const Color(0xFF334155),
+                                ),
+                                onPressed: () => _openTournamentPostModal(detail),
+                                child: const Text('大会画像作成'),
                               ),
-                              onPressed: () => _openTournamentPostModal(detail),
-                              child: const Text('大会画像作成'),
-                            ),
                             const Spacer(),
-                            IconButton.filled(
-                              style: IconButton.styleFrom(
-                                backgroundColor: const Color(0xFFE2E8F0),
-                                foregroundColor: const Color(0xFF334155),
+                            if (!detail.tournament.isImported) ...[
+                              IconButton.filled(
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  foregroundColor: const Color(0xFF334155),
+                                ),
+                                tooltip: '更新',
+                                onPressed: () async {
+                                  final result = await Navigator.pushNamed(
+                                    context,
+                                    TournamentUpdatePage.routeName,
+                                    arguments: detail.tournament.tournamentUuid,
+                                  );
+                                  if (result == true) {
+                                    setState(() {
+                                      _detail = _load(detail.tournament.tournamentUuid);
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.edit),
                               ),
-                              tooltip: '更新',
-                              onPressed: () async {
-                                final result = await Navigator.pushNamed(
-                                  context,
-                                  TournamentUpdatePage.routeName,
-                                  arguments: detail.tournament.tournamentUuid,
-                                );
-                                if (result == true) {
-                                  setState(() {
-                                    _detail = _load(detail.tournament.tournamentUuid);
-                                  });
-                                }
-                              },
-                              icon: const Icon(Icons.edit),
-                            ),
-                            const SizedBox(width: 8),
+                              const SizedBox(width: 8),
+                            ],
                             IconButton.filled(
                               style: IconButton.styleFrom(
                                 backgroundColor: const Color(0xFFE2E8F0),

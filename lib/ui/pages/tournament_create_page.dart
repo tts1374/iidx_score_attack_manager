@@ -208,6 +208,7 @@ class _TournamentCreatePageState extends State<TournamentCreatePage> {
       hashtag: _hashtagController.text.trim(),
       startDate: _startDate!,
       endDate: _endDate!,
+      isImported: false,
       backgroundImagePath: backgroundPath,
       createdAt: now,
       updatedAt: now,

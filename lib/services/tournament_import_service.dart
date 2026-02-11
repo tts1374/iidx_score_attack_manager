@@ -1,0 +1,115 @@
+import '../app_services.dart';
+import '../core/date_utils.dart';
+import '../data/models/tournament.dart';
+import '../data/models/tournament_chart.dart';
+import 'qr_service.dart';
+
+class TournamentImportResult {
+  const TournamentImportResult._({
+    required this.success,
+    this.message,
+  });
+
+  final bool success;
+  final String? message;
+
+  const TournamentImportResult.success() : this._(success: true);
+
+  const TournamentImportResult.failure(String message)
+      : this._(success: false, message: message);
+}
+
+class TournamentImportService {
+  TournamentImportService(this._services);
+
+  final AppServices _services;
+  static const _msgDecodeFailed = '\u0051\u0052\u306e\u8aad\u307f\u53d6\u308a\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002';
+  static const _msgInvalidPayload = '\u0051\u0052\u306e\u5185\u5bb9\u304c\u4e0d\u6b63\u3067\u3059\u3002';
+  static const _msgAlreadyExists =
+      '\u540c\u3058\u5927\u4f1a\u304c\u65e2\u306b\u767b\u9332\u3055\u308c\u3066\u3044\u307e\u3059\u3002';
+  static const _msgPastTournament =
+      '\u904e\u53bb\u5927\u4f1a\u306f\u8ffd\u52a0\u3067\u304d\u307e\u305b\u3093\u3002';
+  static const _msgChartNotFound =
+      '\u66f2\u30de\u30b9\u30bf\u306b\u5b58\u5728\u3057\u306a\u3044\u8b5c\u9762\u304c\u542b\u307e\u308c\u3066\u3044\u307e\u3059\u3002';
+  static const _msgNoChartData = '\u8b5c\u9762\u60c5\u5831\u304c\u3042\u308a\u307e\u305b\u3093\u3002';
+
+  Future<TournamentImportResult> importFromQrRawValue(String rawValue) async {
+    try {
+      final payload = _services.qrService.decodeTournament(rawValue);
+      return importFromPayload(payload);
+    } on QrDecodeException {
+      return const TournamentImportResult.failure(_msgDecodeFailed);
+    } on QrTooLargeException {
+      return const TournamentImportResult.failure(_msgDecodeFailed);
+    }
+  }
+
+  Future<TournamentImportResult> importFromPayload(
+    Map<String, dynamic> payload,
+  ) async {
+    final uuid = payload['tournament_uuid'] as String?;
+    if (uuid == null || uuid.isEmpty) {
+      return const TournamentImportResult.failure(_msgInvalidPayload);
+    }
+
+    if (await _services.tournamentRepo.exists(uuid)) {
+      return const TournamentImportResult.failure(_msgAlreadyExists);
+    }
+
+    final endDate = payload['end_date'] as String?;
+    if (endDate == null || isPastTournament(endDate)) {
+      return const TournamentImportResult.failure(_msgPastTournament);
+    }
+
+    final charts = payload['charts'];
+    if (charts is! List) {
+      return const TournamentImportResult.failure(_msgInvalidPayload);
+    }
+
+    final chartModels = <TournamentChart>[];
+    for (final item in charts) {
+      if (item is! Map<String, dynamic>) continue;
+      final chartId = item['chart_id'] as int?;
+      final sortOrder = item['sort_order'] as int?;
+      if (chartId == null || sortOrder == null) continue;
+
+      final chart = await _services.songMasterRepo.fetchChartById(chartId);
+      if (chart == null) {
+        return const TournamentImportResult.failure(_msgChartNotFound);
+      }
+
+      chartModels.add(
+        TournamentChart(
+          tournamentChartId: null,
+          tournamentUuid: uuid,
+          chartId: chartId,
+          sortOrder: sortOrder,
+          createdAt: nowJst().toIso8601String(),
+        ),
+      );
+    }
+
+    if (chartModels.isEmpty) {
+      return const TournamentImportResult.failure(_msgNoChartData);
+    }
+
+    final nowIso = nowJst().toIso8601String();
+    final createdAt = payload['created_at'] as String? ?? nowIso;
+    final tournament = Tournament(
+      tournamentUuid: uuid,
+      tournamentName: payload['tournament_name'] as String? ?? '',
+      owner: payload['owner'] as String? ?? '',
+      hashtag: payload['hashtag'] as String? ?? '',
+      startDate: payload['start_date'] as String? ?? '',
+      endDate: payload['end_date'] as String? ?? '',
+      isImported: true,
+      backgroundImagePath: null,
+      createdAt: createdAt,
+      updatedAt: createdAt,
+    );
+
+    await _services.tournamentRepo.createTournament(tournament, chartModels);
+    _services.notifyTournamentsChanged();
+    return const TournamentImportResult.success();
+  }
+}
