@@ -11,11 +11,13 @@ import '../core/date_utils.dart';
 import '../data/models/evidence.dart';
 import '../domain/repositories/evidence_repository.dart';
 
+/// エビデンス画像の保存・更新・削除を扱うサービス。
 class EvidenceService {
   EvidenceService(this._repo);
 
   final EvidenceRepositoryContract _repo;
 
+  /// 画像選択（カメラ/ギャラリー）からエビデンス登録まで実行する。
   Future<EvidenceSaveResult> registerEvidence({
     required String tournamentUuid,
     required int chartId,
@@ -33,6 +35,9 @@ class EvidenceService {
     );
   }
 
+  /// 選択済み画像ファイルをエビデンスとして登録する。
+  ///
+  /// 同一ハッシュの場合は更新なしを返す。
   Future<EvidenceSaveResult> registerEvidenceFile({
     required String tournamentUuid,
     required int chartId,
@@ -83,6 +88,7 @@ class EvidenceService {
     return EvidenceSaveResult.saved(evidence);
   }
 
+  /// 画像ファイルとDBレコードを削除する。
   Future<void> deleteEvidence(Evidence evidence) async {
     final file = File(evidence.filePath);
     if (file.existsSync()) {
@@ -92,6 +98,7 @@ class EvidenceService {
   }
 }
 
+/// エビデンス保存処理の戻り値。
 class EvidenceSaveResult {
   const EvidenceSaveResult._(this.status, {this.evidence, this.message});
 
@@ -111,4 +118,5 @@ class EvidenceSaveResult {
       : this._(EvidenceSaveStatus.saved, evidence: evidence);
 }
 
+/// エビデンス保存処理の状態。
 enum EvidenceSaveStatus { saved, cancelled, noChange, failed }

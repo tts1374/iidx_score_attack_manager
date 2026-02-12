@@ -4,12 +4,16 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../core/constants.dart';
 
+/// アプリ管理DB（`app_data.sqlite`）への接続を提供する。
+///
+/// 大会情報・譜面紐付け・エビデンス・設定値を保持する。
 class AppDatabase {
   AppDatabase._();
 
   static final AppDatabase instance = AppDatabase._();
   Database? _db;
 
+  /// DB接続を返す。未オープン時は初期化して作成する。
   Future<Database> get database async {
     if (_db != null) {
       return _db!;

@@ -1,6 +1,8 @@
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 
+/// 画像ファイルからQR文字列を抽出するサービス。
 class QrFromImageService {
+  /// 画像内の最初のQR `rawValue` を返す。未検出時は `null`。
   Future<String?> tryExtractQrRawValue(String imagePath) async {
     final inputImage = InputImage.fromFilePath(imagePath);
     final scanner = BarcodeScanner(

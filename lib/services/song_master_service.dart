@@ -11,6 +11,7 @@ import '../domain/repositories/app_settings_repository.dart';
 import '../data/repositories/song_master_repository.dart';
 import '../core/date_utils.dart';
 
+/// 曲マスタ更新判定のステータス。
 enum SongMasterUpdateStatus {
   upToDate,
   updated,
@@ -21,12 +22,14 @@ enum SongMasterUpdateStatus {
   unconfigured,
 }
 
+/// 曲マスタ更新処理の結果。
 class SongMasterUpdateResult {
   const SongMasterUpdateResult(this.status, {this.message});
   final SongMasterUpdateStatus status;
   final String? message;
 }
 
+/// GitHub Release とローカル曲マスタを突き合わせて更新管理を行うサービス。
 class SongMasterService {
   SongMasterService(
     this._settingsRepo,
@@ -36,6 +39,7 @@ class SongMasterService {
   final AppSettingsRepositoryContract _settingsRepo;
   final SongMasterDatabase _songMasterDb;
 
+  /// 曲マスタの更新要否を判定し、必要に応じてダウンロード/設定更新を実施する。
   Future<SongMasterUpdateResult> checkAndUpdateIfNeeded() async {
     if (githubRepoOwner == 'YOUR_GITHUB_OWNER' ||
         githubRepoName == 'YOUR_GITHUB_REPO') {
@@ -150,6 +154,7 @@ class SongMasterService {
     return const SongMasterUpdateResult(SongMasterUpdateStatus.updated);
   }
 
+  /// GitHub の `releases/latest` を取得する。
   Future<Map<String, dynamic>?> _fetchLatestRelease() async {
     final url =
         Uri.parse('https://api.github.com/repos/$githubRepoOwner/$githubRepoName/releases/latest');
@@ -164,6 +169,7 @@ class SongMasterService {
     }
   }
 
+  /// Release assets から対象の `song_master.sqlite` を抽出する。
   Map<String, dynamic>? _pickAsset(Map<String, dynamic> release) {
     final assets = release['assets'];
     if (assets is! List) {
@@ -178,6 +184,7 @@ class SongMasterService {
     return null;
   }
 
+  /// 曲マスタファイルを一時ファイル経由で安全に保存する。
   Future<bool> _downloadAsset(String url) async {
     final dir = await getApplicationSupportDirectory();
     final targetPath = p.join(dir.path, songMasterFileName);

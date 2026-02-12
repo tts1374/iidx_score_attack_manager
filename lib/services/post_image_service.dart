@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/constants.dart';
 
+/// 投稿画像生成時に必要な入力データ。
 class PostImageData {
   PostImageData({
     required this.qrData,
@@ -25,6 +26,7 @@ class PostImageData {
   final ui.Image? background;
 }
 
+/// 投稿画像内の対象曲1行分データ。
 class PostChartLine {
   PostChartLine({
     required this.version,
@@ -41,9 +43,11 @@ class PostChartLine {
   final int level;
 }
 
+/// 大会投稿用画像（9:16）を描画してPNGバイトを返すサービス。
 class PostImageService {
   static const double _horizontalPadding = 80;
 
+  /// 投稿画像を生成する。
   Future<Uint8List> generate(PostImageData data) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);

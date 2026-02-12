@@ -10,10 +10,12 @@ import '../services/tournament_import_service.dart';
 import 'data_source_providers.dart';
 import 'repository_providers.dart';
 
+/// 大会データ更新通知用のインクリメントカウンタ。
 final tournamentsChangedProvider = StateProvider<int>((ref) {
   return 0;
 });
 
+/// 曲マスタ更新サービスProvider。
 final songMasterServiceProvider = Provider<SongMasterService>((ref) {
   return SongMasterService(
     ref.read(appSettingsRepositoryProvider),
@@ -21,10 +23,12 @@ final songMasterServiceProvider = Provider<SongMasterService>((ref) {
   );
 });
 
+/// エビデンス保存サービスProvider。
 final evidenceServiceProvider = Provider<EvidenceService>((ref) {
   return EvidenceService(ref.read(evidenceRepositoryProvider));
 });
 
+/// 大会ユースケースProvider。
 final tournamentUseCaseProvider = Provider<TournamentUseCase>((ref) {
   return TournamentUseCase(
     ref.read(tournamentRepositoryProvider),
@@ -34,6 +38,7 @@ final tournamentUseCaseProvider = Provider<TournamentUseCase>((ref) {
   );
 });
 
+/// 曲マスタユースケースProvider。
 final songMasterUseCaseProvider = Provider<SongMasterUseCase>((ref) {
   return SongMasterUseCase(
     ref.read(songMasterRepositoryProvider),
@@ -42,6 +47,7 @@ final songMasterUseCaseProvider = Provider<SongMasterUseCase>((ref) {
   );
 });
 
+/// エビデンスユースケースProvider。
 final evidenceUseCaseProvider = Provider<EvidenceUseCase>((ref) {
   return EvidenceUseCase(
     ref.read(evidenceRepositoryProvider),
@@ -49,10 +55,12 @@ final evidenceUseCaseProvider = Provider<EvidenceUseCase>((ref) {
   );
 });
 
+/// 設定ユースケースProvider。
 final settingsUseCaseProvider = Provider<SettingsUseCase>((ref) {
   return SettingsUseCase(ref.read(appSettingsRepositoryProvider));
 });
 
+/// QR取込ユースケース（サービス）Provider。
 final tournamentImportUseCaseProvider = Provider<TournamentImportService>((ref) {
   return TournamentImportService(
     qrService: ref.read(qrServiceDataSourceProvider),

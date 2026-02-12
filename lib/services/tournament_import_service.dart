@@ -5,6 +5,7 @@ import '../domain/repositories/song_master_repository.dart';
 import '../domain/repositories/tournament_repository.dart';
 import 'qr_service.dart';
 
+/// 大会取り込み処理の結果。
 class TournamentImportResult {
   const TournamentImportResult._({
     required this.success,
@@ -20,6 +21,7 @@ class TournamentImportResult {
       : this._(success: false, message: message);
 }
 
+/// QR/共有画像から受け取った大会データを検証してDBへ登録するサービス。
 class TournamentImportService {
   TournamentImportService({
     required QrService qrService,
@@ -46,6 +48,7 @@ class TournamentImportService {
       '\u66f2\u30de\u30b9\u30bf\u306b\u5b58\u5728\u3057\u306a\u3044\u8b5c\u9762\u304c\u542b\u307e\u308c\u3066\u3044\u307e\u3059\u3002';
   static const _msgNoChartData = '\u8b5c\u9762\u60c5\u5831\u304c\u3042\u308a\u307e\u305b\u3093\u3002';
 
+  /// QR文字列を復号し、共通取り込み処理へ渡す。
   Future<TournamentImportResult> importFromQrRawValue(String rawValue) async {
     try {
       final payload = _qrService.decodeTournament(rawValue);
@@ -57,6 +60,7 @@ class TournamentImportService {
     }
   }
 
+  /// 取り込みペイロードを検証し、大会・譜面を登録する。
   Future<TournamentImportResult> importFromPayload(
     Map<String, dynamic> payload,
   ) async {

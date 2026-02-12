@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/use_case_providers.dart';
 import '../../services/tournament_import_service.dart';
 
+/// QR取込画面の処理中状態を管理するController。
 class TournamentImportController extends AutoDisposeNotifier<bool> {
   @override
   bool build() {
     return false;
   }
 
+  /// 復号・登録の一連処理を実行する。実行中は二重実行を防止する。
   Future<TournamentImportResult> importFromQrRawValue(String rawValue) async {
     if (state) {
       return const TournamentImportResult.failure(

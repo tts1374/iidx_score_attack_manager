@@ -17,6 +17,7 @@ import 'ui/pages/tournament_detail_page.dart';
 import 'ui/pages/tournament_import_page.dart';
 import 'ui/pages/tournament_update_page.dart';
 
+/// 画面ルーティングと OS 共有受信を管理するアプリルート。
 class ScoreAttackApp extends ConsumerStatefulWidget {
   const ScoreAttackApp({super.key});
 
@@ -47,6 +48,7 @@ class _ScoreAttackAppState extends ConsumerState<ScoreAttackApp> {
     _initShareIntentHandling();
   }
 
+  /// 共有起動時と起動後共有の両方を購読し、画像取り込み処理へ流す。
   Future<void> _initShareIntentHandling() async {
     final shareIntentService = ref.read(shareIntentDataSourceProvider);
     try {
@@ -122,6 +124,7 @@ class _ScoreAttackAppState extends ConsumerState<ScoreAttackApp> {
         value.endsWith('.webp');
   }
 
+  /// 画面共通の通知表示。
   void _showMessage(String message) {
     _scaffoldMessengerKey.currentState
       ?..hideCurrentSnackBar()
