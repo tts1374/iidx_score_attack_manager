@@ -3,33 +3,34 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../app_services.dart';
 import '../../core/date_utils.dart';
 import '../../core/difficulty_color.dart';
 import '../../data/models/evidence.dart';
 import '../../data/models/song_master.dart';
 import '../../data/models/tournament.dart';
 import '../../data/models/tournament_chart.dart';
+import '../../providers/data_source_providers.dart';
+import '../../providers/use_case_providers.dart';
 import '../../services/post_image_service.dart';
 import 'evidence_register_page.dart';
 import 'tournament_update_page.dart';
 
-class TournamentDetailPage extends StatefulWidget {
+class TournamentDetailPage extends ConsumerStatefulWidget {
   const TournamentDetailPage({super.key});
 
   static const String routeName = '/tournaments/detail';
 
   @override
-  State<TournamentDetailPage> createState() => _TournamentDetailPageState();
+  ConsumerState<TournamentDetailPage> createState() =>
+      _TournamentDetailPageState();
 }
 
-class _TournamentDetailPageState extends State<TournamentDetailPage> {
-  final _services = AppServices.instance;
-  final _postImageService = PostImageService();
+class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
   late Future<TournamentDetailView> _detail;
 
   @override
@@ -40,13 +41,17 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
   }
 
   Future<TournamentDetailView> _load(String uuid) async {
-    final tournament = await _services.tournamentRepo.fetchByUuid(uuid);
+    final tournamentUseCase = ref.read(tournamentUseCaseProvider);
+    final evidenceUseCase = ref.read(evidenceUseCaseProvider);
+    final songMasterUseCase = ref.read(songMasterUseCaseProvider);
+
+    final tournament = await tournamentUseCase.fetchByUuid(uuid);
     if (tournament == null) {
       throw StateError('Tournament not found');
     }
 
-    final charts = await _services.tournamentRepo.fetchCharts(uuid);
-    final evidences = await _services.evidenceRepo.fetchEvidencesByTournament(
+    final charts = await tournamentUseCase.fetchCharts(uuid);
+    final evidences = await evidenceUseCase.fetchEvidencesByTournament(
       uuid,
     );
     final evidenceMap = {
@@ -55,12 +60,12 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
 
     final items = <TournamentChartView>[];
     for (final chart in charts) {
-      final chartInfo = await _services.songMasterRepo.fetchChartById(
+      final chartInfo = await songMasterUseCase.fetchChartById(
         chart.chartId,
       );
       SongMasterMusic? music;
       if (chartInfo != null) {
-        music = await _services.songMasterRepo.fetchMusicById(chartInfo.musicId);
+        music = await songMasterUseCase.fetchMusicById(chartInfo.musicId);
       }
       items.add(
         TournamentChartView(
@@ -76,6 +81,9 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
   }
 
   Future<void> _deleteTournament(String uuid) async {
+    final tournamentUseCase = ref.read(tournamentUseCaseProvider);
+    final evidenceUseCase = ref.read(evidenceUseCaseProvider);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -95,14 +103,12 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
     );
     if (confirmed != true) return;
 
-    final evidences = await _services.evidenceRepo.fetchEvidencesByTournament(
-      uuid,
-    );
+    final evidences = await evidenceUseCase.fetchEvidencesByTournament(uuid);
     for (final evidence in evidences) {
-      await _services.evidenceService.deleteEvidence(evidence);
+      await evidenceUseCase.deleteEvidence(evidence);
     }
 
-    final tournament = await _services.tournamentRepo.fetchByUuid(uuid);
+    final tournament = await tournamentUseCase.fetchByUuid(uuid);
     final backgroundPath = tournament?.backgroundImagePath;
     if (backgroundPath != null) {
       final file = File(backgroundPath);
@@ -111,7 +117,7 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
       }
     }
 
-    await _services.tournamentRepo.deleteTournament(uuid);
+    await tournamentUseCase.deleteTournament(uuid);
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
@@ -129,7 +135,7 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
         )
         .toList();
 
-    final qrData = _services.qrService.encodeTournament({
+    final qrData = ref.read(qrServiceDataSourceProvider).encodeTournament({
       'tournament_uuid': detail.tournament.tournamentUuid,
       'tournament_name': detail.tournament.tournamentName,
       'owner': detail.tournament.owner,
@@ -157,7 +163,7 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
       background: await _loadBackgroundImage(detail.tournament.backgroundImagePath),
     );
 
-    final bytes = await _postImageService.generate(postData);
+    final bytes = await ref.read(postImageDataSourceProvider).generate(postData);
     final tempDir = await getTemporaryDirectory();
     final path = p.join(tempDir.path, '${detail.tournament.tournamentUuid}_post.png');
     final file = File(path);
@@ -225,7 +231,7 @@ class _TournamentDetailPageState extends State<TournamentDetailPage> {
     final postedAt = nowJst().toIso8601String();
     for (final evidence in pending) {
       if (evidence.evidenceId != null) {
-        await _services.evidenceRepo.markUpdatePosted(
+        await ref.read(evidenceUseCaseProvider).markUpdatePosted(
           evidenceId: evidence.evidenceId!,
           postedAt: postedAt,
         );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 
 import 'package:diacritic/diacritic.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
@@ -9,25 +10,25 @@ import 'package:path_provider/path_provider.dart';
 import 'package:search_choices/search_choices.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../app_services.dart';
 import '../../core/constants.dart';
 import '../../core/date_utils.dart';
 import '../../core/version_map.dart';
 import '../../data/models/song_master.dart';
 import '../../data/models/tournament.dart';
 import '../../data/models/tournament_chart.dart';
+import '../../providers/use_case_providers.dart';
 
-class TournamentCreatePage extends StatefulWidget {
+class TournamentCreatePage extends ConsumerStatefulWidget {
   const TournamentCreatePage({super.key});
 
   static const String routeName = '/tournaments/create';
 
   @override
-  State<TournamentCreatePage> createState() => _TournamentCreatePageState();
+  ConsumerState<TournamentCreatePage> createState() =>
+      _TournamentCreatePageState();
 }
 
-class _TournamentCreatePageState extends State<TournamentCreatePage> {
-  final _services = AppServices.instance;
+class _TournamentCreatePageState extends ConsumerState<TournamentCreatePage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _ownerController = TextEditingController();
@@ -44,7 +45,7 @@ class _TournamentCreatePageState extends State<TournamentCreatePage> {
   @override
   void initState() {
     super.initState();
-    _musicOptionsFuture = _services.songMasterRepo.fetchActiveMusic();
+    _musicOptionsFuture = ref.read(songMasterUseCaseProvider).fetchActiveMusic();
     _addSelection();
   }
 
@@ -113,7 +114,9 @@ class _TournamentCreatePageState extends State<TournamentCreatePage> {
     selection.music = music;
     selection.playStyle = null;
     selection.difficulty = null;
-    selection.charts = await _services.songMasterRepo.fetchChartsByMusic(
+    selection.charts = await ref
+        .read(songMasterUseCaseProvider)
+        .fetchChartsByMusic(
       music.musicId,
     );
     if (!mounted) return;
@@ -224,7 +227,7 @@ class _TournamentCreatePageState extends State<TournamentCreatePage> {
       );
     }).toList();
 
-    await _services.tournamentRepo.createTournament(tournament, charts);
+    await ref.read(tournamentUseCaseProvider).createTournament(tournament, charts);
     if (!mounted) return;
     setState(() => _saving = false);
     Navigator.of(context).pop(true);

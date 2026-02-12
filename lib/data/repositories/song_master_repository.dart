@@ -1,13 +1,13 @@
-import 'package:sqflite/sqflite.dart';
-
+import '../../domain/repositories/song_master_repository.dart';
 import '../db/song_master_database.dart';
 import '../models/song_master.dart';
 
-class SongMasterRepository {
+class SongMasterRepository implements SongMasterRepositoryContract {
   SongMasterRepository(this._db);
 
   final SongMasterDatabase _db;
 
+  @override
   Future<List<SongMasterMusic>> searchMusic(String keyword) async {
     final db = await _db.database;
     if (db == null) {
@@ -23,6 +23,7 @@ class SongMasterRepository {
     return rows.map(SongMasterMusic.fromMap).toList();
   }
 
+  @override
   Future<List<SongMasterMusic>> fetchActiveMusic() async {
     final db = await _db.database;
     if (db == null) {
@@ -36,6 +37,7 @@ class SongMasterRepository {
     return rows.map(SongMasterMusic.fromMap).toList();
   }
 
+  @override
   Future<List<SongMasterChart>> fetchChartsByMusic(int musicId) async {
     final db = await _db.database;
     if (db == null) {
@@ -50,6 +52,7 @@ class SongMasterRepository {
     return rows.map(SongMasterChart.fromMap).toList();
   }
 
+  @override
   Future<SongMasterChart?> fetchChartById(int chartId) async {
     final db = await _db.database;
     if (db == null) {
@@ -67,6 +70,7 @@ class SongMasterRepository {
     return SongMasterChart.fromMap(rows.first);
   }
 
+  @override
   Future<SongMasterMusic?> fetchMusicById(int musicId) async {
     final db = await _db.database;
     if (db == null) {
@@ -84,6 +88,7 @@ class SongMasterRepository {
     return SongMasterMusic.fromMap(rows.first);
   }
 
+  @override
   Future<String?> fetchMetaValue(String key) async {
     final db = await _db.database;
     if (db == null) {

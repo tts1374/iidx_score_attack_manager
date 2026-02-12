@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app_services.dart';
 import '../../core/date_utils.dart';
 import '../../data/models/tournament.dart';
+import '../../providers/data_source_providers.dart';
 import '../../services/song_master_service.dart';
+import '../../providers/use_case_providers.dart';
 import 'settings_page.dart';
 import 'tournament_create_page.dart';
 import 'tournament_detail_page.dart';
@@ -12,26 +14,32 @@ import 'tournament_import_page.dart';
 
 enum _TournamentTab { ongoing, upcoming, ended }
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   static const String routeName = '/';
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final _services = AppServices.instance;
+class _HomePageState extends ConsumerState<HomePage> {
+  static const _songMasterNotReadyMessage =
+      '曲マスタが未登録です。初回起動時の曲マスタ取得が完了するまでしばらくお待ちください。';
+
   late Future<List<_TournamentListItem>> _items;
   bool _checkedMaster = false;
   _TournamentTab _selectedTab = _TournamentTab.ongoing;
+  ProviderSubscription<int>? _tournamentsChangedSubscription;
 
   @override
   void initState() {
     super.initState();
-    _services.tournamentsChanged.addListener(_handleTournamentsChanged);
     _items = _load();
+    _tournamentsChangedSubscription = ref.listenManual<int>(
+      tournamentsChangedProvider,
+      (_, _) => _handleTournamentsChanged(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkSongMaster();
     });
@@ -39,7 +47,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    _services.tournamentsChanged.removeListener(_handleTournamentsChanged);
+    _tournamentsChangedSubscription?.close();
     super.dispose();
   }
 
@@ -55,7 +63,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _checkSongMaster() async {
     if (_checkedMaster) return;
     _checkedMaster = true;
-    final result = await _services.songMasterService
+    final result = await ref
+        .read(songMasterUseCaseProvider)
         .checkAndUpdateIfNeeded()
         .timeout(
           const Duration(seconds: 15),
@@ -68,12 +77,14 @@ class _HomePageState extends State<HomePage> {
       await showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('エラー'),
-          content: Text(result.message ?? '曲マスタの取得に失敗しました。'),
+          title: const Text('\u30a8\u30e9\u30fc'),
+          content: Text(
+            result.message ?? '\u30de\u30b9\u30bf\u306e\u66f4\u65b0\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002',
+          ),
           actions: [
             TextButton(
               onPressed: () => SystemNavigator.pop(),
-              child: const Text('終了'),
+              child: const Text('\u7d42\u4e86'),
             ),
           ],
         ),
@@ -86,16 +97,19 @@ class _HomePageState extends State<HomePage> {
       await showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('曲マスタ更新'),
-          content: Text(result.message ?? '曲マスタが利用できません。'),
+          title: const Text('\u66f2\u30de\u30b9\u30bf\u66f4\u65b0'),
+          content: Text(
+            result.message ??
+                '\u66f2\u30de\u30b9\u30bf\u3092\u5229\u7528\u3067\u304d\u307e\u305b\u3093\u3002',
+          ),
           actions: [
             if (result.status == SongMasterUpdateStatus.invalidSchema)
               TextButton(
                 onPressed: () async {
-                  await _services.songMasterDb.reset();
+                  await ref.read(songMasterUseCaseProvider).resetDatabase();
                   if (mounted) Navigator.of(context).pop();
                 },
-                child: const Text('再取得'),
+                child: const Text('\u518d\u751f\u6210'),
               ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -118,9 +132,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<List<_TournamentListItem>> _load() async {
-    final tournaments = await _services.tournamentRepo
-        .fetchAll()
-        .timeout(
+    final tournamentUseCase = ref.read(tournamentUseCaseProvider);
+    final evidenceUseCase = ref.read(evidenceUseCaseProvider);
+
+    final tournaments = await tournamentUseCase.fetchAll().timeout(
           const Duration(seconds: 8),
           onTimeout: () => <Tournament>[],
         );
@@ -132,17 +147,13 @@ class _HomePageState extends State<HomePage> {
     Map<String, int> chartCounts = const {};
     Map<String, int> submittedCounts = const {};
     try {
-      chartCounts = await _services.tournamentRepo
-          .countChartsByTournament()
-          .timeout(
+      chartCounts = await tournamentUseCase.countChartsByTournament().timeout(
             const Duration(seconds: 4),
             onTimeout: () => <String, int>{},
           );
     } catch (_) {}
     try {
-      submittedCounts = await _services.evidenceRepo
-          .countSubmittedByTournamentAll()
-          .timeout(
+      submittedCounts = await evidenceUseCase.countSubmittedByTournamentAll().timeout(
             const Duration(seconds: 4),
             onTimeout: () => <String, int>{},
           );
@@ -170,6 +181,32 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _openTournamentCreatePage() async {
+    final masterPath = await ref
+        .read(songMasterDataSourceProvider)
+        .existingPath()
+        .timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => null,
+        );
+    if (!mounted) return;
+    if (masterPath == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text(_songMasterNotReadyMessage)),
+        );
+      return;
+    }
+    final result = await Navigator.pushNamed(
+      context,
+      TournamentCreatePage.routeName,
+    );
+    if (result == true) {
+      _refresh();
+    }
+  }
+
   List<_TournamentListItem> _applyFilters(List<_TournamentListItem> items) {
     final filtered = items.where((item) => item.status == _selectedTab).toList();
     filtered.sort((a, b) {
@@ -189,7 +226,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('大会一覧'),
+        title: const Text('\u5927\u4f1a\u4e00\u89a7'),
         actions: [
           IconButton(
             onPressed: () => Navigator.pushNamed(
@@ -221,11 +258,15 @@ class _HomePageState extends State<HomePage> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return const Center(child: Text('読み込みに失敗しました。'));
+                  return const Center(
+                    child: Text('\u8aad\u307f\u8fbc\u307f\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002'),
+                  );
                 }
                 final items = _applyFilters(snapshot.data ?? []);
                 if (items.isEmpty) {
-                  return const Center(child: Text('表示できる大会がありません。'));
+                  return const Center(
+                    child: Text('\u8868\u793a\u3067\u304d\u308b\u5927\u4f1a\u304c\u3042\u308a\u307e\u305b\u3093\u3002'),
+                  );
                 }
                 return RefreshIndicator(
                   onRefresh: _refresh,
@@ -277,22 +318,14 @@ class _HomePageState extends State<HomePage> {
               _refresh();
             }
           },
-          label: const Text('QR取込'),
+          label: const Text('\u0051\u0052\u53d6\u8fbc'),
           icon: const Icon(Icons.qr_code_scanner),
         ),
         const SizedBox(height: 12),
         FloatingActionButton.extended(
           heroTag: 'create',
-          onPressed: () async {
-            final result = await Navigator.pushNamed(
-              context,
-              TournamentCreatePage.routeName,
-            );
-            if (result == true) {
-              _refresh();
-            }
-          },
-          label: const Text('大会作成'),
+          onPressed: _openTournamentCreatePage,
+          label: const Text('\u5927\u4f1a\u4f5c\u6210'),
           icon: const Icon(Icons.add),
         ),
       ],
@@ -328,16 +361,13 @@ class _TournamentCard extends StatelessWidget {
     final tournament = item.tournament;
     final isOngoing = item.status == _TournamentTab.ongoing;
     final totalCharts = item.chartCount.clamp(0, 4);
-    final submitted = totalCharts == 0
-        ? 0
-        : item.submittedCount.clamp(0, totalCharts);
+    final submitted = totalCharts == 0 ? 0 : item.submittedCount.clamp(0, totalCharts);
     final progress = totalCharts == 0 ? 0.0 : submitted / totalCharts;
     final hasPending = totalCharts > 0 && submitted < totalCharts;
 
     final today = parseJstYmd(formatYmd(nowJst()));
     final remainingDays = parseJstYmd(tournament.endDate).difference(today).inDays;
-    final daysUntilStart =
-        parseJstYmd(tournament.startDate).difference(today).inDays;
+    final daysUntilStart = parseJstYmd(tournament.startDate).difference(today).inDays;
     final deadlineTone = _DeadlineTone.fromRemainingDays(remainingDays);
 
     return InkWell(
@@ -380,7 +410,9 @@ class _TournamentCard extends StatelessWidget {
                     if (isOngoing) ...[
                       const SizedBox(width: 8),
                       _DeadlineBadge(
-                        label: remainingDays == 0 ? '本日まで' : '残り$remainingDays日',
+                        label: remainingDays == 0
+                            ? '\u672c\u65e5\u307e\u3067'
+                            : '\u6b8b\u308a$remainingDays\u65e5',
                         tone: deadlineTone,
                       ),
                     ],
@@ -409,7 +441,7 @@ class _TournamentCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${tournament.startDate}〜${tournament.endDate}',
+                  '${tournament.startDate}\u301c${tournament.endDate}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.grey.shade700,
                       ),
@@ -418,7 +450,7 @@ class _TournamentCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '提出: $submitted/$totalCharts',
+                      '\u63d0\u51fa: $submitted/$totalCharts',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey.shade800,
                             fontWeight: FontWeight.w600,
@@ -488,15 +520,15 @@ class _FilterRow extends StatelessWidget {
       children: const [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text('開催中'),
+          child: Text('\u958b\u50ac\u4e2d'),
         ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text('開催前'),
+          child: Text('\u958b\u50ac\u524d'),
         ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text('終了'),
+          child: Text('\u7d42\u4e86'),
         ),
       ],
     );
@@ -520,18 +552,18 @@ class _StatusChip extends StatelessWidget {
 
     switch (status) {
       case _TournamentTab.ongoing:
-        label = '開催中';
+        label = '\u958b\u50ac\u4e2d';
         bg = const Color(0xFFDCEAFE);
         fg = const Color(0xFF1D4ED8);
         break;
       case _TournamentTab.upcoming:
         final days = (daysUntilStart ?? 0).clamp(0, 9999);
-        label = 'あと$days日';
+        label = '\u3042\u3068$days\u65e5';
         bg = const Color(0xFFE5E7EB);
         fg = const Color(0xFF374151);
         break;
       case _TournamentTab.ended:
-        label = '終了';
+        label = '\u7d42\u4e86';
         bg = const Color(0xFFF3F4F6);
         fg = const Color(0xFF6B7280);
         break;

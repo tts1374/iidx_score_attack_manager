@@ -4,26 +4,26 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app_services.dart';
 import '../../core/date_utils.dart';
-import '../../data/models/tournament.dart';
 import '../../data/models/song_master.dart';
+import '../../data/models/tournament.dart';
+import '../../providers/data_source_providers.dart';
+import '../../providers/use_case_providers.dart';
 import '../../services/post_image_service.dart';
 import '../../services/qr_service.dart';
 
-class PostSupportPage extends StatefulWidget {
+class PostSupportPage extends ConsumerStatefulWidget {
   const PostSupportPage({super.key});
 
   static const String routeName = '/post-support';
 
   @override
-  State<PostSupportPage> createState() => _PostSupportPageState();
+  ConsumerState<PostSupportPage> createState() => _PostSupportPageState();
 }
 
-class _PostSupportPageState extends State<PostSupportPage> {
-  final _services = AppServices.instance;
-  final _postImageService = PostImageService();
+class _PostSupportPageState extends ConsumerState<PostSupportPage> {
   Uint8List? _preview;
   bool _generating = false;
   late Future<_PostSupportView> _view;
@@ -36,7 +36,9 @@ class _PostSupportPageState extends State<PostSupportPage> {
   }
 
   Future<_PostSupportView> _load(String uuid) async {
-    final tournament = await _services.tournamentRepo.fetchByUuid(uuid);
+    final tournamentUseCase = ref.read(tournamentUseCaseProvider);
+    final songMasterUseCase = ref.read(songMasterUseCaseProvider);
+    final tournament = await tournamentUseCase.fetchByUuid(uuid);
     if (tournament == null) {
       throw StateError('Tournament not found');
     }
@@ -48,20 +50,21 @@ class _PostSupportPageState extends State<PostSupportPage> {
         background = await _decodeImage(bytes);
       }
     }
-    final charts = await _services.tournamentRepo.fetchCharts(uuid);
+    final charts = await tournamentUseCase.fetchCharts(uuid);
     final details = <_ChartDetail>[];
     for (final chart in charts) {
-      final chartInfo =
-          await _services.songMasterRepo.fetchChartById(chart.chartId);
+      final chartInfo = await songMasterUseCase.fetchChartById(chart.chartId);
       SongMasterMusic? music;
       if (chartInfo != null) {
-        music = await _services.songMasterRepo.fetchMusicById(chartInfo.musicId);
+        music = await songMasterUseCase.fetchMusicById(chartInfo.musicId);
       }
-      details.add(_ChartDetail(
-        chart: chartInfo,
-        music: music,
-        sortOrder: chart.sortOrder,
-      ));
+      details.add(
+        _ChartDetail(
+          chart: chartInfo,
+          music: music,
+          sortOrder: chart.sortOrder,
+        ),
+      );
     }
     return _PostSupportView(tournament, details, background);
   }
@@ -70,7 +73,7 @@ class _PostSupportPageState extends State<PostSupportPage> {
     if (_generating) return;
     setState(() => _generating = true);
     try {
-      final qrData = _services.qrService.encodeTournament({
+      final qrData = ref.read(qrServiceDataSourceProvider).encodeTournament({
         'tournament_uuid': view.tournament.tournamentUuid,
         'tournament_name': view.tournament.tournamentName,
         'owner': view.tournament.owner,
@@ -89,13 +92,13 @@ class _PostSupportPageState extends State<PostSupportPage> {
       final data = PostImageData(
         qrData: qrData,
         title: view.tournament.tournamentName,
-        period: '${view.tournament.startDate}〜${view.tournament.endDate}',
+        period: '${view.tournament.startDate}\u301c${view.tournament.endDate}',
         hashtag: view.tournament.hashtag,
         charts: view.charts
             .map(
               (detail) => PostChartLine(
                 version: detail.music?.version ?? '',
-                title: detail.music?.title ?? '不明な曲',
+                title: detail.music?.title ?? '\u4e0d\u660e\u306a\u66f2',
                 playStyle: detail.chart?.playStyle ?? '',
                 difficulty: detail.chart?.difficulty ?? '',
                 level: detail.chart?.level ?? 0,
@@ -104,10 +107,12 @@ class _PostSupportPageState extends State<PostSupportPage> {
             .toList(),
         background: view.background,
       );
-      final imageBytes = await _postImageService.generate(data);
+      final imageBytes = await ref.read(postImageDataSourceProvider).generate(data);
       setState(() => _preview = imageBytes);
     } on QrTooLargeException {
-      await _showMessage('QRコードが作成できませんでした');
+      await _showMessage(
+        '\u0051\u0052\u30b3\u30fc\u30c9\u304c\u4f5c\u6210\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f',
+      );
     } finally {
       if (mounted) {
         setState(() => _generating = false);
@@ -119,7 +124,7 @@ class _PostSupportPageState extends State<PostSupportPage> {
     await showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('確認'),
+        title: const Text('\u901a\u77e5'),
         content: Text(message),
         actions: [
           TextButton(
@@ -140,7 +145,7 @@ class _PostSupportPageState extends State<PostSupportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('投稿支援')),
+      appBar: AppBar(title: const Text('\u6295\u7a3f\u652f\u63f4')),
       body: FutureBuilder<_PostSupportView>(
         future: _view,
         builder: (context, snapshot) {
@@ -148,16 +153,20 @@ class _PostSupportPageState extends State<PostSupportPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return const Center(child: Text('読み込みに失敗しました。'));
+            return const Center(
+              child: Text('\u8aad\u307f\u8fbc\u307f\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002'),
+            );
           }
           final view = snapshot.data!;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(view.tournament.tournamentName,
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                view.tournament.tournamentName,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
-              Text('${view.tournament.startDate}〜${view.tournament.endDate}'),
+              Text('${view.tournament.startDate}\u301c${view.tournament.endDate}'),
               const SizedBox(height: 8),
               Text(view.tournament.hashtag),
               const SizedBox(height: 16),
@@ -167,7 +176,7 @@ class _PostSupportPageState extends State<PostSupportPage> {
                     onPressed: _generating ? null : () => _generate(view),
                     child: _generating
                         ? const CircularProgressIndicator()
-                        : const Text('投稿画像生成'),
+                        : const Text('\u6295\u7a3f\u753b\u50cf\u751f\u6210'),
                   ),
                 ],
               ),
@@ -175,14 +184,14 @@ class _PostSupportPageState extends State<PostSupportPage> {
               if (_preview != null)
                 Image.memory(_preview!)
               else
-                const Text('生成結果がここに表示されます。'),
+                const Text('\u751f\u6210\u3055\u308c\u305f\u753b\u50cf\u304c\u3053\u3053\u306b\u8868\u793a\u3055\u308c\u307e\u3059\u3002'),
               const SizedBox(height: 16),
               Text(
                 isActiveTournament(view.tournament.startDate, view.tournament.endDate)
-                    ? '開催中'
+                    ? '\u958b\u50ac\u4e2d'
                     : isFutureTournament(view.tournament.startDate)
-                        ? '未来'
-                        : '終了',
+                        ? '\u672a\u958b\u50ac'
+                        : '\u7d42\u4e86',
               ),
             ],
           );

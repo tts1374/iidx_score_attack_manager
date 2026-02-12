@@ -2,13 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_sharing_intent/model/sharing_file.dart';
 
-import 'app_services.dart';
 import 'core/constants.dart';
-import 'services/qr_from_image_service.dart';
-import 'services/share_intent_service.dart';
-import 'services/tournament_import_service.dart';
+import 'providers/data_source_providers.dart';
+import 'providers/use_case_providers.dart';
 import 'ui/pages/evidence_register_page.dart';
 import 'ui/pages/home_page.dart';
 import 'ui/pages/post_support_page.dart';
@@ -18,18 +17,16 @@ import 'ui/pages/tournament_detail_page.dart';
 import 'ui/pages/tournament_import_page.dart';
 import 'ui/pages/tournament_update_page.dart';
 
-class ScoreAttackApp extends StatefulWidget {
+class ScoreAttackApp extends ConsumerStatefulWidget {
   const ScoreAttackApp({super.key});
 
   @override
-  State<ScoreAttackApp> createState() => _ScoreAttackAppState();
+  ConsumerState<ScoreAttackApp> createState() => _ScoreAttackAppState();
 }
 
-class _ScoreAttackAppState extends State<ScoreAttackApp> {
+class _ScoreAttackAppState extends ConsumerState<ScoreAttackApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
-  final _shareIntentService = ShareIntentService();
-  final _importService = TournamentImportService(AppServices.instance);
 
   StreamSubscription<List<SharedFile>>? _shareSubscription;
   Future<void> _shareQueue = Future<void>.value();
@@ -51,14 +48,15 @@ class _ScoreAttackAppState extends State<ScoreAttackApp> {
   }
 
   Future<void> _initShareIntentHandling() async {
+    final shareIntentService = ref.read(shareIntentDataSourceProvider);
     try {
-      final initialFiles = await _shareIntentService.getInitialFiles();
+      final initialFiles = await shareIntentService.getInitialFiles();
       _enqueueShareHandling(initialFiles);
     } catch (_) {
       _showMessage(_msgReadSharedDataFailed);
     }
 
-    _shareSubscription = _shareIntentService.mediaStream().listen(
+    _shareSubscription = shareIntentService.mediaStream().listen(
       _enqueueShareHandling,
       onError: (_) => _showMessage(_msgReadSharedDataFailed),
     );
@@ -73,6 +71,8 @@ class _ScoreAttackAppState extends State<ScoreAttackApp> {
   }
 
   Future<void> _handleSharedFiles(List<SharedFile> files) async {
+    final shareIntentService = ref.read(shareIntentDataSourceProvider);
+    final importUseCase = ref.read(tournamentImportUseCaseProvider);
     final imagePaths = files
         .where(_isImageSharedFile)
         .map((file) => file.value)
@@ -81,7 +81,7 @@ class _ScoreAttackAppState extends State<ScoreAttackApp> {
 
     if (imagePaths.isEmpty) {
       _showMessage(_msgNoSharedImage);
-      _shareIntentService.reset();
+      shareIntentService.reset();
       return;
     }
 
@@ -90,23 +90,25 @@ class _ScoreAttackAppState extends State<ScoreAttackApp> {
         continue;
       }
 
-      final rawValue = await QrFromImageService.tryExtractQrRawValue(path);
+      final rawValue = await ref
+          .read(qrFromImageDataSourceProvider)
+          .tryExtractQrRawValue(path);
       if (rawValue == null || rawValue.isEmpty) {
         continue;
       }
 
-      final result = await _importService.importFromQrRawValue(rawValue);
+      final result = await importUseCase.importFromQrRawValue(rawValue);
       if (result.success) {
         _showMessage(_msgImportSuccess);
       } else {
         _showMessage(result.message ?? _msgQrDecodeFailed);
       }
-      _shareIntentService.reset();
+      shareIntentService.reset();
       return;
     }
 
     _showMessage(_msgQrNotFoundInImage);
-    _shareIntentService.reset();
+    shareIntentService.reset();
   }
 
   bool _isImageSharedFile(SharedFile file) {

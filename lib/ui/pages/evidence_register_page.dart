@@ -1,26 +1,27 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../app_services.dart';
 import '../../core/date_utils.dart';
 import '../../core/difficulty_color.dart';
 import '../../data/models/song_master.dart';
 import '../../data/models/tournament.dart';
+import '../../providers/use_case_providers.dart';
 import '../../services/evidence_service.dart';
 
-class EvidenceRegisterPage extends StatefulWidget {
+class EvidenceRegisterPage extends ConsumerStatefulWidget {
   const EvidenceRegisterPage({super.key});
 
   static const String routeName = '/evidences/register';
 
   @override
-  State<EvidenceRegisterPage> createState() => _EvidenceRegisterPageState();
+  ConsumerState<EvidenceRegisterPage> createState() =>
+      _EvidenceRegisterPageState();
 }
 
-class _EvidenceRegisterPageState extends State<EvidenceRegisterPage> {
-  final _services = AppServices.instance;
+class _EvidenceRegisterPageState extends ConsumerState<EvidenceRegisterPage> {
   late Future<_EvidenceRegisterView> _view;
 
   XFile? _selectedImage;
@@ -34,17 +35,23 @@ class _EvidenceRegisterPageState extends State<EvidenceRegisterPage> {
   }
 
   Future<_EvidenceRegisterView> _load(EvidenceRegisterArgs args) async {
-    final tournament = await _services.tournamentRepo.fetchByUuid(args.tournamentUuid);
+    final tournamentUseCase = ref.read(tournamentUseCaseProvider);
+    final songMasterUseCase = ref.read(songMasterUseCaseProvider);
+    final evidenceUseCase = ref.read(evidenceUseCaseProvider);
+
+    final tournament = await tournamentUseCase.fetchByUuid(args.tournamentUuid);
     if (tournament == null) {
       throw StateError('Tournament not found');
     }
-    final chartInfo = await _services.songMasterRepo.fetchChartById(args.chartId);
+    final chartInfo = await songMasterUseCase.fetchChartById(args.chartId);
     SongMasterMusic? music;
     if (chartInfo != null) {
-      music = await _services.songMasterRepo.fetchMusicById(chartInfo.musicId);
+      music = await songMasterUseCase.fetchMusicById(chartInfo.musicId);
     }
-    final evidence =
-        await _services.evidenceRepo.fetchEvidence(args.tournamentUuid, args.chartId);
+    final evidence = await evidenceUseCase.fetchEvidence(
+      args.tournamentUuid,
+      args.chartId,
+    );
     return _EvidenceRegisterView(
       tournament: tournament,
       chartInfo: chartInfo,
@@ -85,7 +92,7 @@ class _EvidenceRegisterPageState extends State<EvidenceRegisterPage> {
       _saving = true;
     });
 
-    final result = await _services.evidenceService.registerEvidenceFile(
+    final result = await ref.read(evidenceUseCaseProvider).registerEvidenceFile(
       tournamentUuid: view.tournament.tournamentUuid,
       chartId: view.chartInfo!.chartId,
       picked: _selectedImage!,

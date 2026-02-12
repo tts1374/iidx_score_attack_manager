@@ -1,26 +1,27 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../app_services.dart';
 import '../../core/date_utils.dart';
 import '../../data/models/tournament.dart';
+import '../../providers/use_case_providers.dart';
 
-class TournamentUpdatePage extends StatefulWidget {
+class TournamentUpdatePage extends ConsumerStatefulWidget {
   const TournamentUpdatePage({super.key});
 
   static const String routeName = '/tournaments/update';
 
   @override
-  State<TournamentUpdatePage> createState() => _TournamentUpdatePageState();
+  ConsumerState<TournamentUpdatePage> createState() =>
+      _TournamentUpdatePageState();
 }
 
-class _TournamentUpdatePageState extends State<TournamentUpdatePage> {
-  final _services = AppServices.instance;
+class _TournamentUpdatePageState extends ConsumerState<TournamentUpdatePage> {
   late Future<Tournament> _tournament;
   XFile? _backgroundImage;
   String? _existingBackgroundPath;
@@ -34,7 +35,7 @@ class _TournamentUpdatePageState extends State<TournamentUpdatePage> {
   }
 
   Future<Tournament> _load(String uuid) async {
-    final tournament = await _services.tournamentRepo.fetchByUuid(uuid);
+    final tournament = await ref.read(tournamentUseCaseProvider).fetchByUuid(uuid);
     if (tournament == null) {
       throw StateError('Tournament not found');
     }
@@ -89,7 +90,7 @@ class _TournamentUpdatePageState extends State<TournamentUpdatePage> {
         _backgroundImage!,
       );
     }
-    await _services.tournamentRepo.updateBackgroundImage(
+    await ref.read(tournamentUseCaseProvider).updateBackgroundImage(
       tournament.tournamentUuid,
       path,
       nowJst().toIso8601String(),

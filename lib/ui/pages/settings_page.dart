@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app_services.dart';
 import '../../core/constants.dart';
+import '../../providers/use_case_providers.dart';
 import '../../services/song_master_service.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   static const String routeName = '/settings';
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
-  final _services = AppServices.instance;
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   late Future<_SettingsView> _view;
   bool _checking = false;
 
@@ -25,14 +25,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<_SettingsView> _load() async {
-    final updatedAt =
-        await _services.settingsRepo.getValue(settingSongMasterAssetUpdatedAt);
-    final downloadedAt =
-        await _services.settingsRepo.getValue(settingSongMasterDownloadedAt);
-    final schemaVersion =
-        await _services.settingsRepo.getValue(settingSongMasterSchemaVersion);
-    final updateSource =
-        await _services.settingsRepo.getValue(settingSongMasterUpdateSource);
+    final settings = ref.read(settingsUseCaseProvider);
+    final updatedAt = await settings.getValue(settingSongMasterAssetUpdatedAt);
+    final downloadedAt = await settings.getValue(settingSongMasterDownloadedAt);
+    final schemaVersion = await settings.getValue(settingSongMasterSchemaVersion);
+    final updateSource = await settings.getValue(settingSongMasterUpdateSource);
     return _SettingsView(
       assetUpdatedAt: updatedAt,
       downloadedAt: downloadedAt,
@@ -44,7 +41,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _refreshMaster() async {
     if (_checking) return;
     setState(() => _checking = true);
-    final result = await _services.songMasterService.checkAndUpdateIfNeeded();
+    final result = await ref.read(songMasterUseCaseProvider).checkAndUpdateIfNeeded();
     if (!mounted) return;
     setState(() {
       _checking = false;
@@ -52,9 +49,11 @@ class _SettingsPageState extends State<SettingsPage> {
     });
     if (result.status == SongMasterUpdateStatus.updated ||
         result.status == SongMasterUpdateStatus.upToDate) {
-      await _showMessage('曲マスタは最新です。');
+      await _showMessage('\u66f2\u30de\u30b9\u30bf\u306f\u6700\u65b0\u3067\u3059\u3002');
     } else {
-      await _showMessage(result.message ?? '更新に失敗しました。');
+      await _showMessage(
+        result.message ?? '\u66f4\u65b0\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002',
+      );
     }
   }
 
@@ -62,7 +61,7 @@ class _SettingsPageState extends State<SettingsPage> {
     await showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('確認'),
+        title: const Text('\u901a\u77e5'),
         content: Text(message),
         actions: [
           TextButton(
@@ -77,7 +76,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('設定')),
+      appBar: AppBar(title: const Text('\u8a2d\u5b9a')),
       body: FutureBuilder<_SettingsView>(
         future: _view,
         builder: (context, snapshot) {
@@ -85,26 +84,34 @@ class _SettingsPageState extends State<SettingsPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError || !snapshot.hasData) {
-            return const Center(child: Text('読み込みに失敗しました。'));
+            return const Center(
+              child: Text('\u8aad\u307f\u8fbc\u307f\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002'),
+            );
           }
           final view = snapshot.data!;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               ListTile(
-                title: const Text('曲マスタ更新日時'),
-                subtitle: Text(view.assetUpdatedAt ?? '未取得'),
+                title: const Text('\u66f2\u30de\u30b9\u30bf\u66f4\u65b0\u65e5\u6642'),
+                subtitle: Text(
+                  view.assetUpdatedAt ?? '\u672a\u53d6\u5f97',
+                ),
               ),
               ListTile(
-                title: const Text('ダウンロード日時'),
-                subtitle: Text(view.downloadedAt ?? '未取得'),
+                title: const Text('\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9\u65e5\u6642'),
+                subtitle: Text(
+                  view.downloadedAt ?? '\u672a\u53d6\u5f97',
+                ),
               ),
               ListTile(
-                title: const Text('スキーマバージョン'),
-                subtitle: Text(view.schemaVersion ?? '未取得'),
+                title: const Text('\u30b9\u30ad\u30fc\u30de\u30d0\u30fc\u30b8\u30e7\u30f3'),
+                subtitle: Text(
+                  view.schemaVersion ?? '\u672a\u53d6\u5f97',
+                ),
               ),
               ListTile(
-                title: const Text('更新元'),
+                title: const Text('\u66f4\u65b0\u5143'),
                 subtitle: Text(_formatSource(view.updateSource)),
               ),
               const SizedBox(height: 16),
@@ -112,7 +119,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 onPressed: _checking ? null : _refreshMaster,
                 child: _checking
                     ? const CircularProgressIndicator()
-                    : const Text('更新確認'),
+                    : const Text('\u66f4\u65b0\u78ba\u8a8d'),
               ),
             ],
           );
@@ -139,12 +146,12 @@ class _SettingsView {
 String _formatSource(String? source) {
   switch (source) {
     case songMasterSourceGithubDownload:
-      return 'GitHubダウンロード';
+      return 'GitHub\u30c0\u30a6\u30f3\u30ed\u30fc\u30c9';
     case songMasterSourceGithubMetadata:
-      return 'GitHubメタ更新';
+      return 'GitHub\u30e1\u30bf\u66f4\u65b0';
     case songMasterSourceLocalCache:
-      return 'ローカルキャッシュ';
+      return '\u30ed\u30fc\u30ab\u30eb\u30ad\u30e3\u30c3\u30b7\u30e5';
     default:
-      return '未取得';
+      return '\u672a\u53d6\u5f97';
   }
 }

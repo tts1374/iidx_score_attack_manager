@@ -1,13 +1,15 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../domain/repositories/app_settings_repository.dart';
 import '../db/app_database.dart';
 import '../models/app_setting.dart';
 
-class AppSettingsRepository {
+class AppSettingsRepository implements AppSettingsRepositoryContract {
   AppSettingsRepository(this._db);
 
   final AppDatabase _db;
 
+  @override
   Future<String?> getValue(String key) async {
     final db = await _db.database;
     final rows =
@@ -18,6 +20,7 @@ class AppSettingsRepository {
     return AppSetting.fromMap(rows.first).value;
   }
 
+  @override
   Future<void> setValue(String key, String value) async {
     final db = await _db.database;
     await db.insert(

@@ -1,14 +1,16 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../domain/repositories/tournament_repository.dart';
 import '../db/app_database.dart';
 import '../models/tournament.dart';
 import '../models/tournament_chart.dart';
 
-class TournamentRepository {
+class TournamentRepository implements TournamentRepositoryContract {
   TournamentRepository(this._db);
 
   final AppDatabase _db;
 
+  @override
   Future<void> createTournament(
     Tournament tournament,
     List<TournamentChart> charts,
@@ -22,6 +24,7 @@ class TournamentRepository {
     });
   }
 
+  @override
   Future<List<Tournament>> fetchAll() async {
     final db = await _db.database;
     final rows = await db.query(
@@ -31,6 +34,7 @@ class TournamentRepository {
     return rows.map(Tournament.fromMap).toList();
   }
 
+  @override
   Future<Tournament?> fetchByUuid(String uuid) async {
     final db = await _db.database;
     final rows = await db.query(
@@ -45,6 +49,7 @@ class TournamentRepository {
     return Tournament.fromMap(rows.first);
   }
 
+  @override
   Future<bool> exists(String uuid) async {
     final db = await _db.database;
     final rows = await db.rawQuery(
@@ -54,6 +59,7 @@ class TournamentRepository {
     return rows.isNotEmpty;
   }
 
+  @override
   Future<List<TournamentChart>> fetchCharts(String uuid) async {
     final db = await _db.database;
     final rows = await db.query(
@@ -74,6 +80,7 @@ class TournamentRepository {
     return Sqflite.firstIntValue(rows) ?? 0;
   }
 
+  @override
   Future<Map<String, int>> countChartsByTournament() async {
     final db = await _db.database;
     final rows = await db.rawQuery(
@@ -90,6 +97,7 @@ class TournamentRepository {
     return result;
   }
 
+  @override
   Future<void> deleteTournament(String uuid) async {
     final db = await _db.database;
     await db.transaction((txn) async {
@@ -100,6 +108,7 @@ class TournamentRepository {
     });
   }
 
+  @override
   Future<void> updateBackgroundImage(
     String uuid,
     String? backgroundImagePath,

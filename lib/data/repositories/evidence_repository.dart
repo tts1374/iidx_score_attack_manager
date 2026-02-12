@@ -1,13 +1,15 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../domain/repositories/evidence_repository.dart';
 import '../db/app_database.dart';
 import '../models/evidence.dart';
 
-class EvidenceRepository {
+class EvidenceRepository implements EvidenceRepositoryContract {
   EvidenceRepository(this._db);
 
   final AppDatabase _db;
 
+  @override
   Future<Evidence?> fetchEvidence(String uuid, int chartId) async {
     final db = await _db.database;
     final rows = await db.query(
@@ -22,6 +24,7 @@ class EvidenceRepository {
     return Evidence.fromMap(rows.first);
   }
 
+  @override
   Future<List<Evidence>> fetchEvidencesByTournament(String uuid) async {
     final db = await _db.database;
     final rows = await db.query(
@@ -32,6 +35,7 @@ class EvidenceRepository {
     return rows.map(Evidence.fromMap).toList();
   }
 
+  @override
   Future<int> countSubmittedByTournament(String uuid) async {
     final db = await _db.database;
     final rows = await db.rawQuery(
@@ -41,6 +45,7 @@ class EvidenceRepository {
     return Sqflite.firstIntValue(rows) ?? 0;
   }
 
+  @override
   Future<Map<String, int>> countSubmittedByTournamentAll() async {
     final db = await _db.database;
     final rows = await db.rawQuery(
@@ -57,6 +62,7 @@ class EvidenceRepository {
     return result;
   }
 
+  @override
   Future<void> upsertEvidence(Evidence evidence) async {
     final db = await _db.database;
     await db.insert(
@@ -66,6 +72,7 @@ class EvidenceRepository {
     );
   }
 
+  @override
   Future<void> deleteEvidence(String uuid, int chartId) async {
     final db = await _db.database;
     await db.delete(
@@ -75,6 +82,7 @@ class EvidenceRepository {
     );
   }
 
+  @override
   Future<void> markUpdatePosted({
     required int evidenceId,
     required String postedAt,

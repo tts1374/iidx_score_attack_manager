@@ -1,7 +1,8 @@
-import '../app_services.dart';
 import '../core/date_utils.dart';
 import '../data/models/tournament.dart';
 import '../data/models/tournament_chart.dart';
+import '../domain/repositories/song_master_repository.dart';
+import '../domain/repositories/tournament_repository.dart';
 import 'qr_service.dart';
 
 class TournamentImportResult {
@@ -20,9 +21,21 @@ class TournamentImportResult {
 }
 
 class TournamentImportService {
-  TournamentImportService(this._services);
+  TournamentImportService({
+    required QrService qrService,
+    required TournamentRepositoryContract tournamentRepository,
+    required SongMasterRepositoryContract songMasterRepository,
+    required void Function() onChanged,
+  })  : _qrService = qrService,
+        _tournamentRepository = tournamentRepository,
+        _songMasterRepository = songMasterRepository,
+        _onChanged = onChanged;
 
-  final AppServices _services;
+  final QrService _qrService;
+  final TournamentRepositoryContract _tournamentRepository;
+  final SongMasterRepositoryContract _songMasterRepository;
+  final void Function() _onChanged;
+
   static const _msgDecodeFailed = '\u0051\u0052\u306e\u8aad\u307f\u53d6\u308a\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002';
   static const _msgInvalidPayload = '\u0051\u0052\u306e\u5185\u5bb9\u304c\u4e0d\u6b63\u3067\u3059\u3002';
   static const _msgAlreadyExists =
@@ -35,7 +48,7 @@ class TournamentImportService {
 
   Future<TournamentImportResult> importFromQrRawValue(String rawValue) async {
     try {
-      final payload = _services.qrService.decodeTournament(rawValue);
+      final payload = _qrService.decodeTournament(rawValue);
       return importFromPayload(payload);
     } on QrDecodeException {
       return const TournamentImportResult.failure(_msgDecodeFailed);
@@ -52,7 +65,7 @@ class TournamentImportService {
       return const TournamentImportResult.failure(_msgInvalidPayload);
     }
 
-    if (await _services.tournamentRepo.exists(uuid)) {
+    if (await _tournamentRepository.exists(uuid)) {
       return const TournamentImportResult.failure(_msgAlreadyExists);
     }
 
@@ -73,7 +86,7 @@ class TournamentImportService {
       final sortOrder = item['sort_order'] as int?;
       if (chartId == null || sortOrder == null) continue;
 
-      final chart = await _services.songMasterRepo.fetchChartById(chartId);
+      final chart = await _songMasterRepository.fetchChartById(chartId);
       if (chart == null) {
         return const TournamentImportResult.failure(_msgChartNotFound);
       }
@@ -108,8 +121,8 @@ class TournamentImportService {
       updatedAt: createdAt,
     );
 
-    await _services.tournamentRepo.createTournament(tournament, chartModels);
-    _services.notifyTournamentsChanged();
+    await _tournamentRepository.createTournament(tournament, chartModels);
+    _onChanged();
     return const TournamentImportResult.success();
   }
 }

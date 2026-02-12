@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/constants.dart';
 import '../data/db/song_master_database.dart';
-import '../data/repositories/app_settings_repository.dart';
+import '../domain/repositories/app_settings_repository.dart';
 import '../data/repositories/song_master_repository.dart';
 import '../core/date_utils.dart';
 
@@ -33,7 +33,7 @@ class SongMasterService {
     this._songMasterDb,
   );
 
-  final AppSettingsRepository _settingsRepo;
+  final AppSettingsRepositoryContract _settingsRepo;
   final SongMasterDatabase _songMasterDb;
 
   Future<SongMasterUpdateResult> checkAndUpdateIfNeeded() async {

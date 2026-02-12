@@ -9,12 +9,12 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/date_utils.dart';
 import '../data/models/evidence.dart';
-import '../data/repositories/evidence_repository.dart';
+import '../domain/repositories/evidence_repository.dart';
 
 class EvidenceService {
   EvidenceService(this._repo);
 
-  final EvidenceRepository _repo;
+  final EvidenceRepositoryContract _repo;
 
   Future<EvidenceSaveResult> registerEvidence({
     required String tournamentUuid,
