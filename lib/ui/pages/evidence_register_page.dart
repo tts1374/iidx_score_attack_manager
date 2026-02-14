@@ -140,14 +140,21 @@ class _EvidenceRegisterPageState extends ConsumerState<EvidenceRegisterPage> {
     );
   }
 
-  Widget _buildScoreCard(_EvidenceRegisterView view, bool canRegister) {
+  Widget _buildScoreCard(
+    _EvidenceRegisterView view,
+    bool canRegister, {
+    required bool hasExistingEvidence,
+  }) {
     final styleDiff = '${view.chartInfo?.playStyle ?? ''} ${view.chartInfo?.difficulty ?? ''}'
         .trim();
     final diffColor = difficultyColor(view.chartInfo?.difficulty);
     final levelText = 'Lv${view.chartInfo?.level ?? 0}';
+    final isRegistered = hasExistingEvidence && _selectedImage == null;
     final statusColor = canRegister ? const Color(0xFF2E8B57) : const Color(0xFFDC2626);
     final statusIcon = canRegister ? Icons.check_circle : Icons.error;
-    final statusText = canRegister ? '提出可能です' : '期間外のため提出出来ません';
+    final statusText = !canRegister
+        ? '期間外のため提出出来ません'
+        : (isRegistered ? '提出済です' : '提出可能です');
 
     return Card(
       margin: EdgeInsets.zero,
@@ -367,6 +374,13 @@ class _EvidenceRegisterPageState extends ConsumerState<EvidenceRegisterPage> {
     return File(existingEvidencePath).existsSync();
   }
 
+  bool _hasExistingEvidence(String? existingEvidencePath) {
+    if (existingEvidencePath == null) {
+      return false;
+    }
+    return File(existingEvidencePath).existsSync();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -390,6 +404,7 @@ class _EvidenceRegisterPageState extends ConsumerState<EvidenceRegisterPage> {
             view.tournament.endDate,
             now: ref.read(nowJstProvider)(),
           );
+          final hasExistingEvidence = _hasExistingEvidence(view.evidencePath);
           final canSubmit = canRegister && _selectedImage != null && !_saving;
           final showPreview = _hasPreview(view.evidencePath);
 
@@ -411,7 +426,11 @@ class _EvidenceRegisterPageState extends ConsumerState<EvidenceRegisterPage> {
                             ),
                       ),
                       const SizedBox(height: 14),
-                      _buildScoreCard(view, canRegister),
+                      _buildScoreCard(
+                        view,
+                        canRegister,
+                        hasExistingEvidence: hasExistingEvidence,
+                      ),
                       const Spacer(),
                       if (showPreview) ...[
                         _buildSelectedImagePreview(view.evidencePath),
@@ -453,7 +472,7 @@ class _EvidenceRegisterPageState extends ConsumerState<EvidenceRegisterPage> {
                             ),
                           )
                         : const Icon(Icons.camera_alt),
-                    label: const Text('スコア画像を提出'),
+                    label: const Text('スコア画像を登録'),
                   ),
                 ),
               ),
