@@ -15,6 +15,7 @@ import '../../data/models/song_master.dart';
 import '../../data/models/tournament.dart';
 import '../../data/models/tournament_chart.dart';
 import '../../providers/data_source_providers.dart';
+import '../../providers/system_providers.dart';
 import '../../providers/use_case_providers.dart';
 import '../../services/post_image_service.dart';
 import 'evidence_register_page.dart';
@@ -111,9 +112,9 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     final tournament = await tournamentUseCase.fetchByUuid(uuid);
     final backgroundPath = tournament?.backgroundImagePath;
     if (backgroundPath != null) {
-      final file = File(backgroundPath);
-      if (file.existsSync()) {
-        await file.delete();
+      final fileSystem = ref.read(fileSystemProvider);
+      if (await fileSystem.exists(backgroundPath)) {
+        await fileSystem.delete(backgroundPath);
       }
     }
 
@@ -228,7 +229,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
       subject: '投稿先を選択',
     );
 
-    final postedAt = nowJst().toIso8601String();
+    final postedAt = ref.read(nowJstProvider)().toIso8601String();
     for (final evidence in pending) {
       if (evidence.evidenceId != null) {
         await ref.read(evidenceUseCaseProvider).markUpdatePosted(
@@ -260,12 +261,17 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
 
           final detail = snapshot.data!;
           final canPost = _pendingUpdateEvidences(detail).isNotEmpty;
+          final now = ref.read(nowJstProvider)();
           final isOngoing = isActiveTournament(
             detail.tournament.startDate,
             detail.tournament.endDate,
+            now: now,
           );
-          final isUpcoming = isFutureTournament(detail.tournament.startDate);
-          final today = parseJstYmd(formatYmd(nowJst()));
+          final isUpcoming = isFutureTournament(
+            detail.tournament.startDate,
+            now: now,
+          );
+          final today = parseJstYmd(formatYmd(now));
           final endDate = parseJstYmd(detail.tournament.endDate);
           final startDate = parseJstYmd(detail.tournament.startDate);
           final remainingDays = endDate.difference(today).inDays;

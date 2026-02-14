@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
-import '../../core/date_utils.dart';
 import '../../data/models/tournament.dart';
+import '../../providers/data_source_providers.dart';
+import '../../providers/system_providers.dart';
 import '../../providers/use_case_providers.dart';
 
 class TournamentUpdatePage extends ConsumerStatefulWidget {
@@ -44,8 +44,9 @@ class _TournamentUpdatePageState extends ConsumerState<TournamentUpdatePage> {
   }
 
   Future<void> _pickBackgroundImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await ref
+        .read(imagePickerDataSourceProvider)
+        .pickImage(source: ImageSource.gallery);
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
     final decoded = img.decodeImage(bytes);
@@ -71,12 +72,12 @@ class _TournamentUpdatePageState extends ConsumerState<TournamentUpdatePage> {
   }
 
   Future<String> _copyBackgroundImage(String uuid, XFile picked) async {
-    final dir = await getApplicationSupportDirectory();
+    final dir = await ref.read(appSupportDirectoryProvider)();
     final ext = p.extension(picked.name);
     final filename = '${uuid}_background${ext.isEmpty ? '.jpg' : ext}';
     final path = p.join(dir.path, filename);
     final bytes = await picked.readAsBytes();
-    await XFile.fromData(bytes).saveTo(path);
+    await ref.read(fileSystemProvider).writeAsBytes(path, bytes, flush: true);
     return path;
   }
 
@@ -93,7 +94,7 @@ class _TournamentUpdatePageState extends ConsumerState<TournamentUpdatePage> {
     await ref.read(tournamentUseCaseProvider).updateBackgroundImage(
       tournament.tournamentUuid,
       path,
-      nowJst().toIso8601String(),
+      ref.read(nowJstProvider)().toIso8601String(),
     );
     if (!mounted) return;
     setState(() => _saving = false);

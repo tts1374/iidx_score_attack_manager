@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_sharing_intent/model/sharing_file.dart';
 
 import 'core/constants.dart';
 import 'providers/data_source_providers.dart';
+import 'providers/system_providers.dart';
 import 'providers/use_case_providers.dart';
 import 'ui/pages/evidence_register_page.dart';
 import 'ui/pages/home_page.dart';
@@ -88,7 +88,8 @@ class _ScoreAttackAppState extends ConsumerState<ScoreAttackApp> {
     }
 
     for (final path in imagePaths) {
-      if (!await File(path).exists()) {
+      final fileSystem = ref.read(fileSystemProvider);
+      if (!await fileSystem.exists(path)) {
         continue;
       }
 

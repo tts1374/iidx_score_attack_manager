@@ -14,18 +14,22 @@ DateTime parseJstYmd(String ymd) {
   return DateTime.parse('$ymd 00:00:00+09:00');
 }
 
-bool isPastTournament(String endDateYmd) {
-  final today = formatYmd(nowJst());
+bool isPastTournament(String endDateYmd, {DateTime? now}) {
+  final today = formatYmd(now ?? nowJst());
   return endDateYmd.compareTo(today) < 0;
 }
 
-bool isActiveTournament(String startDateYmd, String endDateYmd) {
-  final today = formatYmd(nowJst());
+bool isActiveTournament(
+  String startDateYmd,
+  String endDateYmd, {
+  DateTime? now,
+}) {
+  final today = formatYmd(now ?? nowJst());
   return startDateYmd.compareTo(today) <= 0 &&
       endDateYmd.compareTo(today) >= 0;
 }
 
-bool isFutureTournament(String startDateYmd) {
-  final today = formatYmd(nowJst());
+bool isFutureTournament(String startDateYmd, {DateTime? now}) {
+  final today = formatYmd(now ?? nowJst());
   return startDateYmd.compareTo(today) > 0;
 }

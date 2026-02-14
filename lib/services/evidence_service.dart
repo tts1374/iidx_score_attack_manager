@@ -5,17 +5,41 @@ import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
-import '../core/date_utils.dart';
 import '../data/models/evidence.dart';
 import '../domain/repositories/evidence_repository.dart';
+import '../providers/system_providers.dart';
+
+/// 画像バイト配列からSHA-256ハッシュ（16進文字列）を返す。
+String computeSha256Hex(List<int> bytes) {
+  return sha256.convert(bytes).toString();
+}
+
+/// エビデンス保存ファイル名を規約に従って生成する。
+String buildEvidenceFileName({
+  required String tournamentUuid,
+  required int chartId,
+  required String originalFileName,
+}) {
+  final ext = p.extension(originalFileName).replaceFirst('.', '');
+  return '${tournamentUuid}_$chartId.${ext.isEmpty ? 'jpg' : ext}';
+}
 
 /// エビデンス画像の保存・更新・削除を扱うサービス。
 class EvidenceService {
-  EvidenceService(this._repo);
+  EvidenceService(
+    this._repo, {
+    required DateTime Function() nowJst,
+    required Future<Directory> Function() appSupportDirectory,
+    required FileSystemPort fileSystem,
+  })  : _nowJst = nowJst,
+        _appSupportDirectory = appSupportDirectory,
+        _fileSystem = fileSystem;
 
   final EvidenceRepositoryContract _repo;
+  final DateTime Function() _nowJst;
+  final Future<Directory> Function() _appSupportDirectory;
+  final FileSystemPort _fileSystem;
 
   /// 画像選択（カメラ/ギャラリー）からエビデンス登録まで実行する。
   Future<EvidenceSaveResult> registerEvidence({
@@ -44,7 +68,7 @@ class EvidenceService {
     required XFile picked,
   }) async {
     final bytes = await picked.readAsBytes();
-    final digest = sha256.convert(bytes).toString();
+    final digest = computeSha256Hex(bytes);
 
     final existing = await _repo.fetchEvidence(tournamentUuid, chartId);
     if (existing != null && existing.sha256 == digest) {
@@ -56,12 +80,14 @@ class EvidenceService {
       return const EvidenceSaveResult.failed('画像の解析に失敗しました。');
     }
 
-    final dir = await getApplicationSupportDirectory();
-    final ext = p.extension(picked.name).replaceFirst('.', '');
-    final filename = '${tournamentUuid}_$chartId.${ext.isEmpty ? 'jpg' : ext}';
+    final dir = await _appSupportDirectory();
+    final filename = buildEvidenceFileName(
+      tournamentUuid: tournamentUuid,
+      chartId: chartId,
+      originalFileName: picked.name,
+    );
     final path = p.join(dir.path, filename);
-    final file = File(path);
-    await file.writeAsBytes(bytes, flush: true);
+    await _fileSystem.writeAsBytes(path, bytes, flush: true);
 
     final mime = lookupMimeType(path, headerBytes: bytes) ?? 'image/jpeg';
 
@@ -77,7 +103,7 @@ class EvidenceService {
       height: decoded.height,
       sha256: digest,
       updateSeq: (existing?.updateSeq ?? 0) + 1,
-      lastUpdatedAt: nowJst().toIso8601String(),
+      lastUpdatedAt: _nowJst().toIso8601String(),
       postedFlagCreate: existing?.postedFlagCreate ?? 0,
       // A newly saved image is always pending for update-post.
       postedFlagUpdate: 0,
@@ -90,9 +116,8 @@ class EvidenceService {
 
   /// 画像ファイルとDBレコードを削除する。
   Future<void> deleteEvidence(Evidence evidence) async {
-    final file = File(evidence.filePath);
-    if (file.existsSync()) {
-      await file.delete();
+    if (await _fileSystem.exists(evidence.filePath)) {
+      await _fileSystem.delete(evidence.filePath);
     }
     await _repo.deleteEvidence(evidence.tournamentUuid, evidence.chartId);
   }

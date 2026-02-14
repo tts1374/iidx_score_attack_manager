@@ -8,6 +8,8 @@ import '../../core/date_utils.dart';
 import '../../core/difficulty_color.dart';
 import '../../data/models/song_master.dart';
 import '../../data/models/tournament.dart';
+import '../../providers/data_source_providers.dart';
+import '../../providers/system_providers.dart';
 import '../../providers/use_case_providers.dart';
 import '../../services/evidence_service.dart';
 
@@ -64,8 +66,9 @@ class _EvidenceRegisterPageState extends ConsumerState<EvidenceRegisterPage> {
     if (!canRegister || _saving) {
       return;
     }
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source);
+    final picked = await ref
+        .read(imagePickerDataSourceProvider)
+        .pickImage(source: source);
     if (picked == null || !mounted) {
       return;
     }
@@ -385,6 +388,7 @@ class _EvidenceRegisterPageState extends ConsumerState<EvidenceRegisterPage> {
           final canRegister = isActiveTournament(
             view.tournament.startDate,
             view.tournament.endDate,
+            now: ref.read(nowJstProvider)(),
           );
           final canSubmit = canRegister && _selectedImage != null && !_saving;
           final showPreview = _hasPreview(view.evidencePath);

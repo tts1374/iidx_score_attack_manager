@@ -27,15 +27,18 @@ class TournamentImportService {
     required QrService qrService,
     required TournamentRepositoryContract tournamentRepository,
     required SongMasterRepositoryContract songMasterRepository,
+    required DateTime Function() nowJst,
     required void Function() onChanged,
   })  : _qrService = qrService,
         _tournamentRepository = tournamentRepository,
         _songMasterRepository = songMasterRepository,
+        _nowJst = nowJst,
         _onChanged = onChanged;
 
   final QrService _qrService;
   final TournamentRepositoryContract _tournamentRepository;
   final SongMasterRepositoryContract _songMasterRepository;
+  final DateTime Function() _nowJst;
   final void Function() _onChanged;
 
   static const _msgDecodeFailed = '\u0051\u0052\u306e\u8aad\u307f\u53d6\u308a\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002';
@@ -74,7 +77,7 @@ class TournamentImportService {
     }
 
     final endDate = payload['end_date'] as String?;
-    if (endDate == null || isPastTournament(endDate)) {
+    if (endDate == null || isPastTournament(endDate, now: _nowJst())) {
       return const TournamentImportResult.failure(_msgPastTournament);
     }
 
@@ -101,7 +104,7 @@ class TournamentImportService {
           tournamentUuid: uuid,
           chartId: chartId,
           sortOrder: sortOrder,
-          createdAt: nowJst().toIso8601String(),
+          createdAt: _nowJst().toIso8601String(),
         ),
       );
     }
@@ -110,7 +113,7 @@ class TournamentImportService {
       return const TournamentImportResult.failure(_msgNoChartData);
     }
 
-    final nowIso = nowJst().toIso8601String();
+    final nowIso = _nowJst().toIso8601String();
     final createdAt = payload['created_at'] as String? ?? nowIso;
     final tournament = Tournament(
       tournamentUuid: uuid,

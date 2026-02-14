@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/date_utils.dart';
 import '../../data/models/tournament.dart';
 import '../../providers/data_source_providers.dart';
+import '../../providers/system_providers.dart';
 import '../../services/song_master_service.dart';
 import '../../providers/use_case_providers.dart';
 import 'settings_page.dart';
@@ -121,11 +122,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
-  _TournamentTab _statusOf(Tournament tournament) {
-    if (isActiveTournament(tournament.startDate, tournament.endDate)) {
+  _TournamentTab _statusOf(Tournament tournament, DateTime now) {
+    if (isActiveTournament(tournament.startDate, tournament.endDate, now: now)) {
       return _TournamentTab.ongoing;
     }
-    if (isFutureTournament(tournament.startDate)) {
+    if (isFutureTournament(tournament.startDate, now: now)) {
       return _TournamentTab.upcoming;
     }
     return _TournamentTab.ended;
@@ -134,6 +135,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<List<_TournamentListItem>> _load() async {
     final tournamentUseCase = ref.read(tournamentUseCaseProvider);
     final evidenceUseCase = ref.read(evidenceUseCaseProvider);
+    final now = ref.read(nowJstProvider)();
 
     final tournaments = await tournamentUseCase.fetchAll().timeout(
           const Duration(seconds: 8),
@@ -168,7 +170,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           tournament: tournament,
           chartCount: chartCount,
           submittedCount: submittedCount,
-          status: _statusOf(tournament),
+          status: _statusOf(tournament, now),
         ),
       );
     }
@@ -263,6 +265,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   );
                 }
                 final items = _applyFilters(snapshot.data ?? []);
+                final today = parseJstYmd(formatYmd(ref.read(nowJstProvider)()));
                 if (items.isEmpty) {
                   return const Center(
                     child: Text('\u8868\u793a\u3067\u304d\u308b\u5927\u4f1a\u304c\u3042\u308a\u307e\u305b\u3093\u3002'),
@@ -279,6 +282,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _TournamentCard(
                           item: item,
+                          today: today,
                           onTap: () async {
                             final result = await Navigator.pushNamed(
                               context,
@@ -350,10 +354,12 @@ class _TournamentListItem {
 class _TournamentCard extends StatelessWidget {
   const _TournamentCard({
     required this.item,
+    required this.today,
     required this.onTap,
   });
 
   final _TournamentListItem item;
+  final DateTime today;
   final VoidCallback onTap;
 
   @override
@@ -365,7 +371,6 @@ class _TournamentCard extends StatelessWidget {
     final progress = totalCharts == 0 ? 0.0 : submitted / totalCharts;
     final hasPending = totalCharts > 0 && submitted < totalCharts;
 
-    final today = parseJstYmd(formatYmd(nowJst()));
     final remainingDays = parseJstYmd(tournament.endDate).difference(today).inDays;
     final daysUntilStart = parseJstYmd(tournament.startDate).difference(today).inDays;
     final deadlineTone = _DeadlineTone.fromRemainingDays(remainingDays);

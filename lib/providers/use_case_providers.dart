@@ -9,6 +9,7 @@ import '../services/song_master_service.dart';
 import '../services/tournament_import_service.dart';
 import 'data_source_providers.dart';
 import 'repository_providers.dart';
+import 'system_providers.dart';
 
 /// 大会データ更新通知用のインクリメントカウンタ。
 final tournamentsChangedProvider = StateProvider<int>((ref) {
@@ -25,7 +26,12 @@ final songMasterServiceProvider = Provider<SongMasterService>((ref) {
 
 /// エビデンス保存サービスProvider。
 final evidenceServiceProvider = Provider<EvidenceService>((ref) {
-  return EvidenceService(ref.read(evidenceRepositoryProvider));
+  return EvidenceService(
+    ref.read(evidenceRepositoryProvider),
+    nowJst: ref.read(nowJstProvider),
+    appSupportDirectory: ref.read(appSupportDirectoryProvider),
+    fileSystem: ref.read(fileSystemProvider),
+  );
 });
 
 /// 大会ユースケースProvider。
@@ -66,6 +72,7 @@ final tournamentImportUseCaseProvider = Provider<TournamentImportService>((ref) 
     qrService: ref.read(qrServiceDataSourceProvider),
     tournamentRepository: ref.read(tournamentRepositoryProvider),
     songMasterRepository: ref.read(songMasterRepositoryProvider),
+    nowJst: ref.read(nowJstProvider),
     onChanged: () {
       ref.read(tournamentsChangedProvider.notifier).state++;
     },

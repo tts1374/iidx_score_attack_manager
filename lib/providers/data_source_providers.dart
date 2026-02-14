@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
 import '../data/db/song_master_database.dart';
+import '../services/image_picker_service.dart';
 import '../services/post_image_service.dart';
 import '../services/qr_from_image_service.dart';
 import '../services/qr_service.dart';
@@ -25,6 +26,11 @@ final qrServiceDataSourceProvider = Provider<QrService>((ref) {
 /// 投稿画像生成サービスProvider。
 final postImageDataSourceProvider = Provider<PostImageService>((ref) {
   return PostImageService();
+});
+
+/// 画像選択サービスProvider。
+final imagePickerDataSourceProvider = Provider<ImagePickerService>((ref) {
+  return ImagePickerService();
 });
 
 /// OS共有受信サービスProvider。

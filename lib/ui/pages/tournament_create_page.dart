@@ -6,16 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:search_choices/search_choices.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/constants.dart';
 import '../../core/date_utils.dart';
 import '../../core/version_map.dart';
+import '../../application/validators/tournament_input_validator.dart';
 import '../../data/models/song_master.dart';
 import '../../data/models/tournament.dart';
 import '../../data/models/tournament_chart.dart';
+import '../../providers/data_source_providers.dart';
+import '../../providers/system_providers.dart';
 import '../../providers/use_case_providers.dart';
 
 class TournamentCreatePage extends ConsumerStatefulWidget {
@@ -75,7 +76,7 @@ class _TournamentCreatePageState extends ConsumerState<TournamentCreatePage> {
   }
 
   Future<void> _pickStartDate() async {
-    final now = nowJst();
+    final now = ref.read(nowJstProvider)();
     final picked = await showDatePicker(
       context: context,
       initialDate: now,
@@ -93,7 +94,7 @@ class _TournamentCreatePageState extends ConsumerState<TournamentCreatePage> {
   }
 
   Future<void> _pickEndDate() async {
-    final now = nowJst();
+    final now = ref.read(nowJstProvider)();
     final picked = await showDatePicker(
       context: context,
       initialDate: now,
@@ -145,16 +146,13 @@ class _TournamentCreatePageState extends ConsumerState<TournamentCreatePage> {
   Future<void> _save() async {
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
-    if (_startDate == null || _endDate == null) {
-      await _showMessage('開始日と終了日を選択してください。');
-      return;
-    }
-    if (_endDate!.compareTo(_startDate!) < 0) {
-      await _showMessage('終了日は開始日以降を選択してください。');
-      return;
-    }
-    if (isPastTournament(_endDate!)) {
-      await _showMessage('過去大会は登録できません。');
+    final dateValidation = TournamentInputValidator.validateDateRange(
+      startDate: _startDate,
+      endDate: _endDate,
+      now: ref.read(nowJstProvider)(),
+    );
+    if (dateValidation != null) {
+      await _showMessage(dateValidation);
       return;
     }
     if (_selections.isEmpty) {
@@ -198,8 +196,8 @@ class _TournamentCreatePageState extends ConsumerState<TournamentCreatePage> {
     }
 
     setState(() => _saving = true);
-    final uuid = const Uuid().v4();
-    final now = nowJst().toIso8601String();
+    final uuid = ref.read(uuidV4Provider)();
+    final now = ref.read(nowJstProvider)().toIso8601String();
     String? backgroundPath;
     if (_backgroundImage != null) {
       backgroundPath = await _copyBackgroundImage(uuid, _backgroundImage!);
@@ -273,8 +271,9 @@ class _TournamentCreatePageState extends ConsumerState<TournamentCreatePage> {
   }
 
   Future<void> _pickBackgroundImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await ref
+        .read(imagePickerDataSourceProvider)
+        .pickImage(source: ImageSource.gallery);
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
     final decoded = img.decodeImage(bytes);
@@ -299,12 +298,12 @@ class _TournamentCreatePageState extends ConsumerState<TournamentCreatePage> {
   }
 
   Future<String> _copyBackgroundImage(String uuid, XFile picked) async {
-    final dir = await getApplicationSupportDirectory();
+    final dir = await ref.read(appSupportDirectoryProvider)();
     final ext = p.extension(picked.name);
     final filename = '${uuid}_background${ext.isEmpty ? '.jpg' : ext}';
     final path = p.join(dir.path, filename);
     final bytes = await picked.readAsBytes();
-    await XFile.fromData(bytes).saveTo(path);
+    await ref.read(fileSystemProvider).writeAsBytes(path, bytes, flush: true);
     return path;
   }
 
