@@ -188,7 +188,7 @@ class SongMasterService {
   Future<bool> _downloadAsset(String url) async {
     final dir = await getApplicationSupportDirectory();
     final targetPath = p.join(dir.path, songMasterFileName);
-    final tempPath = p.join(dir.path, '${songMasterFileName}.tmp');
+    final tempPath = p.join(dir.path, '$songMasterFileName.tmp');
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode != 200) {

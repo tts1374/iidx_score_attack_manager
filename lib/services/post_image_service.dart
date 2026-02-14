@@ -209,7 +209,8 @@ class PostImageService {
       data: qrData,
       version: QrVersions.auto,
       gapless: true,
-      color: Colors.black,
+      eyeStyle: const QrEyeStyle(color: Colors.black),
+      dataModuleStyle: const QrDataModuleStyle(color: Colors.black),
     );
     const qrSize = 420.0;
     final qrImage = await qrPainter.toImage(qrSize);
