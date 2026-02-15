@@ -1,2 +1,0 @@
-# iidx_score_attack_manager
-IIDXスコアタを管理するためのアプリ。
