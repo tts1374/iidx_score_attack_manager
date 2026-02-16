@@ -1,11 +1,15 @@
 import React from 'react';
-import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
 import { decodeTournamentPayload } from '@iidx/shared';
+import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
+import { AppBar, Fab, IconButton, Toolbar, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 import { UnsupportedScreen } from './components/UnsupportedScreen';
-import { HomePage } from './pages/HomePage';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
+import { HomePage } from './pages/HomePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
@@ -38,7 +42,7 @@ const INITIAL_SONG_MASTER_META: Record<string, string | null> = {
 export function App(): JSX.Element {
   const { appDb, songMasterService } = useAppServices();
 
-  const [route, setRoute] = React.useState<RouteState>({ name: 'home' });
+  const [routeStack, setRouteStack] = React.useState<RouteState[]>([{ name: 'home' }]);
   const [tab, setTab] = React.useState<TournamentTab>('active');
   const [tournaments, setTournaments] = React.useState<Awaited<ReturnType<typeof appDb.listTournaments>>>([]);
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
@@ -51,7 +55,34 @@ export function App(): JSX.Element {
   const [pwaUpdate, setPwaUpdate] = React.useState<ServiceWorkerRegistration | null>(null);
   const [fatalError, setFatalError] = React.useState<string | null>(null);
 
+  const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const todayDate = todayJst();
+
+  const pushRoute = React.useCallback((next: RouteState) => {
+    setRouteStack((previous) => [...previous, next]);
+  }, []);
+
+  const replaceRoute = React.useCallback((next: RouteState) => {
+    setRouteStack((previous) => {
+      if (previous.length === 0) {
+        return [next];
+      }
+      return [...previous.slice(0, -1), next];
+    });
+  }, []);
+
+  const popRoute = React.useCallback(() => {
+    setRouteStack((previous) => {
+      if (previous.length <= 1) {
+        return previous;
+      }
+      return previous.slice(0, -1);
+    });
+  }, []);
+
+  const resetRoute = React.useCallback((next: RouteState) => {
+    setRouteStack([next]);
+  }, []);
 
   const pushToast = React.useCallback((message: string) => {
     setToast(message);
@@ -70,9 +101,9 @@ export function App(): JSX.Element {
     const songReady = await appDb.hasSongMaster();
     const config = await appDb.getAutoDeleteConfig();
     setSongMasterMeta(songMeta);
+    setSongMasterReady(songReady);
     setAutoDeleteEnabled(config.enabled);
     setAutoDeleteDays(config.days || 30);
-    setSongMasterReady(songReady);
     return {
       songMeta,
       songReady,
@@ -91,22 +122,18 @@ export function App(): JSX.Element {
             setFatalError(message);
           }
           pushToast(message);
-        } else {
-          if (result.source === 'github_download' || result.source === 'initial_download') {
-            if (snapshot.songReady && snapshot.songMeta.song_master_file_name) {
-              pushToast('曲マスタを更新しました。');
-            } else {
-              pushToast(
-                '曲マスタ更新後の検証に失敗しました。ブラウザのサイトデータ削除後に再試行してください。',
-              );
-            }
+          return;
+        }
+
+        if (result.source === 'github_download' || result.source === 'initial_download') {
+          if (snapshot.songReady && snapshot.songMeta.song_master_file_name) {
+            pushToast('曲マスタを更新しました。');
+          } else {
+            pushToast('曲マスタ更新後の確認に失敗しました。');
           }
-          if (result.message) {
-            pushToast(result.message);
-          }
-          if (result.source === 'local_cache') {
-            pushToast(result.message ?? 'ローカルキャッシュを利用します。');
-          }
+        }
+        if (result.message) {
+          pushToast(result.message);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -176,23 +203,23 @@ export function App(): JSX.Element {
       const next = await appDb.getTournamentDetail(tournamentUuid);
       setDetail(next);
       if (!next) {
-        setRoute({ name: 'home' });
+        replaceRoute({ name: 'home' });
       }
       return next;
     },
-    [appDb],
+    [appDb, replaceRoute],
   );
 
   const importFromPayload = React.useCallback(
     async (raw: string) => {
       if (!songMasterReady) {
-        pushToast('曲マスタ取得完了まで大会取込は利用できません。');
+        pushToast('曲マスタが未取得のため、大会作成/取込は利用できません。');
         return;
       }
 
       const extracted = extractPayloadFromFreeText(raw);
       if (!extracted) {
-        pushToast('取込データが空です。');
+        pushToast('取込データを認識できません。');
         return;
       }
 
@@ -202,7 +229,7 @@ export function App(): JSX.Element {
         if (result.status === 'already_imported') {
           pushToast('取り込み済みです。');
         } else if (result.status === 'conflict') {
-          pushToast('同一IDの別大会が存在するため取り込めません。');
+          pushToast('同一IDの別大会が存在するため取り込みできません。');
         } else {
           pushToast('大会を取り込みました。');
         }
@@ -256,117 +283,175 @@ export function App(): JSX.Element {
       ? detail.charts.find((chart) => chart.chartId === route.chartId) ?? null
       : null;
 
+  const pageTitle = React.useMemo(() => {
+    switch (route.name) {
+      case 'home':
+        return '大会一覧';
+      case 'create':
+        return '大会作成';
+      case 'detail':
+        return '大会詳細';
+      case 'submit':
+        return 'スコア提出';
+      case 'settings':
+        return '設定';
+      default:
+        return '';
+    }
+  }, [route.name]);
+
+  const openCreatePage = React.useCallback(() => {
+    if (!songMasterReady) {
+      pushToast('曲マスタが未取得のため大会作成は利用できません。');
+      return;
+    }
+    pushRoute({ name: 'create' });
+  }, [pushRoute, pushToast, songMasterReady]);
+
+  const openSettingsPage = React.useCallback(() => {
+    if (route.name === 'settings') {
+      return;
+    }
+    pushRoute({ name: 'settings' });
+  }, [pushRoute, route.name]);
+
+  const canGoBack = route.name !== 'home' && routeStack.length > 1;
+
   if (fatalError) {
-    return <UnsupportedScreen title="曲マスタ取得エラー" reasons={[fatalError]} />;
+    return <UnsupportedScreen title="曲マスタ起動エラー" reasons={[fatalError]} />;
   }
 
   return (
-    <div className="appRoot">
-      {pwaUpdate ? (
-        <div className="updateBanner">
-          <span>更新があります。</span>
-          <button
-            onClick={() => {
-              applyPwaUpdate(pwaUpdate);
+    <>
+      <AppBar position="sticky" color="inherit" elevation={1}>
+        <Toolbar sx={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
+          {canGoBack ? (
+            <IconButton edge="start" color="inherit" aria-label="back" onClick={popRoute} sx={{ mr: 1 }}>
+              <ArrowBackIcon />
+            </IconButton>
+          ) : null}
+          <Typography variant="h6" component="h1" sx={{ flexGrow: 1 }}>
+            {pageTitle}
+          </Typography>
+          <IconButton edge="end" color="inherit" aria-label="settings" onClick={openSettingsPage}>
+            <MoreVertIcon />
+          </IconButton>
+        </Toolbar>
+      </AppBar>
+
+      <div className="appRoot">
+        {pwaUpdate ? (
+          <div className="updateBanner">
+            <span>更新があります。</span>
+            <button
+              onClick={() => {
+                applyPwaUpdate(pwaUpdate);
+              }}
+            >
+              更新適用
+            </button>
+          </div>
+        ) : null}
+
+        {route.name === 'home' && (
+          <HomePage
+            todayDate={todayDate}
+            tab={tab}
+            items={tournaments}
+            songMasterReady={songMasterReady}
+            songMasterMessage={songMasterMeta.song_master_downloaded_at ? null : '曲マスタ未取得'}
+            busy={busy}
+            onTabChange={setTab}
+            onOpenCreate={openCreatePage}
+            onOpenSettings={openSettingsPage}
+            onOpenDetail={async (tournamentUuid) => {
+              const loaded = await reloadDetail(tournamentUuid);
+              if (!loaded) {
+                return;
+              }
+              pushRoute({ name: 'detail', tournamentUuid });
             }}
+            onImportPayload={importFromPayload}
+            onImportFile={importFromFile}
+            onRefreshSongMaster={() => updateSongMaster(false)}
+          />
+        )}
+
+        {route.name === 'create' && (
+          <CreateTournamentPage
+            todayDate={todayDate}
+            onCancel={popRoute}
+            onSaved={async (tournamentUuid) => {
+              pushToast('大会を作成しました。');
+              await refreshTournamentList();
+              await reloadDetail(tournamentUuid);
+              replaceRoute({ name: 'detail', tournamentUuid });
+            }}
+          />
+        )}
+
+        {route.name === 'detail' && detail && (
+          <TournamentDetailPage
+            detail={detail}
+            onBack={() => {
+              popRoute();
+              void refreshTournamentList();
+            }}
+            onOpenSubmit={(chartId) => {
+              pushRoute({ name: 'submit', tournamentUuid: detail.tournamentUuid, chartId });
+            }}
+            onDelete={async () => {
+              await appDb.deleteTournament(detail.tournamentUuid);
+              pushToast('大会を削除しました。');
+              resetRoute({ name: 'home' });
+              await refreshTournamentList();
+            }}
+          />
+        )}
+
+        {route.name === 'submit' && detail && submitChart && (
+          <SubmitEvidencePage
+            detail={detail}
+            chart={submitChart}
+            todayDate={todayDate}
+            onBack={popRoute}
+            onSaved={async () => {
+              pushToast('スコア画像を登録しました。');
+              await reloadDetail(detail.tournamentUuid);
+              await refreshTournamentList();
+              popRoute();
+            }}
+          />
+        )}
+
+        {route.name === 'settings' && (
+          <SettingsPage
+            songMasterMeta={songMasterMeta}
+            autoDeleteEnabled={autoDeleteEnabled}
+            autoDeleteDays={autoDeleteDays}
+            busy={busy}
+            onBack={popRoute}
+            onCheckUpdate={updateSongMaster}
+            onSaveAutoDelete={saveAutoDelete}
+            onRunAutoDelete={runAutoDelete}
+          />
+        )}
+
+        {route.name === 'home' ? (
+          <Fab
+            color="primary"
+            aria-label="create"
+            onClick={openCreatePage}
+            disabled={!songMasterReady}
+            sx={{ position: 'fixed', right: 24, bottom: 24, zIndex: 30 }}
           >
-            更新適用
-          </button>
-        </div>
-      ) : null}
+            <AddIcon />
+          </Fab>
+        ) : null}
 
-      {route.name === 'home' && (
-        <HomePage
-          todayDate={todayDate}
-          tab={tab}
-          items={tournaments}
-          songMasterReady={songMasterReady}
-          songMasterMessage={songMasterMeta.song_master_downloaded_at ? null : '曲マスタ未取得'}
-          busy={busy}
-          onTabChange={setTab}
-          onOpenCreate={() => {
-            if (!songMasterReady) {
-              pushToast('曲マスタ取得完了まで大会作成は利用できません。');
-              return;
-            }
-            setRoute({ name: 'create' });
-          }}
-          onOpenSettings={() => setRoute({ name: 'settings' })}
-          onOpenDetail={async (tournamentUuid) => {
-            const loaded = await reloadDetail(tournamentUuid);
-            if (!loaded) {
-              return;
-            }
-            setRoute({ name: 'detail', tournamentUuid });
-          }}
-          onImportPayload={importFromPayload}
-          onImportFile={importFromFile}
-          onRefreshSongMaster={() => updateSongMaster(false)}
-        />
-      )}
-
-      {route.name === 'create' && (
-        <CreateTournamentPage
-          todayDate={todayDate}
-          onCancel={() => setRoute({ name: 'home' })}
-          onSaved={async (tournamentUuid) => {
-            pushToast('大会を作成しました。');
-            await refreshTournamentList();
-            await reloadDetail(tournamentUuid);
-            setRoute({ name: 'detail', tournamentUuid });
-          }}
-        />
-      )}
-
-      {route.name === 'detail' && detail && (
-        <TournamentDetailPage
-          detail={detail}
-          onBack={() => {
-            setRoute({ name: 'home' });
-            void refreshTournamentList();
-          }}
-          onOpenSubmit={(chartId) => {
-            setRoute({ name: 'submit', tournamentUuid: detail.tournamentUuid, chartId });
-          }}
-          onDelete={async () => {
-            await appDb.deleteTournament(detail.tournamentUuid);
-            pushToast('大会を削除しました。');
-            setRoute({ name: 'home' });
-            await refreshTournamentList();
-          }}
-        />
-      )}
-
-      {route.name === 'submit' && detail && submitChart && (
-        <SubmitEvidencePage
-          detail={detail}
-          chart={submitChart}
-          todayDate={todayDate}
-          onBack={() => setRoute({ name: 'detail', tournamentUuid: detail.tournamentUuid })}
-          onSaved={async () => {
-            pushToast('スコア画像を保存しました。');
-            await reloadDetail(detail.tournamentUuid);
-            await refreshTournamentList();
-            setRoute({ name: 'detail', tournamentUuid: detail.tournamentUuid });
-          }}
-        />
-      )}
-
-      {route.name === 'settings' && (
-        <SettingsPage
-          songMasterMeta={songMasterMeta}
-          autoDeleteEnabled={autoDeleteEnabled}
-          autoDeleteDays={autoDeleteDays}
-          busy={busy}
-          onBack={() => setRoute({ name: 'home' })}
-          onCheckUpdate={updateSongMaster}
-          onSaveAutoDelete={saveAutoDelete}
-          onRunAutoDelete={runAutoDelete}
-        />
-      )}
-
-      {toast ? <div className="toast">{toast}</div> : null}
-    </div>
+        {toast ? <div className="toast">{toast}</div> : null}
+      </div>
+    </>
   );
 }
 

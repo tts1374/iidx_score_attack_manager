@@ -149,12 +149,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   };
 
   return (
-    <div className="page">
-      <header className="pageHeader">
-        <h1>大会作成</h1>
-      </header>
-
-      <div className="formGrid">
+    <div className="page">      <div className="formGrid">
         <label>
           大会名
           <input maxLength={50} value={name} onChange={(event) => setName(event.target.value)} />
@@ -336,9 +331,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         </div>
       </section>
 
-      <div className="rowActions">
-        <button onClick={props.onCancel}>戻る</button>
-        <button onClick={saveTournament} disabled={saving}>
+      <div className="rowActions">`r`n        <button onClick={saveTournament} disabled={saving}>
           保存
         </button>
       </div>

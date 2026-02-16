@@ -64,12 +64,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   };
 
   return (
-    <div className="page">
-      <header className="pageHeader">
-        <h1>大会詳細</h1>
-      </header>
-
-      <section className="detailCard">
+    <div className="page">      <section className="detailCard">
         <h2>{props.detail.tournamentName}</h2>
         <p>{props.detail.owner}</p>
         <p>
@@ -126,12 +121,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             </li>
           ))}
         </ul>
-      </section>
-
-      <div className="rowActions">
-        <button onClick={props.onBack}>戻る</button>
-      </div>
-    </div>
+      </section>    </div>
   );
 }
 

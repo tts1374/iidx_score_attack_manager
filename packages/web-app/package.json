@@ -15,6 +15,7 @@
     "@iidx/db": "workspace:*",
     "@iidx/pwa": "workspace:*",
     "@iidx/shared": "workspace:*",
+    "@mui/icons-material": "^7.3.8",
     "@mui/material": "^7.3.8",
     "jsqr": "^1.4.0",
     "qrcode": "^1.5.4",

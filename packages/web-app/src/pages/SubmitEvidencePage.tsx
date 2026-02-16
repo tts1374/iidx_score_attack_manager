@@ -95,12 +95,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
   };
 
   return (
-    <div className="page">
-      <header className="pageHeader">
-        <h1>スコア提出</h1>
-      </header>
-
-      <h2>{props.detail.tournamentName}</h2>
+    <div className="page">      <h2>{props.detail.tournamentName}</h2>
 
       <section className="detailCard">
         <span className="chip">{props.chart.playStyle} {props.chart.difficulty}</span>
@@ -140,15 +135,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
             }}
           />
         </label>
-      </section>
-
-      <div className="rowActions">
-        <button onClick={props.onBack}>戻る</button>
-        <button disabled={!canSubmit || !selectedFile || busy} onClick={submit}>
-          スコア画像を提出
-        </button>
-      </div>
-    </div>
+      </section>    </div>
   );
 }
 

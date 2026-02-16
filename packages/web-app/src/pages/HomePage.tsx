@@ -49,18 +49,7 @@ export function HomePage(props: HomePageProps): JSX.Element {
   const importDisabled = !props.songMasterReady || props.busy;
 
   return (
-    <div className="page">
-      <header className="pageHeader">
-        <h1>大会一覧</h1>
-        <div className="actions">
-          <button disabled={!props.songMasterReady} onClick={props.onOpenCreate}>
-            大会作成
-          </button>
-          <button onClick={props.onOpenSettings}>設定</button>
-        </div>
-      </header>
-
-      {!props.songMasterReady && (
+    <div className="page">      {!props.songMasterReady && (
         <section className="warningBox">
           <p>曲マスタが未取得のため、大会作成/取込は利用できません。</p>
           {props.songMasterMessage && <p>{props.songMasterMessage}</p>}

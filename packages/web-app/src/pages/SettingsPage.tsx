@@ -21,12 +21,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
   }, [props.autoDeleteEnabled, props.autoDeleteDays]);
 
   return (
-    <div className="page">
-      <header className="pageHeader">
-        <h1>設定</h1>
-      </header>
-
-      <section className="detailCard">
+    <div className="page">      <section className="detailCard">
         <h2>曲マスタ情報</h2>
         <dl className="settingsGrid">
           <dt>file_name</dt>
@@ -81,11 +76,6 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             今すぐ削除実行
           </button>
         </div>
-      </section>
-
-      <div className="rowActions">
-        <button onClick={props.onBack}>戻る</button>
-      </div>
-    </div>
+      </section>    </div>
   );
 }
