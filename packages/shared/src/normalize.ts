@@ -114,8 +114,49 @@ export function canonicalTournamentPayload(payload: TournamentPayload): Tourname
 }
 
 export function normalizeSearchText(value: string): string {
-  return value
-    .normalize('NFKD')
+  // 曲マスタ側(title_search_key)と同一仕様に固定する。
+  // 変更時は互換影響があるため、この関数のみを更新すること。
+  const replacementMap: Record<string, string> = {
+    ä: 'a',
+    ö: 'o',
+    ü: 'u',
+    ß: 'ss',
+    æ: 'ae',
+    œ: 'oe',
+    ø: 'o',
+    å: 'a',
+    ç: 'c',
+    ñ: 'n',
+    á: 'a',
+    à: 'a',
+    â: 'a',
+    ã: 'a',
+    é: 'e',
+    è: 'e',
+    ê: 'e',
+    ë: 'e',
+    í: 'i',
+    ì: 'i',
+    î: 'i',
+    ï: 'i',
+    ó: 'o',
+    ò: 'o',
+    ô: 'o',
+    õ: 'o',
+    ú: 'u',
+    ù: 'u',
+    û: 'u',
+    ý: 'y',
+    ÿ: 'y',
+  };
+
+  const normalized = value
+    .toLowerCase()
+    .trim()
+    .replace(/[äöüßæœøåçñáàâãéèêëíìîïóòôõúùûýÿ]/g, (char) => replacementMap[char] ?? char)
+    .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
+    .replace(/\s+/g, ' ');
+
+  return normalized;
 }

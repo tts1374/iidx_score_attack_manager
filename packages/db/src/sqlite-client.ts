@@ -13,6 +13,22 @@ export interface SqliteExecOptions {
   bind?: unknown[];
 }
 
+type SqliteRowMode = 'object' | 'array';
+
+function unwrapExecCallbackRow<T>(input: unknown): T | null {
+  if (input === null || input === undefined) {
+    return null;
+  }
+  if (typeof input === 'object' && 'row' in (input as Record<string, unknown>)) {
+    const wrapped = (input as { row?: unknown }).row;
+    if (wrapped === null || wrapped === undefined) {
+      return null;
+    }
+    return wrapped as T;
+  }
+  return input as T;
+}
+
 export class SqliteWorkerClient {
   constructor(private readonly promiser: SqlitePromiser) {}
 
@@ -40,14 +56,18 @@ export class SqliteWorkerClient {
     await this.promiser('exec', args);
   }
 
-  async query<T extends Record<string, unknown>>(options: SqliteExecOptions): Promise<T[]> {
+  private async queryByMode<T>(options: SqliteExecOptions, rowMode: SqliteRowMode): Promise<T[]> {
     const rows: T[] = [];
     const args: Record<string, unknown> = {
       dbId: options.dbId,
       sql: options.sql,
-      rowMode: 'object',
-      callback: (row: T) => {
-        rows.push(row);
+      rowMode,
+      callback: (row: unknown) => {
+        const normalized = unwrapExecCallbackRow<T>(row);
+        if (normalized === null) {
+          return;
+        }
+        rows.push(normalized);
       },
     };
     if (options.bind && options.bind.length > 0) {
@@ -55,6 +75,14 @@ export class SqliteWorkerClient {
     }
     await this.promiser('exec', args);
     return rows;
+  }
+
+  async query<T extends Record<string, unknown>>(options: SqliteExecOptions): Promise<T[]> {
+    return this.queryByMode<T>(options, 'object');
+  }
+
+  async queryArray(options: SqliteExecOptions): Promise<unknown[][]> {
+    return this.queryByMode<unknown[]>(options, 'array');
   }
 }
 

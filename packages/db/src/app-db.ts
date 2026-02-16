@@ -65,6 +65,32 @@ function normalizeDbDate(value: unknown, fallback: string): string {
   return fallback;
 }
 
+function isSongSearchDebugEnabled(): boolean {
+  const g = globalThis as { __IIDX_DEBUG_SONG_SEARCH__?: unknown; localStorage?: Storage };
+  if (g.__IIDX_DEBUG_SONG_SEARCH__ === true) {
+    return true;
+  }
+  if (g.localStorage) {
+    try {
+      return g.localStorage.getItem('iidx:debug:song-search') === '1';
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+function debugSongSearch(message: string, payload?: unknown): void {
+  if (!isSongSearchDebugEnabled()) {
+    return;
+  }
+  if (payload === undefined) {
+    console.info(`[song-search] ${message}`);
+    return;
+  }
+  console.info(`[song-search] ${message}`, payload);
+}
+
 interface SongMasterMetaFile {
   file_name?: string;
   schema_version?: string | number;
@@ -72,6 +98,13 @@ interface SongMasterMetaFile {
   byte_size?: string | number;
   updated_at?: string;
   downloaded_at?: string;
+}
+
+interface SongSearchRow {
+  music_id?: unknown;
+  title?: unknown;
+  version_code?: unknown;
+  [key: string]: unknown;
 }
 
 const defaultClock: RuntimeClock = {
@@ -535,39 +568,64 @@ export class AppDatabase {
   }
 
   private async getSongMasterDbFileName(): Promise<string | null> {
-    return this.getSetting('song_master_file_name');
+    const meta = await this.getSongMasterMeta();
+    return meta.song_master_file_name ?? null;
   }
 
   async searchSongsByPrefix(prefix: string, limit = 30): Promise<SongSummary[]> {
     const fileName = await this.getSongMasterDbFileName();
+    debugSongSearch('search request', { prefix, limit, fileName });
     if (!fileName) {
+      debugSongSearch('skip search: song master file name is missing');
       return [];
     }
 
+    const normalizedPrefix = prefix.trim().toLowerCase();
+
     const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
     try {
-      const rows = await this.client.query<{
-        music_id: number;
-        title: string;
-        version: string | number;
-      }>({
+      const likePattern = normalizedPrefix.length > 0 ? `%${normalizedPrefix}%` : '%';
+      const rows = await this.client.query<SongSearchRow>({
         dbId,
         sql: `
-          SELECT music_id, title, version
+          SELECT music_id, title, COALESCE(version, '') AS version_code
           FROM music
           WHERE (is_ac_active = 1 OR is_inf_active = 1)
-            AND title_search_key LIKE ?
+            AND (? = '' OR title_search_key LIKE ?)
           ORDER BY title_search_key ASC
           LIMIT ?
         `,
-        bind: [`${prefix.toLowerCase()}%`, limit],
+        bind: [normalizedPrefix, likePattern, limit],
       });
 
-      return rows.map((row) => ({
-        musicId: Number(row.music_id),
-        title: row.title,
-        version: row.version,
-      }));
+      debugSongSearch('raw rows loaded', {
+        rowCount: rows.length,
+        likePattern,
+        sampleRows: rows.slice(0, 3),
+      });
+
+      const mapped: SongSummary[] = [];
+      for (const row of rows) {
+        const musicId = Number(row.music_id);
+        const title = typeof row.title === 'string' ? row.title.trim() : String(row.title ?? '').trim();
+        const version = row.version_code === null || row.version_code === undefined ? '' : String(row.version_code).trim();
+
+        if (!Number.isFinite(musicId) || musicId <= 0 || title.length === 0) {
+          debugSongSearch('drop invalid song row', { row });
+          continue;
+        }
+
+        mapped.push({
+          musicId,
+          title,
+          version,
+        });
+      }
+      debugSongSearch('mapped rows', {
+        rowCount: mapped.length,
+        sample: mapped.slice(0, 3),
+      });
+      return mapped;
     } finally {
       await this.client.close(dbId);
     }

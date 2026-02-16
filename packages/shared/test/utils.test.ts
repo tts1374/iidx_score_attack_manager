@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getSubmissionState, buildEvidenceFileName, sha256Text, validateTournamentInput } from '../src/index.js';
+import {
+  getSubmissionState,
+  buildEvidenceFileName,
+  normalizeSearchText,
+  sha256Text,
+  validateTournamentInput,
+} from '../src/index.js';
 
 describe('misc utilities', () => {
   it('submission state', () => {
@@ -30,5 +36,12 @@ describe('misc utilities', () => {
       '2026-01-01',
     );
     expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('normalizes search text with replacement table', () => {
+    expect(normalizeSearchText('  Geirskögul  ')).toBe('geirskogul');
+    expect(normalizeSearchText('Präludium')).toBe('praludium');
+    expect(normalizeSearchText('straße')).toBe('strasse');
+    expect(normalizeSearchText('  Café   au   lait  ')).toBe('cafe au lait');
   });
 });

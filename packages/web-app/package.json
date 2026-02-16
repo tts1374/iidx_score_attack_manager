@@ -10,9 +10,12 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@iidx/db": "workspace:*",
     "@iidx/pwa": "workspace:*",
     "@iidx/shared": "workspace:*",
+    "@mui/material": "^7.3.8",
     "jsqr": "^1.4.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
@@ -21,9 +24,9 @@
   "devDependencies": {
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
-    "@types/qrcode": "^1.5.5",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^25.0.1",
     "vite": "^5.4.21",

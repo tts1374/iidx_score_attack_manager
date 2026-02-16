@@ -1,8 +1,10 @@
 import React from 'react';
 import type { ChartSummary, SongSummary } from '@iidx/db';
 import { normalizeSearchText } from '@iidx/shared';
+import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
 
 import { useAppServices } from '../services/context';
+import { versionLabel } from '../utils/iidx';
 
 interface CreateTournamentPageProps {
   todayDate: string;
@@ -19,6 +21,42 @@ interface ChartDraft {
   chartOptions: ChartSummary[];
   selectedChartId: number | null;
   loading: boolean;
+}
+
+const SONG_SEARCH_DEBUG_STORAGE_KEY = 'iidx:debug:song-search';
+const SONG_AUTOCOMPLETE_SX = {
+  width: {
+    xs: '100%',
+    sm: 680,
+    md: 760,
+  },
+  maxWidth: '100%',
+} as const;
+
+function isSongSearchDebugEnabled(): boolean {
+  const g = globalThis as { __IIDX_DEBUG_SONG_SEARCH__?: unknown; localStorage?: Storage };
+  if (g.__IIDX_DEBUG_SONG_SEARCH__ === true) {
+    return true;
+  }
+  if (!g.localStorage) {
+    return false;
+  }
+  try {
+    return g.localStorage.getItem(SONG_SEARCH_DEBUG_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function debugSongSearch(message: string, payload?: unknown): void {
+  if (!isSongSearchDebugEnabled()) {
+    return;
+  }
+  if (payload === undefined) {
+    console.info(`[song-search-ui] ${message}`);
+    return;
+  }
+  console.info(`[song-search-ui] ${message}`, payload);
 }
 
 function emptyDraft(): ChartDraft {
@@ -72,22 +110,19 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const handleSearch = React.useCallback(
     async (key: string, value: string) => {
       updateRow(key, (row) => ({ ...row, query: value, loading: true }));
-      if (!value.trim()) {
-        updateRow(key, (row) => ({
-          ...row,
-          options: [],
-          selectedSong: null,
-          chartOptions: [],
-          selectedChartId: null,
-          loading: false,
-        }));
-        return;
-      }
-
       const options = await appDb.searchSongsByPrefix(normalizeSearchText(value.trim()), 30);
+      const uniqueOptions = Array.from(
+        new Map(options.map((option) => [option.musicId, option] as const)).values(),
+      );
+      debugSongSearch('search response', {
+        query: value,
+        optionCount: options.length,
+        uniqueCount: uniqueOptions.length,
+        sample: uniqueOptions.slice(0, 5),
+      });
       updateRow(key, (row) => ({
         ...row,
-        options,
+        options: uniqueOptions,
         loading: false,
       }));
     },
@@ -173,43 +208,79 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 </button>
               </div>
 
-              <label>
-                曲名検索
-                <input
-                  placeholder="曲名を入力"
-                  value={row.query}
-                  onChange={(event) => {
-                    void handleSearch(row.key, event.target.value);
+              <Box sx={SONG_AUTOCOMPLETE_SX}>
+                <Autocomplete<SongSummary, false, false, false>
+                  fullWidth
+                  openOnFocus
+                  options={row.options}
+                  filterOptions={(options) => options}
+                  value={row.selectedSong}
+                  inputValue={row.query}
+                  loading={row.loading}
+                  onOpen={() => {
+                    if (row.options.length === 0) {
+                      void handleSearch(row.key, row.query);
+                    }
                   }}
-                />
-              </label>
-              {row.loading ? <p className="hintText">検索中...</p> : null}
-              <label>
-                曲選択
-                <select
-                  value={row.selectedSong?.musicId ?? ''}
-                  onChange={async (event) => {
-                    const musicId = Number(event.target.value);
-                    const selectedSong = row.options.find((option) => option.musicId === musicId) ?? null;
+                  noOptionsText={row.query.trim().length === 0 ? '曲名を入力してください。' : '該当する曲がありません。'}
+                  loadingText="読み込み中..."
+                  isOptionEqualToValue={(option, value) => option.musicId === value.musicId}
+                  getOptionLabel={(option) => option.title}
+                  onInputChange={(_, value, reason) => {
+                    if (reason === 'input' || reason === 'clear') {
+                      void handleSearch(row.key, value);
+                      return;
+                    }
+                    updateRow(row.key, (current) => ({
+                      ...current,
+                      query: value,
+                    }));
+                  }}
+                  onChange={(_, selectedSong) => {
                     updateRow(row.key, (current) => ({
                       ...current,
                       selectedSong,
+                      query: selectedSong?.title ?? current.query,
                       chartOptions: [],
                       selectedChartId: null,
                     }));
                     if (selectedSong) {
-                      await loadCharts(row.key, selectedSong.musicId, row.playStyle);
+                      void loadCharts(row.key, selectedSong.musicId, row.playStyle);
                     }
                   }}
-                >
-                  <option value="">選択してください</option>
-                  {row.options.map((option) => (
-                    <option key={option.musicId} value={option.musicId}>
-                      [{String(option.version)}] {option.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  renderInput={(params) => (
+                    <TextField
+                      {...(params as any)}
+                      label="曲名"
+                      placeholder="曲名を入力"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {row.loading ? <CircularProgress color="inherit" size={16} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                  renderOption={(optionProps, option) => {
+                    const { key: optionKey, ...liProps } = optionProps as Record<string, unknown> & { key?: React.Key };
+                    return (
+                      <Box component="li" key={option.musicId > 0 ? `music-${option.musicId}` : String(optionKey ?? option.title)} {...liProps}>
+                        <Box sx={{ display: 'grid', gap: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            [{versionLabel(option.version)}]
+                          </Typography>
+                          <Typography variant="body2" sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                            {option.title}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    );
+                  }}
+                />
+              </Box>
 
               <div className="radioGroup">
                 <span>プレイスタイル</span>
