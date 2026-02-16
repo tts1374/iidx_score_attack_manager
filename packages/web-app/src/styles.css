@@ -1,0 +1,379 @@
+:root {
+  color-scheme: light;
+  font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+  background-color: #f4f6fb;
+  color: #111827;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top right, #dde6fb, #f4f6fb 42%);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #c7d1e4;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f2937;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #d0d8e8;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #ffffff;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+}
+
+.appRoot {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.page {
+  display: grid;
+  gap: 14px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.actions,
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.warningBox,
+.importBox,
+.detailCard,
+.chartRowCard,
+.settingsGrid,
+.unsupported {
+  background: #ffffff;
+  border: 1px solid #dde4f1;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.warningBox {
+  border-color: #f8b4b4;
+  background: #fff1f1;
+}
+
+.tabRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tabRow button.active {
+  background: #243a5e;
+  color: #ffffff;
+}
+
+.emptyText {
+  color: #6b7280;
+}
+
+.cardList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.tournamentCard {
+  width: 100%;
+  text-align: left;
+  padding: 14px;
+  border: 1px solid #d7deea;
+  border-left: 4px solid #d7deea;
+  border-radius: 14px;
+  background: #ffffff;
+  display: grid;
+  gap: 8px;
+  position: relative;
+}
+
+.tournamentCard h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.subLine,
+.progressLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: #4b5563;
+}
+
+.statusChip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.periodLine {
+  color: #374151;
+}
+
+.progressBar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.progressBar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.pendingDot {
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.remainingBadge {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.formGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chartRows {
+  display: grid;
+  gap: 12px;
+}
+
+.chartRowHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.radioGroup {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.radioGroup label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.difficultyButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.difficultyButtons button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.hintText {
+  color: #6b7280;
+  margin: 0;
+}
+
+.detailCard h2,
+.detailCard h3,
+.detailCard p {
+  margin: 0;
+}
+
+.qrPreview,
+.evidencePreview {
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+}
+
+.chartList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.chartListItem {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.statusCircle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.statusCircle.pending {
+  background: #ef4444;
+}
+
+.statusCircle.done {
+  background: #94a3b8;
+}
+
+.chartText {
+  display: grid;
+  gap: 4px;
+}
+
+.arrow {
+  color: #64748b;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.successText {
+  color: #0f766e;
+}
+
+.errorText {
+  color: #b91c1c;
+}
+
+.fileButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #c7d1e4;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.fileButton.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fileButton input {
+  display: none;
+}
+
+.updateBanner {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border: 1px solid #fbbf24;
+  background: #fef3c7;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  background: #111827;
+  color: #f9fafb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-width: 360px;
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 6px 10px;
+}
+
+.settingsGrid dt {
+  color: #4b5563;
+}
+
+.settingsGrid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .chartListItem {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .chartListItem .arrow {
+    display: none;
+  }
+}

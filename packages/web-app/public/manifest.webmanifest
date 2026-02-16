@@ -1,0 +1,9 @@
+{
+  "name": "大会・エビデンス管理システム",
+  "short_name": "IIDX大会",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#243a5e",
+  "icons": []
+}
