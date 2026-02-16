@@ -66,11 +66,17 @@ export function App(): JSX.Element {
   }, [appDb, tab]);
 
   const refreshSettingsSnapshot = React.useCallback(async () => {
-    setSongMasterMeta(await appDb.getSongMasterMeta());
+    const songMeta = await appDb.getSongMasterMeta();
+    const songReady = await appDb.hasSongMaster();
     const config = await appDb.getAutoDeleteConfig();
+    setSongMasterMeta(songMeta);
     setAutoDeleteEnabled(config.enabled);
     setAutoDeleteDays(config.days || 30);
-    setSongMasterReady(await appDb.hasSongMaster());
+    setSongMasterReady(songReady);
+    return {
+      songMeta,
+      songReady,
+    };
   }, [appDb]);
 
   const updateSongMaster = React.useCallback(
@@ -78,6 +84,7 @@ export function App(): JSX.Element {
       setBusy(true);
       try {
         const result = await songMasterService.updateIfNeeded(force);
+        const snapshot = await refreshSettingsSnapshot();
         if (!result.ok) {
           const message = result.message ?? '曲マスタ更新に失敗しました。';
           if (result.source !== 'local_cache') {
@@ -86,7 +93,16 @@ export function App(): JSX.Element {
           pushToast(message);
         } else {
           if (result.source === 'github_download' || result.source === 'initial_download') {
-            pushToast('曲マスタを更新しました。');
+            if (snapshot.songReady && snapshot.songMeta.song_master_file_name) {
+              pushToast('曲マスタを更新しました。');
+            } else {
+              pushToast(
+                '曲マスタ更新後の検証に失敗しました。ブラウザのサイトデータ削除後に再試行してください。',
+              );
+            }
+          }
+          if (result.message) {
+            pushToast(result.message);
           }
           if (result.source === 'local_cache') {
             pushToast(result.message ?? 'ローカルキャッシュを利用します。');
@@ -99,11 +115,10 @@ export function App(): JSX.Element {
         }
         pushToast(message);
       } finally {
-        await refreshSettingsSnapshot();
         setBusy(false);
       }
     },
-    [pushToast, refreshSettingsSnapshot, songMasterService],
+    [appDb, pushToast, refreshSettingsSnapshot, songMasterService],
   );
 
   React.useEffect(() => {
@@ -117,15 +132,26 @@ export function App(): JSX.Element {
         await refreshSettingsSnapshot();
         setTournaments(await appDb.listTournaments('active'));
 
-        const registration = await registerPwa({
-          onUpdateFound: (reg) => {
-            if (mounted) {
-              setPwaUpdate(reg);
-            }
-          },
-        });
-        if (mounted && registration?.waiting) {
-          setPwaUpdate(registration);
+        if (import.meta.env.DEV) {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          }
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+          }
+        } else {
+          const registration = await registerPwa({
+            onUpdateFound: (reg) => {
+              if (mounted) {
+                setPwaUpdate(reg);
+              }
+            },
+          });
+          if (mounted && registration?.waiting) {
+            setPwaUpdate(registration);
+          }
         }
       } catch (error) {
         if (mounted) {

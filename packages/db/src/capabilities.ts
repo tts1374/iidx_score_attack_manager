@@ -1,6 +1,7 @@
-export interface RuntimeCapabilityResult {
+﻿export interface RuntimeCapabilityResult {
   webLocks: boolean;
   opfs: boolean;
+  crossOriginIsolated: boolean;
   wasm: boolean;
   serviceWorker: boolean;
 }
@@ -15,6 +16,7 @@ export function checkRuntimeCapabilities(): RuntimeCapabilityResult {
   return {
     webLocks: typeof nav?.locks?.request === 'function',
     opfs: typeof nav?.storage?.getDirectory === 'function',
+    crossOriginIsolated: globalThis.crossOriginIsolated === true,
     wasm: typeof WebAssembly === 'object',
     serviceWorker: typeof nav?.serviceWorker?.register === 'function',
   };

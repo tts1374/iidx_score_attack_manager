@@ -21,15 +21,57 @@ import {
   TournamentTab,
 } from './models.js';
 import { migrateAppDatabase } from './schema.js';
-import { SqliteWorkerClient } from './sqlite-client.js';
+import { SqliteDbId, SqliteWorkerClient } from './sqlite-client.js';
 
-const APP_DB_URI = 'file:/app_data.sqlite?vfs=opfs';
+const APP_DB_URI = 'file:app_data.sqlite?vfs=opfs';
 const SONG_MASTER_DIR = 'song_master';
+const SONG_MASTER_META_FILE = `${SONG_MASTER_DIR}/latest_meta.json`;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function dbTodayJst(): string {
   const now = new Date();
   const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   return jst.toISOString().slice(0, 10);
+}
+
+function normalizeDbDate(value: unknown, fallback: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return fallback;
+  }
+  const text = value.trim();
+  if (ISO_DATE_RE.test(text)) {
+    return text;
+  }
+
+  const leadingIso = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  const leadingIsoDate = leadingIso?.[1];
+  if (leadingIsoDate) {
+    return leadingIsoDate;
+  }
+
+  const slash = text.match(/^(\d{4})\/(\d{2})\/(\d{2})/);
+  const slashYear = slash?.[1];
+  const slashMonth = slash?.[2];
+  const slashDay = slash?.[3];
+  if (slashYear && slashMonth && slashDay) {
+    return `${slashYear}-${slashMonth}-${slashDay}`;
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return fallback;
+}
+
+interface SongMasterMetaFile {
+  file_name?: string;
+  schema_version?: string | number;
+  sha256?: string;
+  byte_size?: string | number;
+  updated_at?: string;
+  downloaded_at?: string;
 }
 
 const defaultClock: RuntimeClock = {
@@ -73,7 +115,7 @@ export interface EvidenceRecord {
 }
 
 export class AppDatabase {
-  private dbId: number | null = null;
+  private dbId: SqliteDbId | null = null;
 
   constructor(
     private readonly client: SqliteWorkerClient,
@@ -97,7 +139,7 @@ export class AppDatabase {
     }
   }
 
-  private requireDbId(): number {
+  private requireDbId(): SqliteDbId {
     if (this.dbId === null) {
       throw new Error('AppDatabase is not initialized.');
     }
@@ -114,8 +156,20 @@ export class AppDatabase {
     return this.client.query<T>(options);
   }
 
+  private async readSongMasterMetaFile(): Promise<SongMasterMetaFile | null> {
+    try {
+      const bytes = await this.opfs.readFile(SONG_MASTER_META_FILE);
+      const text = new TextDecoder().decode(bytes);
+      const parsed = JSON.parse(text) as SongMasterMetaFile;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
   async hasSongMaster(): Promise<boolean> {
-    const fileName = await this.getSetting('song_master_file_name');
+    const meta = await this.getSongMasterMeta();
+    const fileName = meta.song_master_file_name;
     if (!fileName) {
       return false;
     }
@@ -124,18 +178,17 @@ export class AppDatabase {
 
   async setSetting(key: string, value: string): Promise<void> {
     await this.exec(
-      `INSERT INTO app_settings(key, value) VALUES(?, ?)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      `INSERT OR REPLACE INTO app_settings("key", value) VALUES(?, ?)`,
       [key, value],
     );
   }
 
   async getSetting(key: string): Promise<string | null> {
-    const rows = await this.query<{ value: string }>(
-      'SELECT value FROM app_settings WHERE key = ? LIMIT 1',
-      [key],
+    const rows = await this.query<{ key: string; value: string }>(
+      'SELECT "key" as key, value FROM app_settings',
     );
-    return rows[0]?.value ?? null;
+    const row = rows.find((entry) => entry.key === key);
+    return row?.value ?? null;
   }
 
   async getSongMasterMeta(): Promise<Record<string, string | null>> {
@@ -148,8 +201,40 @@ export class AppDatabase {
       'song_master_downloaded_at',
     ];
 
-    const entries = await Promise.all(keys.map(async (key) => [key, await this.getSetting(key)] as const));
-    return Object.fromEntries(entries);
+    const result: Record<string, string | null> = {};
+    for (const key of keys) {
+      result[key] = await this.getSetting(key);
+    }
+
+    const fileMeta = await this.readSongMasterMetaFile();
+    if (!fileMeta) {
+      return result;
+    }
+
+    return {
+      song_master_file_name:
+        result.song_master_file_name ??
+        (typeof fileMeta.file_name === 'string' && fileMeta.file_name.length > 0 ? fileMeta.file_name : null),
+      song_master_schema_version:
+        result.song_master_schema_version ??
+        (fileMeta.schema_version !== undefined && fileMeta.schema_version !== null
+          ? String(fileMeta.schema_version)
+          : null),
+      song_master_sha256:
+        result.song_master_sha256 ??
+        (typeof fileMeta.sha256 === 'string' && fileMeta.sha256.length > 0 ? fileMeta.sha256 : null),
+      song_master_byte_size:
+        result.song_master_byte_size ??
+        (fileMeta.byte_size !== undefined && fileMeta.byte_size !== null ? String(fileMeta.byte_size) : null),
+      song_master_updated_at:
+        result.song_master_updated_at ??
+        (typeof fileMeta.updated_at === 'string' && fileMeta.updated_at.length > 0 ? fileMeta.updated_at : null),
+      song_master_downloaded_at:
+        result.song_master_downloaded_at ??
+        (typeof fileMeta.downloaded_at === 'string' && fileMeta.downloaded_at.length > 0
+          ? fileMeta.downloaded_at
+          : null),
+    };
   }
 
   async createTournament(input: CreateTournamentInput): Promise<string> {
@@ -329,6 +414,7 @@ export class AppDatabase {
 
   async listTournaments(tab: TournamentTab): Promise<TournamentListItem[]> {
     const filter = this.whereAndSortForTab(tab);
+    const today = this.clock.todayJst();
     const rows = await this.query<{
       tournament_uuid: string;
       source_tournament_uuid: string | null;
@@ -368,14 +454,16 @@ export class AppDatabase {
     return rows.map((row) => {
       const chartCount = Number(row.chart_count);
       const submittedCount = Number(row.submitted_count);
+      const startDate = normalizeDbDate(row.start_date, today);
+      const endDate = normalizeDbDate(row.end_date, startDate);
       return {
         tournamentUuid: row.tournament_uuid,
         sourceTournamentUuid: row.source_tournament_uuid,
         tournamentName: row.tournament_name,
         owner: row.owner,
         hashtag: row.hashtag,
-        startDate: row.start_date,
-        endDate: row.end_date,
+        startDate,
+        endDate,
         isImported: row.is_imported === 1,
         chartCount,
         submittedCount,
@@ -385,6 +473,7 @@ export class AppDatabase {
   }
 
   async getTournamentDetail(tournamentUuid: string): Promise<TournamentDetailItem | null> {
+    const today = this.clock.todayJst();
     const tournamentRows = await this.query<{
       tournament_uuid: string;
       source_tournament_uuid: string | null;
@@ -426,6 +515,8 @@ export class AppDatabase {
     }
 
     const charts = await this.getTournamentCharts(tournamentUuid);
+    const startDate = normalizeDbDate(base.start_date, today);
+    const endDate = normalizeDbDate(base.end_date, startDate);
 
     return {
       tournamentUuid: base.tournament_uuid,
@@ -433,8 +524,8 @@ export class AppDatabase {
       tournamentName: base.tournament_name,
       owner: base.owner,
       hashtag: base.hashtag,
-      startDate: base.start_date,
-      endDate: base.end_date,
+      startDate,
+      endDate,
       isImported: base.is_imported === 1,
       chartCount: Number(base.chart_count),
       submittedCount: Number(base.submitted_count),
@@ -453,7 +544,7 @@ export class AppDatabase {
       return [];
     }
 
-    const dbId = await this.client.open({ filename: `file:/${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
+    const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
     try {
       const rows = await this.client.query<{
         music_id: number;
@@ -488,7 +579,7 @@ export class AppDatabase {
       return [];
     }
 
-    const dbId = await this.client.open({ filename: `file:/${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
+    const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
     try {
       const rows = await this.client.query<{
         chart_id: number;
@@ -552,7 +643,7 @@ export class AppDatabase {
       }));
     }
 
-    const dbId = await this.client.open({ filename: `file:/${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
+    const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
     try {
       const charts = await this.client.query<{
         chart_id: number;

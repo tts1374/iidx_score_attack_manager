@@ -32,12 +32,20 @@
 
 ## ローカル曲マスタ配布モック
 ```bash
-node scripts/mock-song-master-server.mjs --sqlite ./song_master.sqlite --schema 1 --port 8787
+node scripts/mock-song-master-server.mjs --sqlite ./song_master.sqlite --schema 33 --port 8787
 ```
 
-`.env.local` 例:
+`.env.local` 例（Web配布を使う場合）:
 ```bash
-VITE_SONG_MASTER_LATEST_URL=http://localhost:8787/song-master/latest.json
-VITE_SONG_MASTER_BASE_URL=http://localhost:8787/song-master
-VITE_SONG_MASTER_SCHEMA_VERSION=1
+VITE_SONG_MASTER_SOURCE=web
+VITE_SONG_MASTER_WEB_RELEASE_TAG_URL=https://github.com/tts1374/iidx_all_songs_master/releases/tag/latest
+VITE_SONG_MASTER_SCHEMA_VERSION=33
+```
+※ 開発時は Vite の `/__song-master-proxy__` を経由して GitHub Releases を取得します（CORS回避）。
+
+`.env.local` 例（ローカルモックを使う場合）:
+```bash
+VITE_SONG_MASTER_SOURCE=mock
+VITE_SONG_MASTER_MOCK_BASE_URL=http://localhost:8787/song-master
+VITE_SONG_MASTER_SCHEMA_VERSION=33
 ```

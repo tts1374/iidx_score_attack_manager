@@ -123,15 +123,16 @@ export function HomePage(props: HomePageProps): JSX.Element {
         <p className="emptyText">表示できる大会がありません。</p>
       ) : (
         <ul className="cardList">
-          {props.items.map((item) => {
+          {props.items.map((item, index) => {
             const status = getTournamentStatus(item.startDate, item.endDate, props.todayDate);
             const remaining = remainingDaysUntilEnd(item.endDate, props.todayDate);
             const daysToStart = daysUntilStart(item.startDate, props.todayDate);
             const tone = remainingTone(remaining);
             const progress = item.chartCount > 0 ? Math.round((item.submittedCount / item.chartCount) * 100) : 0;
+            const listKey = `${item.tournamentUuid || 'tournament'}-${index}`;
 
             return (
-              <li key={item.tournamentUuid}>
+              <li key={listKey}>
                 <button
                   className="tournamentCard"
                   style={status === 'active' ? { borderLeftColor: tone.borderColor } : undefined}

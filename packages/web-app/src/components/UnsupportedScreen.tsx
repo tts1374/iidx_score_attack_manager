@@ -1,4 +1,4 @@
-interface UnsupportedScreenProps {
+﻿interface UnsupportedScreenProps {
   title: string;
   reasons: string[];
 }

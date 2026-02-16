@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { acquireSingleTabLock, checkRuntimeCapabilities } from '@iidx/db';
 
@@ -15,6 +15,14 @@ async function bootstrap(): Promise<void> {
 
   const root = ReactDOM.createRoot(rootElement);
 
+  root.render(
+    <React.StrictMode>
+      <main className="page">
+        <h1>起動中...</h1>
+      </main>
+    </React.StrictMode>,
+  );
+
   const capability = checkRuntimeCapabilities();
   const reasons: string[] = [];
   if (!capability.webLocks) {
@@ -22,6 +30,9 @@ async function bootstrap(): Promise<void> {
   }
   if (!capability.opfs) {
     reasons.push('OPFS');
+  }
+  if (!capability.crossOriginIsolated) {
+    reasons.push('Cross-Origin-Isolation (COOP/COEP)');
   }
   if (!capability.wasm) {
     reasons.push('WebAssembly');
@@ -51,23 +62,41 @@ async function bootstrap(): Promise<void> {
     return;
   }
 
-  const services = await createAppServices();
+  try {
+    const services = await Promise.race([
+      createAppServices(),
+      new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error('初期化がタイムアウトしました。')), 20000);
+      }),
+    ]);
 
-  window.addEventListener('beforeunload', () => {
-    if (releaseLock) {
-      releaseLock();
-      releaseLock = null;
-    }
-    void services.appDb.dispose();
-  });
+    window.addEventListener('beforeunload', () => {
+      if (releaseLock) {
+        releaseLock();
+        releaseLock = null;
+      }
+      void services.appDb.dispose();
+    });
 
-  root.render(
-    <React.StrictMode>
-      <AppServicesProvider services={services}>
-        <App />
-      </AppServicesProvider>
-    </React.StrictMode>,
-  );
+    root.render(
+      <React.StrictMode>
+        <AppServicesProvider services={services}>
+          <App />
+        </AppServicesProvider>
+      </React.StrictMode>,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const reason = message.includes('no such vfs: opfs')
+      ? 'OPFS VFS(opfs)が初期化できません。COOP/COEPヘッダーを確認してください。'
+      : `初期化エラー: ${message}`;
+
+    root.render(
+      <React.StrictMode>
+        <AppFallbackUnsupported reasons={[reason]} />
+      </React.StrictMode>,
+    );
+  }
 }
 
 void bootstrap();

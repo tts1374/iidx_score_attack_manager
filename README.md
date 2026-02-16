@@ -24,7 +24,11 @@ pnpm test
 
 ## 曲マスタ配布のローカルモック
 ```bash
-node scripts/mock-song-master-server.mjs --sqlite ./song_master.sqlite --schema 1 --port 8787
+node scripts/mock-song-master-server.mjs --sqlite ./song_master.sqlite --schema 33 --port 8787
 ```
+
+`packages/web-app/.env.example` を `packages/web-app/.env.local` にコピーし、`VITE_SONG_MASTER_SOURCE` を `web` または `mock` に設定してください。  
+デフォルト想定は `web`（GitHub Releases latest）です。
+開発時の `web` モードは Vite プロキシ経由で取得します。
 
 詳細は `docs/web-app-spec.md` を参照してください。

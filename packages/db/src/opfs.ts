@@ -18,6 +18,17 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return copy.buffer;
 }
 
+function isLockedMoveError(error: unknown): boolean {
+  const message = String(error ?? '');
+  return message.includes('cannot be moved to a destination which is locked');
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export class OpfsStorage {
   async getRoot(): Promise<FileSystemDirectoryHandle> {
     if (!navigator.storage?.getDirectory) {
@@ -76,16 +87,29 @@ export class OpfsStorage {
       await options.validate(validated);
     }
 
-    try {
-      await dir.removeEntry(fileName);
-    } catch {
-      // ignore not found
-    }
-
     const moveFn = (tmpHandle as unknown as { move?: (name: string) => Promise<void> }).move;
     if (typeof moveFn === 'function') {
-      await moveFn.call(tmpHandle, fileName);
-      return;
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          await dir.removeEntry(fileName);
+        } catch {
+          // ignore (not found or locked). move() result decides retry.
+        }
+
+        try {
+          await moveFn.call(tmpHandle, fileName);
+          return;
+        } catch (error) {
+          lastError = error;
+          if (!isLockedMoveError(error) || attempt === 5) {
+            throw error;
+          }
+          await sleep(80 * (attempt + 1));
+        }
+      }
+
+      throw lastError instanceof Error ? lastError : new Error(String(lastError));
     }
 
     // Fallback if move() is unavailable: copy then remove temp.

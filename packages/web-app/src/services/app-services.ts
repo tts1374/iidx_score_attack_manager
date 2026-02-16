@@ -1,12 +1,14 @@
 import {
   AppDatabase,
-  IdFactory,
   OpfsStorage,
   RuntimeClock,
   SongMasterService,
   SqliteWorkerClient,
   createSqliteWorkerClient,
 } from '@iidx/db';
+import type { CreateSqliteWorkerClientOptions, IdFactory } from '@iidx/db';
+
+import { resolveSongMasterRuntimeConfig } from './song-master-config';
 
 export interface AppServices {
   sqliteClient: SqliteWorkerClient;
@@ -26,7 +28,16 @@ export interface AppServiceOverrides {
 }
 
 export async function createAppServices(overrides: AppServiceOverrides = {}): Promise<AppServices> {
-  const sqliteClient = overrides.sqliteClient ?? (await createSqliteWorkerClient());
+  const workerUrl = `${import.meta.env.BASE_URL}sqlite/sqlite3-worker1.mjs`;
+  const songMasterConfig = resolveSongMasterRuntimeConfig(import.meta.env);
+
+  const sqliteClient =
+    overrides.sqliteClient ??
+    (await createSqliteWorkerClient(
+      {
+        worker: new Worker(workerUrl, { type: 'module' }),
+      } satisfies CreateSqliteWorkerClientOptions,
+    ));
   const opfs = overrides.opfs ?? new OpfsStorage();
   const appDb =
     overrides.appDb ?? new AppDatabase(sqliteClient, opfs, overrides.clock, overrides.idFactory);
@@ -34,9 +45,9 @@ export async function createAppServices(overrides: AppServiceOverrides = {}): Pr
   await appDb.init();
 
   const songMasterOptions = {
-    latestJsonUrl: import.meta.env.VITE_SONG_MASTER_LATEST_URL ?? '/song-master/latest.json',
-    sqliteBaseUrl: import.meta.env.VITE_SONG_MASTER_BASE_URL ?? '/song-master',
-    requiredSchemaVersion: Number(import.meta.env.VITE_SONG_MASTER_SCHEMA_VERSION ?? '1'),
+    latestJsonUrl: songMasterConfig.latestJsonUrl,
+    sqliteBaseUrl: songMasterConfig.sqliteBaseUrl,
+    requiredSchemaVersion: songMasterConfig.requiredSchemaVersion,
     ...(overrides.fetchImpl ? { fetchImpl: overrides.fetchImpl } : {}),
   };
 
