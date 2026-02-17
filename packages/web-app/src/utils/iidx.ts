@@ -1,9 +1,9 @@
 export const DIFFICULTY_COLORS: Record<string, string> = {
-  BEGINNER: '#79d100',
-  NORMAL: '#20a8ff',
-  HYPER: '#ff7800',
-  ANOTHER: '#ff0000',
-  LEGGENDARIA: '#ce00d6',
+  BEGINNER: '#79D100',
+  NORMAL: '#20A8FF',
+  HYPER: '#FF7800',
+  ANOTHER: '#FF0000',
+  LEGGENDARIA: '#CE00D6',
 };
 
 const VERSION_LABEL_MAP: Record<string, string> = {
@@ -44,8 +44,8 @@ const VERSION_LABEL_MAP: Record<string, string> = {
   '33': 'Sparkle Shower',
 };
 
-export function difficultyColor(difficulty: string): string {
-  return DIFFICULTY_COLORS[difficulty] ?? '#6b7280';
+export function difficultyColor(difficulty?: string): string {
+  return DIFFICULTY_COLORS[(difficulty ?? '').toUpperCase()] ?? '#9CA3AF';
 }
 
 export function versionLabel(version: unknown): string {

@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
-  background-color: #f4f6fb;
+  background-color: #f7f8fa;
   color: #111827;
 }
 
@@ -11,7 +11,7 @@
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top right, #dde6fb, #f4f6fb 42%);
+  background: #f7f8fa;
 }
 
 button,
@@ -53,12 +53,12 @@ label {
 .appRoot {
   max-width: 980px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 16px 16px 24px;
 }
 
 .page {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .pageHeader {
@@ -91,6 +91,7 @@ label {
   border: 1px solid #dde4f1;
   border-radius: 16px;
   padding: 14px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
 }
 
 .warningBox {
@@ -102,15 +103,30 @@ label {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #e9edf3;
+}
+
+.tabRow button {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 8px;
 }
 
 .tabRow button.active {
-  background: #243a5e;
-  color: #ffffff;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
 .emptyText {
   color: #6b7280;
+  margin: 8px 2px;
 }
 
 .cardList {
@@ -118,81 +134,137 @@ label {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 10px;
+  gap: 16px;
 }
 
 .tournamentCard {
   width: 100%;
   text-align: left;
-  padding: 14px;
-  border: 1px solid #d7deea;
-  border-left: 4px solid #d7deea;
-  border-radius: 14px;
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
   background: #ffffff;
   display: grid;
-  gap: 8px;
+  gap: 12px;
   position: relative;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+}
+
+.tournamentCard:hover {
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.tournamentCard:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.tournamentCardPending::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 16px 0 0 16px;
+  background: #dc2626;
+}
+
+.tournamentCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .tournamentCard h3 {
   margin: 0;
   font-size: 20px;
-  line-height: 1.4;
+  font-weight: 700;
+  line-height: 1.35;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
+  flex: 1;
 }
 
-.subLine,
-.progressLine {
-  display: flex;
-  justify-content: space-between;
+.statusBadge {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: #4b5563;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.statusChip {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+.statusBadge-upcoming {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.statusBadge-active-normal {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.statusBadge-active-warning {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.statusBadge-active-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.statusBadge-active-today {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.statusBadge-ended {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.tournamentMeta {
+  display: grid;
+  gap: 6px;
+}
+
+.ownerLine {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .periodLine {
-  color: #374151;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.progressLine {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .progressBar {
   width: 100%;
-  height: 6px;
+  height: 8px;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: #e2e8f0;
   overflow: hidden;
 }
 
 .progressBar > span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
-}
-
-.pendingDot {
-  width: 10px;
-  height: 10px;
-  background: #ef4444;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.remainingBadge {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
 }
 
 .formGrid {
@@ -201,7 +273,89 @@ label {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.createTournamentPage {
+  gap: 32px;
+  padding-bottom: 120px;
+}
+
+.createTournamentPage input,
+.createTournamentPage .MuiInputBase-root {
+  min-height: 44px;
+}
+
+.createTournamentPage input[type='radio'] {
+  width: auto;
+  min-height: auto;
+}
+
+.createSection {
+  display: grid;
+  gap: 12px;
+}
+
+.createSectionTitle {
+  margin: 0;
+  font-size: 20px;
+}
+
+.createFieldStack {
+  display: grid;
+  gap: 12px;
+}
+
+.createField {
+  display: grid;
+  gap: 8px;
+}
+
+.fieldChipLabel {
+  justify-self: start;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid #d3dbeb;
+  background: #f3f7ff;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.periodRangeInputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.periodRangeInputs > span {
+  color: #475569;
+  font-weight: 700;
+}
+
+.periodRangeInputs .MuiFormControl-root {
+  width: 100%;
+}
+
+.createSectionHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.addRowButton {
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 700;
+}
+
 .chartRows {
+  display: grid;
+  gap: 12px;
+}
+
+.createChartCard {
+  padding: 16px;
+  border-left: 6px solid #60a5fa;
   display: grid;
   gap: 12px;
 }
@@ -210,6 +364,39 @@ label {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.iconOnlyButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  padding: 0;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.styleRadioGroup {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.styleOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #d0d8e8;
+  border-radius: 999px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.styleOption.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .radioGroup {
@@ -231,6 +418,14 @@ label {
   gap: 8px;
 }
 
+.difficultySelectButton {
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 999px;
+  font-weight: 700;
+  padding: 8px 14px;
+}
+
 .difficultyButtons button.active {
   border-color: #2563eb;
   background: #eff6ff;
@@ -241,10 +436,87 @@ label {
   margin: 0;
 }
 
+.createInlineError {
+  margin: 0;
+  font-size: 13px;
+}
+
+.createStickyFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin: 0 -16px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid #d7deea;
+  background: rgba(244, 246, 251, 0.96);
+  backdrop-filter: blur(4px);
+  display: grid;
+  gap: 8px;
+}
+
+.createFooterErrors {
+  display: grid;
+  gap: 4px;
+}
+
+.createActionTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.primaryActionButton {
+  width: 100%;
+  border-radius: 12px;
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 10px 16px;
+}
+
+.primaryActionButton:disabled {
+  border-color: #94a3b8;
+  background: #94a3b8;
+  color: #e2e8f0;
+}
+
 .detailCard h2,
 .detailCard h3,
 .detailCard p {
   margin: 0;
+}
+
+.tournamentDetailHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tournamentDetailMeta {
+  display: grid;
+  gap: 6px;
+}
+
+.hashtagLine {
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.detailPrimaryActions {
+  justify-content: flex-start;
+  margin-top: 2px;
+}
+
+.detailShareButton {
+  min-width: 112px;
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .qrPreview,
@@ -269,6 +541,10 @@ label {
   align-items: center;
   gap: 10px;
   text-align: left;
+  border: 1px solid #d6dfef;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
 }
 
 .statusCircle {
@@ -290,10 +566,84 @@ label {
   gap: 4px;
 }
 
+.chartMetaLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chartStyleTag,
+.chartDifficultyTag,
+.chartLevelTag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.chartStyleTag {
+  color: #334155;
+  background: #f1f5f9;
+}
+
+.chartDifficultyTag {
+  border-width: 2px;
+  text-transform: uppercase;
+}
+
+.chartLevelTag {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+.chartMetaFallback {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.chartSubmitLabel {
+  min-width: 52px;
+  text-align: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+.chartSubmitLabel.done {
+  color: #334155;
+  background: #e2e8f0;
+}
+
+.chartSubmitLabel.pending {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
 .arrow {
   color: #64748b;
   font-size: 22px;
   line-height: 1;
+}
+
+.dangerZoneCard {
+  border-color: #fecaca;
+  background: #fff5f5;
+  display: grid;
+  gap: 8px;
+}
+
+.dangerActionButton {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .successText {
@@ -322,6 +672,69 @@ label {
 
 .fileButton input {
   display: none;
+}
+
+.importSection {
+  display: grid;
+  gap: 12px;
+}
+
+.importConfirmPage {
+  gap: 16px;
+  padding-bottom: 120px;
+}
+
+.importConfirmErrorCard {
+  display: grid;
+  gap: 10px;
+}
+
+.importConfirmErrorCode {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.importConfirmSummaryCard,
+.importConfirmChartsCard,
+.importConfirmMergeCard {
+  display: grid;
+  gap: 10px;
+}
+
+.importConfirmChartItem {
+  width: 100%;
+  border: 1px solid #dde4f1;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.importChartTitle {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.importConfirmFooter {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid #d7deea;
+  background: rgba(244, 246, 251, 0.96);
+  backdrop-filter: blur(4px);
 }
 
 .updateBanner {
@@ -367,6 +780,10 @@ label {
 @media (max-width: 720px) {
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .createSectionTitle {
+    font-size: 18px;
   }
 
   .chartListItem {

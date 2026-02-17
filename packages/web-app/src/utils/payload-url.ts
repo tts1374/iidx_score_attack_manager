@@ -1,5 +1,10 @@
+export const IMPORT_CONFIRM_PATH = '/import/confirm';
+
 export function buildImportUrl(payloadBase64: string): string {
-  const url = new URL(window.location.href);
+  const url = new URL(window.location.origin);
+  url.pathname = IMPORT_CONFIRM_PATH;
+  url.search = '';
+  url.hash = '';
   url.searchParams.set('p', payloadBase64);
   return url.toString();
 }

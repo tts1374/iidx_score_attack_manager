@@ -40,9 +40,56 @@ export interface CreateTournamentInput {
   chartIds: number[];
 }
 
-export interface ImportTournamentResult {
-  status: 'imported' | 'already_imported' | 'conflict';
-  tournamentUuid?: string;
+export interface ImportTournamentImportedResult {
+  status: 'imported';
+  tournamentUuid: string;
+  addedCharts: number;
+  existingCharts: number;
+}
+
+export interface ImportTournamentMergedResult {
+  status: 'merged';
+  tournamentUuid: string;
+  addedCharts: number;
+  existingCharts: number;
+}
+
+export interface ImportTournamentUnchangedResult {
+  status: 'unchanged';
+  tournamentUuid: string;
+  addedCharts: 0;
+  existingCharts: number;
+}
+
+export interface ImportTournamentIncompatibleResult {
+  status: 'incompatible';
+  tournamentUuid: string;
+  reason: 'period_mismatch';
+}
+
+export type ImportTournamentResult =
+  | ImportTournamentImportedResult
+  | ImportTournamentMergedResult
+  | ImportTournamentUnchangedResult
+  | ImportTournamentIncompatibleResult;
+
+export interface ImportTargetTournament {
+  tournamentUuid: string;
+  sourceTournamentUuid: string | null;
+  tournamentName: string;
+  owner: string;
+  hashtag: string;
+  startDate: string;
+  endDate: string;
+  chartIds: number[];
+}
+
+export interface SongMasterChartDetail {
+  chartId: number;
+  title: string;
+  playStyle: string;
+  difficulty: string;
+  level: string;
 }
 
 export interface SongMasterLatest {

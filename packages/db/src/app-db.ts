@@ -12,9 +12,11 @@ import {
   ChartSummary,
   CreateTournamentInput,
   IdFactory,
+  ImportTargetTournament,
   ImportTournamentResult,
   RuntimeClock,
   SongSummary,
+  SongMasterChartDetail,
   TournamentDetailChart,
   TournamentDetailItem,
   TournamentListItem,
@@ -116,7 +118,9 @@ const defaultIdFactory: IdFactory = {
   uuid: () => crypto.randomUUID(),
 };
 
-export function resolveImportMode2(existingDefHash: string | null, incomingDefHash: string): ImportTournamentResult['status'] | 'insert' {
+export type LegacyImportMode2Decision = 'insert' | 'already_imported' | 'conflict';
+
+export function resolveImportMode2(existingDefHash: string | null, incomingDefHash: string): LegacyImportMode2Decision {
   if (!existingDefHash) {
     return 'insert';
   }
@@ -344,30 +348,186 @@ export class AppDatabase {
     }
   }
 
+  async findImportTargetTournament(sourceTournamentUuid: string): Promise<ImportTargetTournament | null> {
+    const today = this.clock.todayJst();
+    const rows = await this.query<{
+      tournament_uuid: string;
+      source_tournament_uuid: string | null;
+      tournament_name: string;
+      owner: string;
+      hashtag: string;
+      start_date: string;
+      end_date: string;
+    }>(
+      `
+      SELECT
+        t.tournament_uuid,
+        t.source_tournament_uuid,
+        t.tournament_name,
+        t.owner,
+        t.hashtag,
+        t.start_date,
+        t.end_date
+      FROM tournaments t
+      WHERE t.source_tournament_uuid = ?
+         OR t.tournament_uuid = ?
+      ORDER BY CASE WHEN t.source_tournament_uuid = ? THEN 0 ELSE 1 END ASC, t.created_at ASC
+      LIMIT 1
+      `,
+      [sourceTournamentUuid, sourceTournamentUuid, sourceTournamentUuid],
+    );
+
+    const base = rows[0];
+    if (!base) {
+      return null;
+    }
+
+    const chartRows = await this.query<{ chart_id: number }>(
+      `
+      SELECT chart_id
+      FROM tournament_charts
+      WHERE tournament_uuid = ?
+      ORDER BY tournament_chart_id ASC
+      `,
+      [base.tournament_uuid],
+    );
+
+    const chartIds = chartRows.map((row) => Number(row.chart_id));
+    const startDate = normalizeDbDate(base.start_date, today);
+    const endDate = normalizeDbDate(base.end_date, startDate);
+    return {
+      tournamentUuid: base.tournament_uuid,
+      sourceTournamentUuid: base.source_tournament_uuid,
+      tournamentName: base.tournament_name,
+      owner: base.owner,
+      hashtag: base.hashtag,
+      startDate,
+      endDate,
+      chartIds,
+    };
+  }
+
+  async listSongMasterChartsByIds(chartIds: number[]): Promise<SongMasterChartDetail[]> {
+    const normalizedChartIds = [...new Set(chartIds)]
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0)
+      .sort((a, b) => a - b);
+    if (normalizedChartIds.length === 0) {
+      return [];
+    }
+
+    const fileName = await this.getSongMasterDbFileName();
+    if (!fileName) {
+      return [];
+    }
+
+    const exists = await this.opfs.fileExists(`${SONG_MASTER_DIR}/${fileName}`);
+    if (!exists) {
+      return [];
+    }
+
+    const placeholders = normalizedChartIds.map(() => '?').join(', ');
+    const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
+    try {
+      const rows = await this.client.query<{
+        chart_id: number;
+        title: string | null;
+        play_style: string | null;
+        difficulty: string | null;
+        level: string | null;
+      }>({
+        dbId,
+        sql: `
+          SELECT c.chart_id, m.title, c.play_style, c.difficulty, c.level
+          FROM chart c
+          LEFT JOIN music m ON m.music_id = c.music_id
+          WHERE c.chart_id IN (${placeholders})
+          ORDER BY c.chart_id ASC
+        `,
+        bind: normalizedChartIds,
+      });
+
+      return rows.map((row) => {
+        const chartId = Number(row.chart_id);
+        return {
+          chartId,
+          title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : `chart:${chartId}`,
+          playStyle: typeof row.play_style === 'string' && row.play_style.trim().length > 0 ? row.play_style : '-',
+          difficulty: typeof row.difficulty === 'string' && row.difficulty.trim().length > 0 ? row.difficulty : '-',
+          level: typeof row.level === 'string' && row.level.trim().length > 0 ? row.level : '-',
+        };
+      });
+    } finally {
+      await this.client.close(dbId);
+    }
+  }
+
   async importTournament(payloadInput: TournamentPayload): Promise<ImportTournamentResult> {
     const payload = normalizeTournamentPayload(payloadInput, { nowDate: this.clock.todayJst() });
     const incomingDefHash = buildTournamentDefHash(payload);
+    const existing = await this.findImportTargetTournament(payload.uuid);
+    if (existing) {
+      if (existing.startDate !== payload.start || existing.endDate !== payload.end) {
+        return {
+          status: 'incompatible',
+          tournamentUuid: existing.tournamentUuid,
+          reason: 'period_mismatch',
+        };
+      }
 
-    const existing = await this.query<{ tournament_uuid: string; def_hash: string }>(
-      `SELECT tournament_uuid, def_hash
-       FROM tournaments
-       WHERE source_tournament_uuid = ?
-       LIMIT 1`,
-      [payload.uuid],
-    );
+      const existingChartSet = new Set(existing.chartIds);
+      const addedChartIds = payload.charts.filter((chartId) => !existingChartSet.has(chartId));
+      const existingCharts = payload.charts.length - addedChartIds.length;
+      if (addedChartIds.length === 0) {
+        return {
+          status: 'unchanged',
+          tournamentUuid: existing.tournamentUuid,
+          addedCharts: 0,
+          existingCharts,
+        };
+      }
 
-    const decision = resolveImportMode2(existing[0]?.def_hash ?? null, incomingDefHash);
-    if (decision === 'already_imported') {
-      const existingTournamentUuid = existing[0]?.tournament_uuid;
-      return existingTournamentUuid
-        ? { status: 'already_imported', tournamentUuid: existingTournamentUuid }
-        : { status: 'already_imported' };
-    }
-    if (decision === 'conflict') {
-      const existingTournamentUuid = existing[0]?.tournament_uuid;
-      return existingTournamentUuid
-        ? { status: 'conflict', tournamentUuid: existingTournamentUuid }
-        : { status: 'conflict' };
+      const mergedHashPayload: TournamentPayload = normalizeTournamentPayload({
+        v: PAYLOAD_VERSION,
+        uuid: existing.sourceTournamentUuid ?? existing.tournamentUuid,
+        name: existing.tournamentName,
+        owner: existing.owner,
+        hashtag: existing.hashtag,
+        start: existing.startDate,
+        end: existing.endDate,
+        charts: [...new Set([...existing.chartIds, ...addedChartIds])],
+      });
+      const mergedDefHash = buildTournamentDefHash(mergedHashPayload);
+      const now = this.clock.nowIso();
+
+      await this.exec('BEGIN IMMEDIATE TRANSACTION');
+      try {
+        for (const chartId of addedChartIds) {
+          await this.exec(
+            `INSERT INTO tournament_charts(tournament_uuid, chart_id)
+             VALUES(?, ?)`,
+            [existing.tournamentUuid, chartId],
+          );
+        }
+        await this.exec(
+          `UPDATE tournaments
+           SET def_hash = ?,
+               updated_at = ?
+           WHERE tournament_uuid = ?`,
+          [mergedDefHash, now, existing.tournamentUuid],
+        );
+        await this.exec('COMMIT');
+      } catch (error) {
+        await this.exec('ROLLBACK');
+        throw error;
+      }
+
+      return {
+        status: 'merged',
+        tournamentUuid: existing.tournamentUuid,
+        addedCharts: addedChartIds.length,
+        existingCharts,
+      };
     }
 
     const tournamentUuid = this.idFactory.uuid();
@@ -415,6 +575,8 @@ export class AppDatabase {
       return {
         status: 'imported',
         tournamentUuid,
+        addedCharts: payload.charts.length,
+        existingCharts: 0,
       };
     } catch (error) {
       await this.exec('ROLLBACK');
@@ -672,85 +834,91 @@ export class AppDatabase {
   }
 
   private async getTournamentCharts(tournamentUuid: string): Promise<TournamentDetailChart[]> {
-    const fileName = await this.getSongMasterDbFileName();
-    if (!fileName) {
-      const fallback = await this.query<{
-        chart_id: number;
-        update_seq: number | null;
-        file_deleted: number | null;
-      }>(
-        `
-        SELECT tc.chart_id, e.update_seq, e.file_deleted
-        FROM tournament_charts tc
-        LEFT JOIN evidences e ON e.tournament_uuid = tc.tournament_uuid AND e.chart_id = tc.chart_id
-        WHERE tc.tournament_uuid = ?
-        ORDER BY tc.tournament_chart_id ASC
-        `,
-        [tournamentUuid],
-      );
+    const chartRows = await this.query<{
+      chart_id: number;
+      update_seq: number | null;
+      file_deleted: number | null;
+    }>(
+      `
+      SELECT tc.chart_id, e.update_seq, e.file_deleted
+      FROM tournament_charts tc
+      LEFT JOIN evidences e ON e.tournament_uuid = tc.tournament_uuid AND e.chart_id = tc.chart_id
+      WHERE tc.tournament_uuid = ?
+      ORDER BY tc.tournament_chart_id ASC
+      `,
+      [tournamentUuid],
+    );
 
-      return fallback.map((row) => ({
-        chartId: Number(row.chart_id),
-        title: `chart:${row.chart_id}`,
-        playStyle: '-',
-        difficulty: '-',
-        level: '-',
-        submitted: Number(row.update_seq ?? 0) > 0 && Number(row.file_deleted ?? 0) === 0,
-        updateSeq: Number(row.update_seq ?? 0),
-        fileDeleted: Number(row.file_deleted ?? 0) === 1,
-      }));
+    if (chartRows.length === 0) {
+      return [];
     }
 
+    const fileName = await this.getSongMasterDbFileName();
+    if (!fileName) {
+      return chartRows.map((row) => {
+        const chartId = Number(row.chart_id);
+        const updateSeq = Number(row.update_seq ?? 0);
+        const fileDeleted = Number(row.file_deleted ?? 0) === 1;
+        return {
+          chartId,
+          title: `chart:${chartId}`,
+          playStyle: '-',
+          difficulty: '-',
+          level: '-',
+          submitted: updateSeq > 0 && !fileDeleted,
+          updateSeq,
+          fileDeleted,
+        };
+      });
+    }
+
+    const chartIds = chartRows.map((row) => Number(row.chart_id));
+    const placeholders = chartIds.map(() => '?').join(', ');
     const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
     try {
-      const charts = await this.client.query<{
+      const songMasterRows = await this.client.query<{
         chart_id: number;
-        title: string;
-        play_style: string;
-        difficulty: string;
-        level: string;
+        title: string | null;
+        play_style: string | null;
+        difficulty: string | null;
+        level: string | null;
       }>({
         dbId,
         sql: `
-          SELECT tc.chart_id, m.title, c.play_style, c.difficulty, c.level
-          FROM tournament_charts tc
-          LEFT JOIN chart c ON c.chart_id = tc.chart_id
+          SELECT c.chart_id, m.title, c.play_style, c.difficulty, c.level
+          FROM chart c
           LEFT JOIN music m ON m.music_id = c.music_id
-          WHERE tc.tournament_uuid = ?
-          ORDER BY tc.tournament_chart_id ASC
+          WHERE c.chart_id IN (${placeholders})
         `,
-        bind: [tournamentUuid],
+        bind: chartIds,
       });
 
-      const evidenceMap = await this.query<{
-        chart_id: number;
-        update_seq: number;
-        file_deleted: number;
-      }>(
-        `SELECT chart_id, update_seq, file_deleted
-         FROM evidences
-         WHERE tournament_uuid = ?`,
-        [tournamentUuid],
-      );
-
-      const evidenceByChartId = new Map<number, { updateSeq: number; fileDeleted: boolean }>();
-      for (const evidence of evidenceMap) {
-        evidenceByChartId.set(Number(evidence.chart_id), {
-          updateSeq: Number(evidence.update_seq),
-          fileDeleted: Number(evidence.file_deleted) === 1,
+      const songMasterByChartId = new Map<number, {
+        title: string | null;
+        playStyle: string | null;
+        difficulty: string | null;
+        level: string | null;
+      }>();
+      for (const row of songMasterRows) {
+        songMasterByChartId.set(Number(row.chart_id), {
+          title: typeof row.title === 'string' ? row.title : null,
+          playStyle: typeof row.play_style === 'string' ? row.play_style : null,
+          difficulty: typeof row.difficulty === 'string' ? row.difficulty : null,
+          level: typeof row.level === 'string' ? row.level : null,
         });
       }
 
-      return charts.map((chart) => {
-        const evidence = evidenceByChartId.get(Number(chart.chart_id));
-        const updateSeq = evidence?.updateSeq ?? 0;
-        const fileDeleted = evidence?.fileDeleted ?? false;
+      return chartRows.map((row) => {
+        const chartId = Number(row.chart_id);
+        const updateSeq = Number(row.update_seq ?? 0);
+        const fileDeleted = Number(row.file_deleted ?? 0) === 1;
+        const songMaster = songMasterByChartId.get(chartId);
         return {
-          chartId: Number(chart.chart_id),
-          title: chart.title ?? `chart:${chart.chart_id}`,
-          playStyle: chart.play_style ?? '-',
-          difficulty: chart.difficulty ?? '-',
-          level: chart.level ?? '-',
+          chartId,
+          title: songMaster?.title ?? `chart:${chartId}`,
+          playStyle: songMaster?.playStyle ?? '-',
+          difficulty: songMaster?.difficulty ?? '-',
+          level: songMaster?.level ?? '-',
           submitted: updateSeq > 0 && !fileDeleted,
           updateSeq,
           fileDeleted,
@@ -928,6 +1096,21 @@ export class AppDatabase {
         );
       }
     }
+  }
+
+  async resetLocalData(): Promise<void> {
+    await this.exec('BEGIN IMMEDIATE TRANSACTION');
+    try {
+      await this.exec('DELETE FROM tournaments');
+      await this.exec('DELETE FROM app_settings');
+      await this.exec('COMMIT');
+    } catch (error) {
+      await this.exec('ROLLBACK');
+      throw error;
+    }
+
+    await this.opfs.deleteDirectory('evidences');
+    await this.opfs.deleteDirectory(SONG_MASTER_DIR);
   }
 
   async setAutoDeleteConfig(enabled: boolean, days: number): Promise<void> {

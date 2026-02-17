@@ -1,21 +1,25 @@
 import React from 'react';
 import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
-import { decodeTournamentPayload } from '@iidx/shared';
+import { decodeTournamentPayload, type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
-import { AppBar, Fab, IconButton, Toolbar, Typography } from '@mui/material';
+import { AppBar, Box, IconButton, Menu, MenuItem, SpeedDial, SpeedDialAction, Toolbar, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PostAddIcon from '@mui/icons-material/PostAdd';
 
 import { UnsupportedScreen } from './components/UnsupportedScreen';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
 import { HomePage } from './pages/HomePage';
+import { ImportConfirmPage } from './pages/ImportConfirmPage';
+import { ImportTournamentPage } from './pages/ImportTournamentPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
 import { useAppServices } from './services/context';
 import { extractQrTextFromImage } from './utils/image';
-import { extractPayloadFromFreeText } from './utils/payload-url';
+import { extractPayloadFromFreeText, IMPORT_CONFIRM_PATH } from './utils/payload-url';
 
 function todayJst(): string {
   const now = new Date();
@@ -25,10 +29,30 @@ function todayJst(): string {
 
 type RouteState =
   | { name: 'home' }
+  | { name: 'import' }
+  | { name: 'import-confirm' }
   | { name: 'create' }
   | { name: 'detail'; tournamentUuid: string }
   | { name: 'submit'; tournamentUuid: string; chartId: number }
   | { name: 'settings' };
+
+function normalizePathname(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
+function isImportConfirmPath(pathname: string): boolean {
+  return normalizePathname(pathname) === IMPORT_CONFIRM_PATH;
+}
+
+function createInitialRouteStack(): RouteState[] {
+  if (isImportConfirmPath(window.location.pathname)) {
+    return [{ name: 'home' }, { name: 'import-confirm' }];
+  }
+  return [{ name: 'home' }];
+}
 
 const INITIAL_SONG_MASTER_META: Record<string, string | null> = {
   song_master_file_name: null,
@@ -42,7 +66,7 @@ const INITIAL_SONG_MASTER_META: Record<string, string | null> = {
 export function App(): JSX.Element {
   const { appDb, songMasterService } = useAppServices();
 
-  const [routeStack, setRouteStack] = React.useState<RouteState[]>([{ name: 'home' }]);
+  const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
   const [tab, setTab] = React.useState<TournamentTab>('active');
   const [tournaments, setTournaments] = React.useState<Awaited<ReturnType<typeof appDb.listTournaments>>>([]);
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
@@ -54,8 +78,12 @@ export function App(): JSX.Element {
   const [toast, setToast] = React.useState<string | null>(null);
   const [pwaUpdate, setPwaUpdate] = React.useState<ServiceWorkerRegistration | null>(null);
   const [fatalError, setFatalError] = React.useState<string | null>(null);
+  const [homeMenuAnchorEl, setHomeMenuAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [speedDialOpen, setSpeedDialOpen] = React.useState(false);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
+  const isHomeRoute = route.name === 'home';
+  const isSettingsRoute = route.name === 'settings';
   const todayDate = todayJst();
 
   const pushRoute = React.useCallback((next: RouteState) => {
@@ -153,7 +181,6 @@ export function App(): JSX.Element {
 
     const bootstrap = async () => {
       try {
-        await updateSongMaster(false);
         await appDb.reconcileEvidenceFiles();
         await appDb.purgeExpiredEvidenceIfNeeded();
         await refreshSettingsSnapshot();
@@ -192,11 +219,17 @@ export function App(): JSX.Element {
     return () => {
       mounted = false;
     };
-  }, [appDb, pushToast, refreshSettingsSnapshot, updateSongMaster]);
+  }, [appDb, pushToast, refreshSettingsSnapshot]);
 
   React.useEffect(() => {
     void refreshTournamentList();
   }, [refreshTournamentList]);
+
+  React.useEffect(() => {
+    if (route.name === 'home' && isImportConfirmPath(window.location.pathname)) {
+      window.history.replaceState(window.history.state, '', '/');
+    }
+  }, [route.name]);
 
   const reloadDetail = React.useCallback(
     async (tournamentUuid: string) => {
@@ -226,12 +259,14 @@ export function App(): JSX.Element {
       try {
         const decoded = decodeTournamentPayload(extracted, { nowDate: todayDate });
         const result = await appDb.importTournament(decoded.payload);
-        if (result.status === 'already_imported') {
-          pushToast('取り込み済みです。');
-        } else if (result.status === 'conflict') {
-          pushToast('同一IDの別大会が存在するため取り込みできません。');
+        if (result.status === 'unchanged') {
+          pushToast('変更なし');
+        } else if (result.status === 'incompatible') {
+          pushToast('既存大会と開催期間が矛盾するため取り込みできません。');
+        } else if (result.status === 'merged') {
+          pushToast('取り込みました');
         } else {
-          pushToast('大会を取り込みました。');
+          pushToast('取り込みました');
         }
         await refreshTournamentList();
       } catch (error) {
@@ -263,6 +298,31 @@ export function App(): JSX.Element {
     [importFromPayload, pushToast],
   );
 
+  const confirmImport = React.useCallback(
+    async (payload: TournamentPayload) => {
+      const result = await appDb.importTournament(payload);
+      if (result.status === 'incompatible') {
+        pushToast('既存大会と開催期間が矛盾するため取り込みできません。');
+        return;
+      }
+
+      await refreshTournamentList();
+      if (result.status === 'unchanged') {
+        pushToast('変更なし');
+      } else {
+        pushToast('取り込みました');
+      }
+
+      const loaded = await reloadDetail(result.tournamentUuid);
+      if (!loaded) {
+        resetRoute({ name: 'home' });
+        return;
+      }
+      replaceRoute({ name: 'detail', tournamentUuid: result.tournamentUuid });
+    },
+    [appDb, pushToast, refreshTournamentList, reloadDetail, replaceRoute, resetRoute],
+  );
+
   const saveAutoDelete = React.useCallback(
     async (enabled: boolean, days: number) => {
       await appDb.setAutoDeleteConfig(enabled, days);
@@ -287,6 +347,10 @@ export function App(): JSX.Element {
     switch (route.name) {
       case 'home':
         return '大会一覧';
+      case 'import':
+        return '大会取込';
+      case 'import-confirm':
+        return '取り込み確認';
       case 'create':
         return '大会作成';
       case 'detail':
@@ -308,6 +372,14 @@ export function App(): JSX.Element {
     pushRoute({ name: 'create' });
   }, [pushRoute, pushToast, songMasterReady]);
 
+  const openImportPage = React.useCallback(() => {
+    if (!songMasterReady) {
+      pushToast('曲マスタが未取得のため大会取込は利用できません。');
+      return;
+    }
+    pushRoute({ name: 'import' });
+  }, [pushRoute, pushToast, songMasterReady]);
+
   const openSettingsPage = React.useCallback(() => {
     if (route.name === 'settings') {
       return;
@@ -315,6 +387,36 @@ export function App(): JSX.Element {
     pushRoute({ name: 'settings' });
   }, [pushRoute, route.name]);
 
+  const openHomeMenu = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setHomeMenuAnchorEl(event.currentTarget);
+  }, []);
+
+  const closeHomeMenu = React.useCallback(() => {
+    setHomeMenuAnchorEl(null);
+  }, []);
+
+  const resetLocalData = React.useCallback(async () => {
+    closeHomeMenu();
+    if (!window.confirm('ローカル初期化を実行します。大会/提出画像/設定を削除します。続行しますか？')) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await appDb.resetLocalData();
+      setDetail(null);
+      setTab('active');
+      setTournaments(await appDb.listTournaments('active'));
+      await refreshSettingsSnapshot();
+      pushToast('ローカル初期化を実行しました。');
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  }, [appDb, closeHomeMenu, pushToast, refreshSettingsSnapshot]);
+
+  const homeMenuOpen = homeMenuAnchorEl !== null;
   const canGoBack = route.name !== 'home' && routeStack.length > 1;
 
   if (fatalError) {
@@ -325,17 +427,75 @@ export function App(): JSX.Element {
     <>
       <AppBar position="sticky" color="inherit" elevation={1}>
         <Toolbar sx={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
-          {canGoBack ? (
-            <IconButton edge="start" color="inherit" aria-label="back" onClick={popRoute} sx={{ mr: 1 }}>
-              <ArrowBackIcon />
-            </IconButton>
-          ) : null}
-          <Typography variant="h6" component="h1" sx={{ flexGrow: 1 }}>
-            {pageTitle}
-          </Typography>
-          <IconButton edge="end" color="inherit" aria-label="settings" onClick={openSettingsPage}>
-            <MoreVertIcon />
-          </IconButton>
+          {isHomeRoute ? (
+            <>
+              <Typography variant="h6" component="h1" sx={{ flexGrow: 1, fontWeight: 700 }}>
+                {pageTitle}
+              </Typography>
+              <IconButton edge="end" color="inherit" aria-label="global-settings-menu" onClick={openHomeMenu}>
+                <MoreVertIcon />
+              </IconButton>
+              <Menu anchorEl={homeMenuAnchorEl} open={homeMenuOpen} onClose={closeHomeMenu}>
+                <MenuItem
+                  disabled={busy}
+                  onClick={() => {
+                    closeHomeMenu();
+                    void updateSongMaster(true);
+                  }}
+                >
+                  曲データ更新
+                </MenuItem>
+                <MenuItem disabled={busy} onClick={() => void resetLocalData()}>
+                  ローカル初期化
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    closeHomeMenu();
+                    openSettingsPage();
+                  }}
+                >
+                  設定
+                </MenuItem>
+              </Menu>
+            </>
+          ) : (
+            <>
+              {isSettingsRoute ? (
+                <Box
+                  sx={{
+                    width: '100%',
+                    display: 'grid',
+                    gridTemplateColumns: 'auto 1fr auto',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <Box sx={{ minWidth: 40, display: 'flex', justifyContent: 'flex-start' }}>
+                    {canGoBack ? (
+                      <IconButton edge="start" color="inherit" aria-label="back" onClick={popRoute}>
+                        <ArrowBackIcon />
+                      </IconButton>
+                    ) : null}
+                  </Box>
+                  <Typography variant="h6" component="h1" sx={{ fontWeight: 700, textAlign: 'center' }}>
+                    {pageTitle}
+                  </Typography>
+                  <Box sx={{ minWidth: 40 }} />
+                </Box>
+              ) : (
+                <>
+                  {canGoBack ? (
+                    <IconButton edge="start" color="inherit" aria-label="back" onClick={popRoute} sx={{ mr: 1 }}>
+                      <ArrowBackIcon />
+                    </IconButton>
+                  ) : null}
+                  <Typography variant="h6" component="h1" sx={{ fontWeight: 700 }}>
+                    {pageTitle}
+                  </Typography>
+                </>
+              )}
+            </>
+          )}
         </Toolbar>
       </AppBar>
 
@@ -358,12 +518,7 @@ export function App(): JSX.Element {
             todayDate={todayDate}
             tab={tab}
             items={tournaments}
-            songMasterReady={songMasterReady}
-            songMasterMessage={songMasterMeta.song_master_downloaded_at ? null : '曲マスタ未取得'}
-            busy={busy}
             onTabChange={setTab}
-            onOpenCreate={openCreatePage}
-            onOpenSettings={openSettingsPage}
             onOpenDetail={async (tournamentUuid) => {
               const loaded = await reloadDetail(tournamentUuid);
               if (!loaded) {
@@ -371,21 +526,42 @@ export function App(): JSX.Element {
               }
               pushRoute({ name: 'detail', tournamentUuid });
             }}
+          />
+        )}
+
+        {route.name === 'import' && (
+          <ImportTournamentPage
+            songMasterReady={songMasterReady}
+            songMasterMessage={songMasterMeta.song_master_downloaded_at ? null : '曲マスタ未取得'}
+            busy={busy}
             onImportPayload={importFromPayload}
             onImportFile={importFromFile}
             onRefreshSongMaster={() => updateSongMaster(false)}
           />
         )}
 
+        {route.name === 'import-confirm' && (
+          <ImportConfirmPage
+            todayDate={todayDate}
+            busy={busy}
+            onBack={() => {
+              popRoute();
+              if (isImportConfirmPath(window.location.pathname)) {
+                window.history.replaceState(window.history.state, '', '/');
+              }
+            }}
+            onRefreshSongMaster={() => updateSongMaster(true)}
+            onConfirmImport={confirmImport}
+          />
+        )}
+
         {route.name === 'create' && (
           <CreateTournamentPage
             todayDate={todayDate}
-            onCancel={popRoute}
-            onSaved={async (tournamentUuid) => {
-              pushToast('大会を作成しました。');
+            onSaved={async () => {
+              pushToast('保存しました。');
               await refreshTournamentList();
-              await reloadDetail(tournamentUuid);
-              replaceRoute({ name: 'detail', tournamentUuid });
+              resetRoute({ name: 'home' });
             }}
           />
         )}
@@ -393,6 +569,7 @@ export function App(): JSX.Element {
         {route.name === 'detail' && detail && (
           <TournamentDetailPage
             detail={detail}
+            todayDate={todayDate}
             onBack={() => {
               popRoute();
               void refreshTournamentList();
@@ -430,23 +607,41 @@ export function App(): JSX.Element {
             autoDeleteEnabled={autoDeleteEnabled}
             autoDeleteDays={autoDeleteDays}
             busy={busy}
-            onBack={popRoute}
             onCheckUpdate={updateSongMaster}
             onSaveAutoDelete={saveAutoDelete}
             onRunAutoDelete={runAutoDelete}
           />
         )}
 
-        {route.name === 'home' ? (
-          <Fab
-            color="primary"
-            aria-label="create"
-            onClick={openCreatePage}
-            disabled={!songMasterReady}
+        {isHomeRoute ? (
+          <SpeedDial
+            ariaLabel="大会アクション"
+            icon={<AddIcon />}
+            direction="up"
+            open={speedDialOpen}
+            onOpen={() => setSpeedDialOpen(true)}
+            onClose={() => setSpeedDialOpen(false)}
             sx={{ position: 'fixed', right: 24, bottom: 24, zIndex: 30 }}
           >
-            <AddIcon />
-          </Fab>
+            <SpeedDialAction
+              icon={<PostAddIcon />}
+              tooltipTitle="大会作成"
+              FabProps={{ disabled: !songMasterReady || busy }}
+              onClick={() => {
+                setSpeedDialOpen(false);
+                openCreatePage();
+              }}
+            />
+            <SpeedDialAction
+              icon={<FileDownloadIcon />}
+              tooltipTitle="大会取込"
+              FabProps={{ disabled: !songMasterReady || busy }}
+              onClick={() => {
+                setSpeedDialOpen(false);
+                openImportPage();
+              }}
+            />
+          </SpeedDial>
         ) : null}
 
         {toast ? <div className="toast">{toast}</div> : null}

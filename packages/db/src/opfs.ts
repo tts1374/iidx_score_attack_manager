@@ -166,6 +166,21 @@ export class OpfsStorage {
     }
   }
 
+  async deleteDirectory(relativePath: string): Promise<void> {
+    const parts = splitPath(relativePath);
+    const directoryName = parts.pop();
+    if (!directoryName) {
+      return;
+    }
+
+    try {
+      const parent = await this.getDirectory(parts);
+      await parent.removeEntry(directoryName, { recursive: true });
+    } catch {
+      // ignore
+    }
+  }
+
   async readImageBitmap(relativePath: string): Promise<ImageBitmap> {
     const bytes = await this.readFile(relativePath);
     const blob = new Blob([toArrayBuffer(bytes)], { type: 'image/jpeg' });

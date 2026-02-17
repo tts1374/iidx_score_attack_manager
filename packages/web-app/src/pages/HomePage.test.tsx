@@ -28,23 +28,15 @@ describe('HomePage', () => {
             pendingCount: 2,
           },
         ]}
-        songMasterReady={true}
-        songMasterMessage={null}
-        busy={false}
         onTabChange={onTabChange}
-        onOpenCreate={() => undefined}
-        onOpenSettings={() => undefined}
         onOpenDetail={() => undefined}
-        onImportPayload={async () => undefined}
-        onImportFile={async () => undefined}
-        onRefreshSongMaster={async () => undefined}
-      />, 
+      />,
     );
 
-    expect(screen.getByText('提出: 2/4')).toBeTruthy();
+    expect(screen.getByText('提出 2 / 4')).toBeTruthy();
     expect(screen.getByText('残り2日')).toBeTruthy();
 
-    await userEvent.click(screen.getByRole('button', { name: '開催前' }));
+    await userEvent.click(screen.getByRole('tab', { name: '開催前' }));
     expect(onTabChange).toHaveBeenCalledWith('upcoming');
   });
 });
