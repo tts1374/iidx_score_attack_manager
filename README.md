@@ -32,3 +32,17 @@ node scripts/mock-song-master-server.mjs --sqlite ./song_master.sqlite --schema 
 開発時の `web` モードは Vite プロキシ経由で取得します。
 
 詳細は `docs/web-app-spec.md` を参照してください。
+
+## GitHub Pages デプロイ
+- 公開先は Project Pages を想定: `https://<user>.github.io/iidx_score_attack_manager/`
+- Vite の `base` は `packages/web-app/vite.config.ts` で `'/iidx_score_attack_manager/'` に設定済み
+- 継続デプロイは `.github/workflows/deploy-pages.yml` で実施
+  - `main` への push で自動実行
+  - `workflow_dispatch` で手動実行
+- GitHub 側設定:
+  - `Settings -> Pages -> Source` を `GitHub Actions` に設定
+
+## SPA 直リンク対策
+- 方式 A（404 フォールバック）を採用しています。`BrowserRouter` 相当の URL を維持したいためです。
+- `packages/web-app/package.json` の `postbuild` で `dist/index.html` を `dist/404.html` にコピーします。
+- これにより `/<repo>/some/path` への直リンクでも `index.html` が返り、クライアント側ルーティングで画面表示できます。

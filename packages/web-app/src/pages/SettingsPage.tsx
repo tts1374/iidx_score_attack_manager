@@ -23,8 +23,6 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-import { resolveSongMasterRuntimeConfig } from '../services/song-master-config';
-
 interface SettingsPageProps {
   songMasterMeta: Record<string, string | null>;
   autoDeleteEnabled: boolean;
@@ -37,15 +35,14 @@ interface SettingsPageProps {
 
 interface SongMasterLatestPayload {
   file_name: string;
-  schema_version: number;
+  schema_version: string | number;
   sha256: string;
   byte_size: number;
-  updated_at: string | null;
+  generated_at: string | null;
 }
 
 type SongMasterStatus = 'not_fetched' | 'unchecked' | 'latest' | 'update_available' | 'check_unavailable';
 
-const runtimeConfig = resolveSongMasterRuntimeConfig(import.meta.env);
 const AUTO_DELETE_DAYS_MIN = 1;
 const AUTO_DELETE_DAYS_MAX = 3650;
 
@@ -62,6 +59,17 @@ function pickNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function pickSchemaVersion(value: unknown): string | number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+  return null;
+}
+
 function parseLatestPayload(input: unknown): SongMasterLatestPayload {
   if (!input || typeof input !== 'object') {
     throw new Error('latest.json が不正です。');
@@ -69,12 +77,12 @@ function parseLatestPayload(input: unknown): SongMasterLatestPayload {
 
   const body = input as Record<string, unknown>;
   const fileName = pickText(body.file_name);
-  const schemaVersion = pickNumber(body.schema_version);
+  const schemaVersion = pickSchemaVersion(body.schema_version);
   const sha256 = pickText(body.sha256);
   const byteSize = pickNumber(body.byte_size);
-  const updatedAt = pickText(body.updated_at);
+  const generatedAt = pickText(body.generated_at);
 
-  if (!fileName || schemaVersion === null || !sha256 || byteSize === null) {
+  if (!fileName || schemaVersion === null || !sha256 || byteSize === null || !generatedAt) {
     throw new Error('latest.json の必須項目が不足しています。');
   }
 
@@ -83,7 +91,7 @@ function parseLatestPayload(input: unknown): SongMasterLatestPayload {
     schema_version: schemaVersion,
     sha256,
     byte_size: byteSize,
-    updated_at: updatedAt,
+    generated_at: generatedAt,
   };
 }
 
@@ -218,33 +226,21 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
     ['スキーマ', props.songMasterMeta.song_master_schema_version ?? '-'],
     ['SHA256', formatSha256Short(props.songMasterMeta.song_master_sha256 ?? null)],
     ['サイズ', formatByteSize(props.songMasterMeta.song_master_byte_size ?? null)],
-    ['更新日', props.songMasterMeta.song_master_updated_at ?? '-'],
+    ['生成日', props.songMasterMeta.song_master_generated_at ?? props.songMasterMeta.song_master_updated_at ?? '-'],
     ['取得日', props.songMasterMeta.song_master_downloaded_at ?? '-'],
   ] as const;
 
   const handleCheckLatest = React.useCallback(async () => {
     setRunningCheck(true);
     try {
-      const response = await fetch(runtimeConfig.latestJsonUrl, { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error(`latest.json fetch failed: ${response.status}`);
-      }
-
-      const payload = parseLatestPayload(await response.json());
-      setLatestPayload(payload);
-
-      const localSha = props.songMasterMeta.song_master_sha256;
-      if (!localSha) {
-        setCheckStatus(null);
-        return;
-      }
-      setCheckStatus(payload.sha256 === localSha ? 'latest' : 'update_available');
+      setCheckStatus(null);
+      await props.onCheckUpdate(false);
     } catch {
       setCheckStatus('check_unavailable');
     } finally {
       setRunningCheck(false);
     }
-  }, [props.songMasterMeta.song_master_sha256]);
+  }, [props]);
 
   return (
     <Box sx={{ display: 'grid', gap: 2.5 }}>
@@ -297,7 +293,10 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
                   {keyValueRow('schema_version', props.songMasterMeta.song_master_schema_version ?? '-')}
                   {keyValueRow('sha256', props.songMasterMeta.song_master_sha256 ?? '-', true)}
                   {keyValueRow('byte_size', props.songMasterMeta.song_master_byte_size ?? '-')}
-                  {keyValueRow('updated_at', props.songMasterMeta.song_master_updated_at ?? '-')}
+                  {keyValueRow(
+                    'generated_at',
+                    props.songMasterMeta.song_master_generated_at ?? props.songMasterMeta.song_master_updated_at ?? '-',
+                  )}
                   {keyValueRow('downloaded_at', props.songMasterMeta.song_master_downloaded_at ?? '-')}
                 </List>
               </Box>
@@ -311,7 +310,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
                     {keyValueRow('schema_version', String(latestPayload.schema_version))}
                     {keyValueRow('sha256', latestPayload.sha256, true)}
                     {keyValueRow('byte_size', String(latestPayload.byte_size))}
-                    {keyValueRow('updated_at', latestPayload.updated_at ?? '-')}
+                    {keyValueRow('generated_at', latestPayload.generated_at ?? '-')}
                   </List>
                 </Box>
               ) : null}

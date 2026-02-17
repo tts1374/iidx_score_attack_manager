@@ -2,7 +2,22 @@ import React from 'react';
 import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
 import { decodeTournamentPayload, type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
-import { AppBar, Box, IconButton, Menu, MenuItem, SpeedDial, SpeedDialAction, Toolbar, Typography } from '@mui/material';
+import {
+  AppBar,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Menu,
+  MenuItem,
+  SpeedDial,
+  SpeedDialAction,
+  Toolbar,
+  Typography,
+} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -19,7 +34,7 @@ import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
 import { useAppServices } from './services/context';
 import { extractQrTextFromImage } from './utils/image';
-import { extractPayloadFromFreeText, IMPORT_CONFIRM_PATH } from './utils/payload-url';
+import { extractPayloadFromFreeText, HOME_PATH, IMPORT_CONFIRM_PATH } from './utils/payload-url';
 
 function todayJst(): string {
   const now = new Date();
@@ -59,8 +74,15 @@ const INITIAL_SONG_MASTER_META: Record<string, string | null> = {
   song_master_schema_version: null,
   song_master_sha256: null,
   song_master_byte_size: null,
+  song_master_generated_at: null,
   song_master_updated_at: null,
   song_master_downloaded_at: null,
+  last_song_master_file_name: null,
+  last_song_master_schema_version: null,
+  last_song_master_sha256: null,
+  last_song_master_byte_size: null,
+  last_song_master_generated_at: null,
+  last_song_master_downloaded_at: null,
 };
 
 export function App(): JSX.Element {
@@ -79,10 +101,14 @@ export function App(): JSX.Element {
   const [pwaUpdate, setPwaUpdate] = React.useState<ServiceWorkerRegistration | null>(null);
   const [fatalError, setFatalError] = React.useState<string | null>(null);
   const [homeMenuAnchorEl, setHomeMenuAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [detailMenuAnchorEl, setDetailMenuAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [deleteTournamentDialogOpen, setDeleteTournamentDialogOpen] = React.useState(false);
+  const [deleteTournamentBusy, setDeleteTournamentBusy] = React.useState(false);
   const [speedDialOpen, setSpeedDialOpen] = React.useState(false);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
+  const isDetailRoute = route.name === 'detail';
   const isSettingsRoute = route.name === 'settings';
   const todayDate = todayJst();
 
@@ -160,6 +186,9 @@ export function App(): JSX.Element {
             pushToast('曲マスタ更新後の確認に失敗しました。');
           }
         }
+        if (result.source === 'up_to_date') {
+          pushToast('曲マスタは最新です。');
+        }
         if (result.message) {
           pushToast(result.message);
         }
@@ -227,7 +256,7 @@ export function App(): JSX.Element {
 
   React.useEffect(() => {
     if (route.name === 'home' && isImportConfirmPath(window.location.pathname)) {
-      window.history.replaceState(window.history.state, '', '/');
+      window.history.replaceState(window.history.state, '', HOME_PATH);
     }
   }, [route.name]);
 
@@ -395,6 +424,46 @@ export function App(): JSX.Element {
     setHomeMenuAnchorEl(null);
   }, []);
 
+  const openDetailMenu = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    setDetailMenuAnchorEl(event.currentTarget);
+  }, []);
+
+  const closeDetailMenu = React.useCallback(() => {
+    setDetailMenuAnchorEl(null);
+  }, []);
+
+  const openDeleteTournamentDialog = React.useCallback(() => {
+    closeDetailMenu();
+    setDeleteTournamentDialogOpen(true);
+  }, [closeDetailMenu]);
+
+  const closeDeleteTournamentDialog = React.useCallback(() => {
+    if (deleteTournamentBusy) {
+      return;
+    }
+    setDeleteTournamentDialogOpen(false);
+  }, [deleteTournamentBusy]);
+
+  const deleteCurrentTournament = React.useCallback(async () => {
+    if (!detail || deleteTournamentBusy) {
+      return;
+    }
+    setDeleteTournamentBusy(true);
+    try {
+      await appDb.deleteTournament(detail.tournamentUuid);
+      pushToast('大会を削除しました。');
+      setDetail(null);
+      setDeleteTournamentDialogOpen(false);
+      closeDetailMenu();
+      resetRoute({ name: 'home' });
+      await refreshTournamentList();
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDeleteTournamentBusy(false);
+    }
+  }, [appDb, closeDetailMenu, deleteTournamentBusy, detail, pushToast, refreshTournamentList, resetRoute]);
+
   const resetLocalData = React.useCallback(async () => {
     closeHomeMenu();
     if (!window.confirm('ローカル初期化を実行します。大会/提出画像/設定を削除します。続行しますか？')) {
@@ -417,7 +486,16 @@ export function App(): JSX.Element {
   }, [appDb, closeHomeMenu, pushToast, refreshSettingsSnapshot]);
 
   const homeMenuOpen = homeMenuAnchorEl !== null;
+  const detailMenuOpen = detailMenuAnchorEl !== null;
   const canGoBack = route.name !== 'home' && routeStack.length > 1;
+
+  React.useEffect(() => {
+    if (route.name === 'detail') {
+      return;
+    }
+    setDetailMenuAnchorEl(null);
+    setDeleteTournamentDialogOpen(false);
+  }, [route.name]);
 
   if (fatalError) {
     return <UnsupportedScreen title="曲マスタ起動エラー" reasons={[fatalError]} />;
@@ -489,9 +567,21 @@ export function App(): JSX.Element {
                       <ArrowBackIcon />
                     </IconButton>
                   ) : null}
-                  <Typography variant="h6" component="h1" sx={{ fontWeight: 700 }}>
+                  <Typography variant="h6" component="h1" sx={{ fontWeight: 700, flexGrow: 1 }}>
                     {pageTitle}
                   </Typography>
+                  {isDetailRoute ? (
+                    <>
+                      <IconButton edge="end" color="inherit" aria-label="detail-actions-menu" onClick={openDetailMenu}>
+                        <MoreVertIcon />
+                      </IconButton>
+                      <Menu anchorEl={detailMenuAnchorEl} open={detailMenuOpen} onClose={closeDetailMenu}>
+                        <MenuItem disabled={deleteTournamentBusy} onClick={openDeleteTournamentDialog}>
+                          削除
+                        </MenuItem>
+                      </Menu>
+                    </>
+                  ) : null}
                 </>
               )}
             </>
@@ -547,7 +637,7 @@ export function App(): JSX.Element {
             onBack={() => {
               popRoute();
               if (isImportConfirmPath(window.location.pathname)) {
-                window.history.replaceState(window.history.state, '', '/');
+                window.history.replaceState(window.history.state, '', HOME_PATH);
               }
             }}
             onRefreshSongMaster={() => updateSongMaster(true)}
@@ -570,19 +660,10 @@ export function App(): JSX.Element {
           <TournamentDetailPage
             detail={detail}
             todayDate={todayDate}
-            onBack={() => {
-              popRoute();
-              void refreshTournamentList();
-            }}
             onOpenSubmit={(chartId) => {
               pushRoute({ name: 'submit', tournamentUuid: detail.tournamentUuid, chartId });
             }}
-            onDelete={async () => {
-              await appDb.deleteTournament(detail.tournamentUuid);
-              pushToast('大会を削除しました。');
-              resetRoute({ name: 'home' });
-              await refreshTournamentList();
-            }}
+            onOpenSettings={openSettingsPage}
           />
         )}
 
@@ -643,6 +724,26 @@ export function App(): JSX.Element {
             />
           </SpeedDial>
         ) : null}
+
+        <Dialog open={deleteTournamentDialogOpen} onClose={closeDeleteTournamentDialog} fullWidth maxWidth="xs">
+          <DialogTitle>大会を削除しますか？</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">大会データと画像は削除され、復元できません</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeDeleteTournamentDialog} disabled={deleteTournamentBusy}>
+              キャンセル
+            </Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={() => void deleteCurrentTournament()}
+              disabled={deleteTournamentBusy}
+            >
+              削除
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {toast ? <div className="toast">{toast}</div> : null}
       </div>

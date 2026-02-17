@@ -1,5 +1,14 @@
 const CACHE_NAME = 'iidx-app-shell-v1';
 const APP_SHELL = ['/', '/index.html'];
+const SONG_MASTER_LATEST_JSON_RE =
+  /^\/tts1374\/iidx_all_songs_master\/releases\/latest\/download\/latest\.json$/;
+const SONG_MASTER_SQLITE_RE =
+  /^\/tts1374\/iidx_all_songs_master\/releases\/latest\/download\/.+\.sqlite$/i;
+
+function shouldBypassSongMasterCache(urlText) {
+  const parsed = new URL(urlText);
+  return SONG_MASTER_LATEST_JSON_RE.test(parsed.pathname) || SONG_MASTER_SQLITE_RE.test(parsed.pathname);
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -23,6 +32,11 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  if (shouldBypassSongMasterCache(event.request.url)) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
     return;
   }
 

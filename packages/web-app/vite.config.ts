@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Project Pages (https://<user>.github.io/<repo>/) の場合:
+  base: '/iidx_score_attack_manager/',
+  // User Pages (https://<user>.github.io/) の場合は base: '/' に戻す
   optimizeDeps: {
     exclude: [
       '@sqlite.org/sqlite-wasm',
@@ -26,7 +29,7 @@ export default defineConfig({
         rewrite: (path) =>
           path.replace(
             /^\/__song-master-proxy__/,
-            '/tts1374/iidx_all_songs_master/releases/download/latest',
+            '/tts1374/iidx_all_songs_master/releases/latest/download',
           ),
       },
     },

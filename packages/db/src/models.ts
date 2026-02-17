@@ -20,12 +20,15 @@ export interface TournamentDetailItem extends TournamentListItem {
   charts: TournamentDetailChart[];
 }
 
+export type TournamentChartResolveIssue = 'MASTER_MISSING' | 'CHART_NOT_FOUND';
+
 export interface TournamentDetailChart {
   chartId: number;
   title: string;
   playStyle: string;
   difficulty: string;
   level: string;
+  resolveIssue: TournamentChartResolveIssue | null;
   submitted: boolean;
   updateSeq: number;
   fileDeleted: boolean;
@@ -94,11 +97,10 @@ export interface SongMasterChartDetail {
 
 export interface SongMasterLatest {
   file_name: string;
-  schema_version: number;
+  schema_version: string | number;
+  generated_at: string;
   sha256: string;
   byte_size: number;
-  updated_at?: string;
-  download_url?: string;
 }
 
 export interface SongSummary {

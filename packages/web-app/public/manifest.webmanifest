@@ -1,6 +1,6 @@
 {
-  "name": "大会・エビデンス管理システム",
-  "short_name": "IIDX大会",
+  "name": "スコアタログ",
+  "short_name": "スコアタログ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f6fb",

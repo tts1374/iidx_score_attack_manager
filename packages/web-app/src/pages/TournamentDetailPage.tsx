@@ -1,6 +1,7 @@
 import React from 'react';
 import { PAYLOAD_VERSION, encodeTournamentPayload } from '@iidx/shared';
 import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
+import QRCode from 'qrcode';
 import CloseIcon from '@mui/icons-material/Close';
 import {
   Alert,
@@ -24,22 +25,37 @@ import { resolveTournamentCardStatus } from '../utils/tournament-status';
 interface TournamentDetailPageProps {
   detail: TournamentDetailItem;
   todayDate: string;
-  onBack: () => void;
   onOpenSubmit: (chartId: number) => void;
-  onDelete: () => Promise<void>;
+  onOpenSettings: () => void;
 }
 
 const SHARE_IMAGE_WIDTH = 1080;
 const SHARE_IMAGE_HEIGHT = 1920;
+const SHARE_SAFE_MARGIN = 64;
+const SHARE_QR_SIZE = 420;
+const SHARE_QR_CARD_PADDING = 16;
+const SHARE_FONT_FAMILY = '"Segoe UI", "Noto Sans JP", sans-serif';
 
 type ShareNotice = {
   severity: 'info' | 'success' | 'warning' | 'error';
   text: string;
 };
 
+type SharePosterChart = {
+  chart: TournamentDetailChart;
+  levelLabel: string;
+};
+
+type ChartTaskStatus = 'pending' | 'done' | 'updated';
+
 function normalizeHashtag(value: string): string {
   const trimmed = value.trim().replace(/^#+/, '');
   return trimmed.length > 0 ? trimmed : 'IIDX';
+}
+
+function optionalHashtag(value: string): string | null {
+  const trimmed = value.trim().replace(/^#+/, '');
+  return trimmed.length > 0 ? `#${trimmed}` : null;
 }
 
 function safeFileName(value: string): string {
@@ -47,19 +63,39 @@ function safeFileName(value: string): string {
   return normalized.length > 0 ? normalized : 'tournament';
 }
 
-function resolveLevelLabel(level: string): string | null {
+type ChartLevelResolution = { kind: 'valid'; label: string } | { kind: 'zero' } | { kind: 'invalid' };
+
+function resolveChartLevel(level: string): ChartLevelResolution {
   const trimmed = String(level ?? '').trim();
   if (trimmed.length === 0 || trimmed === '-') {
-    return null;
+    return { kind: 'invalid' };
   }
   if (/^\d+$/.test(trimmed)) {
-    return trimmed;
+    const parsed = Number.parseInt(trimmed, 10);
+    if (parsed === 0) {
+      return { kind: 'zero' };
+    }
+    if (parsed > 0) {
+      return { kind: 'valid', label: String(parsed) };
+    }
+    return { kind: 'invalid' };
   }
   const numeric = Number(trimmed);
-  if (Number.isFinite(numeric) && numeric > 0) {
-    return String(Math.floor(numeric));
+  if (!Number.isFinite(numeric) || !Number.isInteger(numeric)) {
+    return { kind: 'invalid' };
   }
-  return null;
+  if (numeric === 0) {
+    return { kind: 'zero' };
+  }
+  if (numeric > 0) {
+    return { kind: 'valid', label: String(numeric) };
+  }
+  return { kind: 'invalid' };
+}
+
+function resolveLevelLabel(level: string): string | null {
+  const resolved = resolveChartLevel(level);
+  return resolved.kind === 'valid' ? resolved.label : null;
 }
 
 function toAlphaColor(color: string, alpha: number): string {
@@ -72,6 +108,25 @@ function toAlphaColor(color: string, alpha: number): string {
   const g = Number.parseInt(normalized.slice(2, 4), 16);
   const b = Number.parseInt(normalized.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function resolveChartTaskStatus(chart: TournamentDetailChart): { status: ChartTaskStatus; label: string } {
+  if (!chart.submitted) {
+    return {
+      status: 'pending',
+      label: '未登録',
+    };
+  }
+  if (chart.updateSeq > 1) {
+    return {
+      status: 'updated',
+      label: '更新あり',
+    };
+  }
+  return {
+    status: 'done',
+    label: '登録済',
+  };
 }
 
 function trimTextToWidth(ctx: CanvasRenderingContext2D, value: string, width: number): string {
@@ -142,6 +197,71 @@ function fillRoundedRect(
   ctx.fill();
 }
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('QR画像の読み込みに失敗しました。'));
+    image.src = src;
+  });
+}
+
+function resolveTitleLayout(
+  ctx: CanvasRenderingContext2D,
+  title: string,
+  maxWidth: number,
+): { lines: string[]; fontSize: number; lineHeight: number } {
+  for (let fontSize = 90; fontSize >= 62; fontSize -= 4) {
+    ctx.font = `800 ${fontSize}px ${SHARE_FONT_FAMILY}`;
+    const lines = wrapText(ctx, title, maxWidth, 2);
+    const hasEllipsis = lines.some((line) => line.endsWith('…'));
+    if (!hasEllipsis) {
+      return {
+        lines,
+        fontSize,
+        lineHeight: fontSize + 18,
+      };
+    }
+  }
+  const fallbackFontSize = 62;
+  ctx.font = `800 ${fallbackFontSize}px ${SHARE_FONT_FAMILY}`;
+  return {
+    lines: wrapText(ctx, title, maxWidth, 2),
+    fontSize: fallbackFontSize,
+    lineHeight: fallbackFontSize + 16,
+  };
+}
+
+function resolveSharePosterCharts(detail: TournamentDetailItem): SharePosterChart[] {
+  const rows: SharePosterChart[] = [];
+  let hasUnresolvedLevel = false;
+
+  detail.charts.forEach((chart) => {
+    const level = resolveChartLevel(chart.level);
+    if (level.kind === 'zero') {
+      return;
+    }
+    if (level.kind === 'invalid') {
+      hasUnresolvedLevel = true;
+      return;
+    }
+    rows.push({
+      chart,
+      levelLabel: level.label,
+    });
+  });
+
+  if (hasUnresolvedLevel) {
+    throw new Error('対象譜面のLvを解決できないため宣伝画像を生成できません。曲データ更新後に再試行してください。');
+  }
+
+  if (rows.length === 0) {
+    throw new Error('表示可能な対象譜面がないため宣伝画像を生成できません。');
+  }
+
+  return rows.slice(0, 4);
+}
+
 function toPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
@@ -158,7 +278,9 @@ function toPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-async function buildShareImage(detail: TournamentDetailItem, statusLabel: string, shareText: string): Promise<Blob> {
+async function buildShareImage(detail: TournamentDetailItem, shareUrl: string): Promise<Blob> {
+  const posterCharts = resolveSharePosterCharts(detail);
+
   const canvas = document.createElement('canvas');
   canvas.width = SHARE_IMAGE_WIDTH;
   canvas.height = SHARE_IMAGE_HEIGHT;
@@ -167,124 +289,177 @@ async function buildShareImage(detail: TournamentDetailItem, statusLabel: string
     throw new Error('共有画像の描画環境を取得できませんでした。');
   }
 
-  const bg = ctx.createLinearGradient(0, 0, SHARE_IMAGE_WIDTH, SHARE_IMAGE_HEIGHT);
-  bg.addColorStop(0, '#0f172a');
-  bg.addColorStop(0.52, '#1d4ed8');
-  bg.addColorStop(1, '#1e293b');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, SHARE_IMAGE_WIDTH, SHARE_IMAGE_HEIGHT);
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
-  for (let lineY = 52; lineY < SHARE_IMAGE_HEIGHT; lineY += 136) {
-    ctx.fillRect(0, lineY, SHARE_IMAGE_WIDTH, 1);
-  }
-
-  const cardX = 60;
-  const cardY = 72;
-  const cardWidth = SHARE_IMAGE_WIDTH - 120;
-  const cardHeight = SHARE_IMAGE_HEIGHT - 144;
-  fillRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 44, '#f8fafc');
-
-  let y = cardY + 96;
   ctx.textBaseline = 'alphabetic';
 
-  ctx.font = '700 34px "Segoe UI", "Noto Sans JP", sans-serif';
-  const statusWidth = ctx.measureText(statusLabel).width + 56;
-  fillRoundedRect(ctx, cardX + 56, y - 50, statusWidth, 66, 33, '#1d4ed8');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(statusLabel, cardX + 84, y - 8);
+  const background = ctx.createLinearGradient(0, 0, SHARE_IMAGE_WIDTH, SHARE_IMAGE_HEIGHT);
+  background.addColorStop(0, '#0B132B');
+  background.addColorStop(0.48, '#1D4ED8');
+  background.addColorStop(1, '#0F172A');
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, SHARE_IMAGE_WIDTH, SHARE_IMAGE_HEIGHT);
 
-  y += 54;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.beginPath();
+  ctx.arc(190, 250, 220, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(980, 420, 300, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(870, 1710, 260, 0, Math.PI * 2);
+  ctx.fill();
+
+  const panelX = SHARE_SAFE_MARGIN + 20;
+  const panelY = SHARE_SAFE_MARGIN + 20;
+  const panelWidth = SHARE_IMAGE_WIDTH - (SHARE_SAFE_MARGIN + 20) * 2;
+  const panelHeight = SHARE_IMAGE_HEIGHT - (SHARE_SAFE_MARGIN + 20) * 2;
+  fillRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 46, 'rgba(248, 250, 252, 0.88)');
+
+  const panelPadding = 56;
+  const innerX = panelX + panelPadding;
+  const innerY = panelY + panelPadding;
+  const innerWidth = panelWidth - panelPadding * 2;
+  const innerHeight = panelHeight - panelPadding * 2;
+  const sectionGap = 40;
+  const headerHeight = Math.floor(innerHeight * 0.25);
+  const chartBlockHeight = Math.floor(innerHeight * 0.35);
+  const qrBlockHeight = innerHeight - headerHeight - chartBlockHeight - sectionGap * 2;
+
+  const headerTop = innerY;
+  const chartTop = headerTop + headerHeight + sectionGap;
+  const qrTop = chartTop + chartBlockHeight + sectionGap;
+
+  let headerCursorY = headerTop + 88;
+  const titleLayout = resolveTitleLayout(ctx, detail.tournamentName, innerWidth);
   ctx.fillStyle = '#0f172a';
-  ctx.font = '700 68px "Segoe UI", "Noto Sans JP", sans-serif';
-  const titleLines = wrapText(ctx, detail.tournamentName, cardWidth - 112, 2);
-  for (const line of titleLines) {
-    ctx.fillText(line, cardX + 56, y);
-    y += 80;
+  ctx.font = `800 ${titleLayout.fontSize}px ${SHARE_FONT_FAMILY}`;
+  titleLayout.lines.forEach((line) => {
+    ctx.fillText(line, innerX, headerCursorY);
+    headerCursorY += titleLayout.lineHeight;
+  });
+
+  const hashtagLine = optionalHashtag(detail.hashtag);
+  if (hashtagLine) {
+    ctx.fillStyle = '#1d4ed8';
+    ctx.font = `700 34px ${SHARE_FONT_FAMILY}`;
+    ctx.fillText(trimTextToWidth(ctx, hashtagLine, innerWidth), innerX, headerCursorY + 4);
+    headerCursorY += 56;
   }
 
   ctx.fillStyle = '#334155';
-  ctx.font = '500 34px "Segoe UI", "Noto Sans JP", sans-serif';
-  ctx.fillText(trimTextToWidth(ctx, `開催者: ${detail.owner}`, cardWidth - 112), cardX + 56, y + 18);
-  y += 72;
-  ctx.fillStyle = '#475569';
-  ctx.fillText(`${detail.startDate} 〜 ${detail.endDate}`, cardX + 56, y + 6);
-  y += 58;
-  ctx.fillStyle = '#1d4ed8';
-  ctx.font = '700 34px "Segoe UI", "Noto Sans JP", sans-serif';
-  ctx.fillText(`#${normalizeHashtag(detail.hashtag)}`, cardX + 56, y);
-  y += 56;
+  ctx.font = `600 32px ${SHARE_FONT_FAMILY}`;
+  ctx.fillText(trimTextToWidth(ctx, `開催者: ${detail.owner}`, innerWidth), innerX, headerCursorY + 12);
+  headerCursorY += 68;
 
-  const progressX = cardX + 56;
-  const progressY = y;
-  const progressWidth = cardWidth - 112;
-  fillRoundedRect(ctx, progressX, progressY, progressWidth, 144, 28, '#e2e8f0');
-  ctx.fillStyle = '#0f172a';
-  ctx.font = '700 38px "Segoe UI", "Noto Sans JP", sans-serif';
-  ctx.fillText(`提出 ${detail.submittedCount} / ${detail.chartCount}`, progressX + 28, progressY + 56);
-  fillRoundedRect(ctx, progressX + 28, progressY + 82, progressWidth - 56, 22, 11, '#cbd5e1');
-  if (detail.chartCount > 0) {
-    const progress = Math.min(1, Math.max(0, detail.submittedCount / detail.chartCount));
-    const progressFillWidth = Math.max(20, (progressWidth - 56) * progress);
-    fillRoundedRect(ctx, progressX + 28, progressY + 82, progressFillWidth, 22, 11, '#2563eb');
-  }
-  y += 194;
+  ctx.fillStyle = '#1e293b';
+  ctx.font = `700 40px ${SHARE_FONT_FAMILY}`;
+  ctx.fillText(`${detail.startDate} 〜 ${detail.endDate}`, innerX, headerCursorY + 8);
 
   ctx.fillStyle = '#0f172a';
-  ctx.font = '700 42px "Segoe UI", "Noto Sans JP", sans-serif';
-  ctx.fillText('譜面一覧', cardX + 56, y);
-  y += 26;
+  ctx.font = `800 48px ${SHARE_FONT_FAMILY}`;
+  ctx.fillText('対象譜面', innerX, chartTop + 52);
 
-  const chartRowHeight = 100;
-  const chartRowGap = 14;
-  const maxChartRows = 8;
-  const visibleCharts = detail.charts.slice(0, maxChartRows);
+  const rowHeight = 122;
+  const rowGap = 4;
+  const rowTopStart = chartTop + 74;
+  const rowLeft = innerX;
+  const rowWidth = innerWidth;
 
-  visibleCharts.forEach((chart, index) => {
-    const rowTop = y + index * (chartRowHeight + chartRowGap);
-    const rowLeft = cardX + 56;
-    const rowWidth = cardWidth - 112;
-    const color = difficultyColor(chart.difficulty);
-    fillRoundedRect(ctx, rowLeft, rowTop, rowWidth, chartRowHeight, 20, '#ffffff');
-    fillRoundedRect(ctx, rowLeft + 18, rowTop + 22, 178, 52, 26, toAlphaColor(color, 0.16));
+  posterCharts.forEach((entry, index) => {
+    const rowTop = rowTopStart + index * (rowHeight + rowGap);
+    const tagText = `${entry.chart.playStyle} ${entry.chart.difficulty}`;
+    const color = difficultyColor(entry.chart.difficulty);
+    const tagHeight = 34;
+    const metaY = rowTop + 12;
+
+    fillRoundedRect(ctx, rowLeft, rowTop, rowWidth, rowHeight, 22, 'rgba(255, 255, 255, 0.78)');
+
+    ctx.font = `700 21px ${SHARE_FONT_FAMILY}`;
+    const tagWidth = Math.min(320, Math.max(170, ctx.measureText(tagText).width + 32));
+    const tagX = rowLeft + 24;
+    fillRoundedRect(ctx, tagX, metaY, tagWidth, tagHeight, 18, toAlphaColor(color, 0.2));
+
     ctx.fillStyle = color;
-    ctx.font = '700 26px "Segoe UI", "Noto Sans JP", sans-serif';
-    ctx.fillText(`${chart.playStyle} ${chart.difficulty}`, rowLeft + 30, rowTop + 56);
+    ctx.fillText(trimTextToWidth(ctx, tagText, tagWidth - 24), tagX + 12, metaY + 25);
 
+    const levelText = `Lv${entry.levelLabel}`;
+    const levelWidth = 112;
+    const levelX = rowLeft + rowWidth - levelWidth - 24;
+    fillRoundedRect(ctx, levelX, metaY, levelWidth, tagHeight, 18, '#e2e8f0');
     ctx.fillStyle = '#0f172a';
-    ctx.font = '700 30px "Segoe UI", "Noto Sans JP", sans-serif';
-    ctx.fillText(trimTextToWidth(ctx, chart.title, rowWidth - 426), rowLeft + 214, rowTop + 44);
+    ctx.font = `800 23px ${SHARE_FONT_FAMILY}`;
+    const levelTextWidth = ctx.measureText(levelText).width;
+    ctx.fillText(levelText, levelX + (levelWidth - levelTextWidth) / 2, metaY + 25);
 
-    const levelLabel = resolveLevelLabel(chart.level);
-    ctx.font = '600 23px "Segoe UI", "Noto Sans JP", sans-serif';
-    ctx.fillStyle = levelLabel ? '#334155' : '#b45309';
-    ctx.fillText(levelLabel ? `Lv${levelLabel}` : '曲データ更新が必要', rowLeft + 214, rowTop + 78);
-
-    const submitLabel = chart.submitted ? '登録済' : '未登録';
-    const submitTextColor = chart.submitted ? '#334155' : '#b91c1c';
-    const submitBgColor = chart.submitted ? '#e2e8f0' : '#fee2e2';
-    ctx.font = '700 20px "Segoe UI", "Noto Sans JP", sans-serif';
-    const submitWidth = ctx.measureText(submitLabel).width + 28;
-    fillRoundedRect(ctx, rowLeft + rowWidth - submitWidth - 18, rowTop + 58, submitWidth, 30, 15, submitBgColor);
-    ctx.fillStyle = submitTextColor;
-    ctx.fillText(submitLabel, rowLeft + rowWidth - submitWidth + 2 - 18, rowTop + 80);
+    const titleX = rowLeft + 24;
+    const titleWidth = rowWidth - 48;
+    ctx.fillStyle = '#0f172a';
+    const baseTitleFontSize = 26;
+    const boostedTitleFontSize = Math.round(baseTitleFontSize * 1.18);
+    const fallbackBoostedTitleFontSize = Math.round(baseTitleFontSize * 1.15);
+    ctx.font = `700 ${baseTitleFontSize}px ${SHARE_FONT_FAMILY}`;
+    const baseTitleLines = wrapText(ctx, entry.chart.title, titleWidth, 2);
+    let titleFontSize = baseTitleFontSize;
+    let titleLines = baseTitleLines;
+    if (baseTitleLines.length === 1) {
+      ctx.font = `700 ${boostedTitleFontSize}px ${SHARE_FONT_FAMILY}`;
+      const boostedTitleLines = wrapText(ctx, entry.chart.title, titleWidth, 2);
+      if (boostedTitleLines.length === 1) {
+        titleFontSize = boostedTitleFontSize;
+        titleLines = boostedTitleLines;
+      } else if (fallbackBoostedTitleFontSize !== boostedTitleFontSize) {
+        ctx.font = `700 ${fallbackBoostedTitleFontSize}px ${SHARE_FONT_FAMILY}`;
+        const fallbackBoostedTitleLines = wrapText(ctx, entry.chart.title, titleWidth, 2);
+        if (fallbackBoostedTitleLines.length === 1) {
+          titleFontSize = fallbackBoostedTitleFontSize;
+          titleLines = fallbackBoostedTitleLines;
+        }
+      }
+    }
+    ctx.font = `700 ${titleFontSize}px ${SHARE_FONT_FAMILY}`;
+    const titleLineHeight = Math.round(titleFontSize * 1.08);
+    const titleAreaTop = rowTop + 54;
+    const titleAreaBottom = rowTop + rowHeight - 10;
+    const titleAreaHeight = titleAreaBottom - titleAreaTop;
+    const titleBlockHeight = titleLines.length * titleLineHeight;
+    const titleStartY = titleAreaTop + Math.max(0, (titleAreaHeight - titleBlockHeight) / 2);
+    ctx.textBaseline = 'top';
+    titleLines.forEach((line, lineIndex) => {
+      ctx.fillText(line, titleX, titleStartY + lineIndex * titleLineHeight);
+    });
+    ctx.textBaseline = 'alphabetic';
   });
 
-  if (detail.charts.length > visibleCharts.length) {
-    const restCount = detail.charts.length - visibleCharts.length;
-    const restY = y + visibleCharts.length * (chartRowHeight + chartRowGap) + 28;
-    ctx.fillStyle = '#475569';
-    ctx.font = '600 28px "Segoe UI", "Noto Sans JP", sans-serif';
-    ctx.fillText(`ほか ${restCount} 譜面`, cardX + 62, restY);
-  }
+  const qrCardSize = SHARE_QR_SIZE + SHARE_QR_CARD_PADDING * 2;
+  const qrCardX = Math.round((SHARE_IMAGE_WIDTH - qrCardSize) / 2);
+  const qrCardY = qrTop + Math.max(0, Math.floor((qrBlockHeight - qrCardSize - 44) / 2));
+  fillRoundedRect(ctx, qrCardX, qrCardY, qrCardSize, qrCardSize, 28, '#ffffff');
 
-  const footerLabelY = cardY + cardHeight - 98;
-  ctx.fillStyle = '#475569';
-  ctx.font = '600 24px "Segoe UI", "Noto Sans JP", sans-serif';
-  ctx.fillText('共有テキスト', cardX + 56, footerLabelY);
-  ctx.fillStyle = '#0f172a';
-  ctx.font = '500 22px "Segoe UI", "Noto Sans JP", sans-serif';
-  ctx.fillText(trimTextToWidth(ctx, shareText, cardWidth - 112), cardX + 56, footerLabelY + 36);
+  const qrDataUrl = await QRCode.toDataURL(shareUrl, {
+    errorCorrectionLevel: 'M',
+    margin: 4,
+    width: SHARE_QR_SIZE,
+    color: {
+      dark: '#0f172a',
+      light: '#ffffff',
+    },
+  });
+  const qrImage = await loadImage(qrDataUrl);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    qrImage,
+    qrCardX + SHARE_QR_CARD_PADDING,
+    qrCardY + SHARE_QR_CARD_PADDING,
+    SHARE_QR_SIZE,
+    SHARE_QR_SIZE,
+  );
+  ctx.imageSmoothingEnabled = true;
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#1e293b';
+  ctx.font = `700 34px ${SHARE_FONT_FAMILY}`;
+  ctx.fillText('読み取って取り込む', SHARE_IMAGE_WIDTH / 2, qrCardY + qrCardSize + 56);
+  ctx.textAlign = 'left';
 
   return toPngBlob(canvas);
 }
@@ -307,8 +482,6 @@ function difficultyTag(chart: TournamentDetailChart): JSX.Element {
 
 export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Element {
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [deleting, setDeleting] = React.useState(false);
   const [shareImageStatus, setShareImageStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [shareImageBlob, setShareImageBlob] = React.useState<Blob | null>(null);
   const [shareImagePreviewUrl, setShareImagePreviewUrl] = React.useState<string | null>(null);
@@ -337,6 +510,15 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     [props.detail.endDate, props.detail.startDate, props.todayDate],
   );
   const progress = props.detail.chartCount > 0 ? Math.round((props.detail.submittedCount / props.detail.chartCount) * 100) : 0;
+  const hasMasterMissing = React.useMemo(
+    () => props.detail.charts.some((chart) => chart.resolveIssue === 'MASTER_MISSING'),
+    [props.detail.charts],
+  );
+  const hasChartNotFound = React.useMemo(
+    () => props.detail.charts.some((chart) => chart.resolveIssue === 'CHART_NOT_FOUND'),
+    [props.detail.charts],
+  );
+  const showChartResolveAlert = hasMasterMissing || hasChartNotFound;
 
   React.useEffect(() => {
     if (!shareDialogOpen) {
@@ -349,7 +531,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     setShareNotice(null);
     setManualCopyVisible(false);
 
-    void buildShareImage(props.detail, statusInfo.label, shareText)
+    void buildShareImage(props.detail, shareUrl)
       .then((blob) => {
         if (!active) {
           return;
@@ -372,7 +554,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     return () => {
       active = false;
     };
-  }, [props.detail, shareDialogOpen, shareText, statusInfo.label]);
+  }, [props.detail, shareDialogOpen, shareUrl]);
 
   React.useEffect(() => {
     return () => {
@@ -456,25 +638,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     }
   };
 
-  const requestDelete = () => {
-    setDeleteDialogOpen(true);
-  };
-
-  const runDelete = async () => {
-    if (deleting) {
-      return;
-    }
-    setDeleting(true);
-    try {
-      await props.onDelete();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : String(error));
-    } finally {
-      setDeleting(false);
-      setDeleteDialogOpen(false);
-    }
-  };
-
   const openShareDialog = () => {
     setShareDialogOpen(true);
     setShareNotice(null);
@@ -519,44 +682,46 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
       <section>
         <h2>譜面一覧</h2>
+        {showChartResolveAlert ? (
+          <Alert
+            severity="warning"
+            sx={{ mb: 1.5 }}
+            action={
+              <Button size="small" color="inherit" onClick={props.onOpenSettings}>
+                曲データ更新
+              </Button>
+            }
+          >
+            ⚠ 一部譜面が曲データと一致しません。
+          </Alert>
+        ) : null}
         <ul className="chartList">
           {props.detail.charts.map((chart) => {
             const levelLabel = resolveLevelLabel(chart.level);
+            const chartStatus = resolveChartTaskStatus(chart);
             return (
               <li key={chart.chartId}>
-                <button className="chartListItem" onClick={() => props.onOpenSubmit(chart.chartId)}>
-                  <span className={`statusCircle ${chart.submitted ? 'done' : 'pending'}`} />
+                <button
+                  className={`chartListItem ${chartStatus.status === 'pending' ? 'chartListItemPending' : ''}`}
+                  onClick={() => props.onOpenSubmit(chart.chartId)}
+                >
                   <div className="chartText">
-                    <strong>{chart.title}</strong>
+                    <strong className="chartTitle">{chart.title}</strong>
                     <div className="chartMetaLine">
-                      <span className="chartStyleTag">{chart.playStyle}</span>
+                      <span className="chartPlayStyleText">{chart.playStyle}</span>
                       {difficultyTag(chart)}
-                      {levelLabel ? (
-                        <span className="chartLevelTag">Lv{levelLabel}</span>
-                      ) : (
-                        <span className="chartMetaFallback">曲データ更新が必要</span>
-                      )}
+                      <span className="chartLevelTag">Lv{levelLabel ?? '?'}</span>
                     </div>
                   </div>
-                  <span className={`chartSubmitLabel ${chart.submitted ? 'done' : 'pending'}`}>
-                    {chart.submitted ? '登録済' : '未登録'}
+                  <span className={`chartSubmitLabel ${chartStatus.status}`}>{chartStatus.label}</span>
+                  <span className="arrow" aria-hidden>
+                    ›
                   </span>
-                  <span className="arrow">›</span>
                 </button>
               </li>
             );
           })}
         </ul>
-      </section>
-
-      <section className="detailCard dangerZoneCard">
-        <h3>危険操作</h3>
-        <p>大会データと画像は削除され、復元できません。</p>
-        <div className="rowActions">
-          <button className="dangerActionButton" onClick={requestDelete}>
-            削除
-          </button>
-        </div>
       </section>
 
       <Dialog open={shareDialogOpen} onClose={closeShareDialog} fullWidth maxWidth="sm">
@@ -668,20 +833,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         </DialogActions>
       </Dialog>
 
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>大会を削除しますか？</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">大会データと画像は削除され、復元できません。</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
-            キャンセル
-          </Button>
-          <Button color="error" variant="contained" onClick={() => void runDelete()} disabled={deleting}>
-            削除
-          </Button>
-        </DialogActions>
-      </Dialog>
     </div>
   );
 }

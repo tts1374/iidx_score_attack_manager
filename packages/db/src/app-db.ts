@@ -67,6 +67,14 @@ function normalizeDbDate(value: unknown, fallback: string): string {
   return fallback;
 }
 
+function normalizeDbText(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+}
+
 function isSongSearchDebugEnabled(): boolean {
   const g = globalThis as { __IIDX_DEBUG_SONG_SEARCH__?: unknown; localStorage?: Storage };
   if (g.__IIDX_DEBUG_SONG_SEARCH__ === true) {
@@ -98,8 +106,22 @@ interface SongMasterMetaFile {
   schema_version?: string | number;
   sha256?: string;
   byte_size?: string | number;
+  generated_at?: string;
   updated_at?: string;
   downloaded_at?: string;
+}
+
+function pickMetaValue(...values: Array<string | null | undefined>): string | null {
+  for (const value of values) {
+    if (typeof value !== 'string') {
+      continue;
+    }
+    const normalized = value.trim();
+    if (normalized.length > 0) {
+      return normalized;
+    }
+  }
+  return null;
 }
 
 interface SongSearchRow {
@@ -234,8 +256,15 @@ export class AppDatabase {
       'song_master_schema_version',
       'song_master_sha256',
       'song_master_byte_size',
+      'song_master_generated_at',
       'song_master_updated_at',
       'song_master_downloaded_at',
+      'last_song_master_file_name',
+      'last_song_master_schema_version',
+      'last_song_master_sha256',
+      'last_song_master_byte_size',
+      'last_song_master_generated_at',
+      'last_song_master_downloaded_at',
     ];
 
     const result: Record<string, string | null> = {};
@@ -244,33 +273,57 @@ export class AppDatabase {
     }
 
     const fileMeta = await this.readSongMasterMetaFile();
-    if (!fileMeta) {
-      return result;
-    }
+    const metaFileName =
+      fileMeta && typeof fileMeta.file_name === 'string' && fileMeta.file_name.length > 0 ? fileMeta.file_name : null;
+    const metaSchemaVersion =
+      fileMeta && fileMeta.schema_version !== undefined && fileMeta.schema_version !== null
+        ? String(fileMeta.schema_version)
+        : null;
+    const metaSha256 = fileMeta && typeof fileMeta.sha256 === 'string' && fileMeta.sha256.length > 0 ? fileMeta.sha256 : null;
+    const metaByteSize =
+      fileMeta && fileMeta.byte_size !== undefined && fileMeta.byte_size !== null ? String(fileMeta.byte_size) : null;
+    const metaGeneratedAt =
+      fileMeta && typeof fileMeta.generated_at === 'string'
+        ? fileMeta.generated_at
+        : fileMeta && typeof fileMeta.updated_at === 'string'
+          ? fileMeta.updated_at
+          : null;
+    const metaDownloadedAt = fileMeta && typeof fileMeta.downloaded_at === 'string' ? fileMeta.downloaded_at : null;
+
+    const fileName = pickMetaValue(result.last_song_master_file_name, result.song_master_file_name, metaFileName);
+    const schemaVersion = pickMetaValue(
+      result.last_song_master_schema_version,
+      result.song_master_schema_version,
+      metaSchemaVersion,
+    );
+    const sha256 = pickMetaValue(result.last_song_master_sha256, result.song_master_sha256, metaSha256);
+    const byteSize = pickMetaValue(result.last_song_master_byte_size, result.song_master_byte_size, metaByteSize);
+    const generatedAt = pickMetaValue(
+      result.last_song_master_generated_at,
+      result.song_master_generated_at,
+      result.song_master_updated_at,
+      metaGeneratedAt,
+    );
+    const downloadedAt = pickMetaValue(
+      result.last_song_master_downloaded_at,
+      result.song_master_downloaded_at,
+      metaDownloadedAt,
+    );
 
     return {
-      song_master_file_name:
-        result.song_master_file_name ??
-        (typeof fileMeta.file_name === 'string' && fileMeta.file_name.length > 0 ? fileMeta.file_name : null),
-      song_master_schema_version:
-        result.song_master_schema_version ??
-        (fileMeta.schema_version !== undefined && fileMeta.schema_version !== null
-          ? String(fileMeta.schema_version)
-          : null),
-      song_master_sha256:
-        result.song_master_sha256 ??
-        (typeof fileMeta.sha256 === 'string' && fileMeta.sha256.length > 0 ? fileMeta.sha256 : null),
-      song_master_byte_size:
-        result.song_master_byte_size ??
-        (fileMeta.byte_size !== undefined && fileMeta.byte_size !== null ? String(fileMeta.byte_size) : null),
-      song_master_updated_at:
-        result.song_master_updated_at ??
-        (typeof fileMeta.updated_at === 'string' && fileMeta.updated_at.length > 0 ? fileMeta.updated_at : null),
-      song_master_downloaded_at:
-        result.song_master_downloaded_at ??
-        (typeof fileMeta.downloaded_at === 'string' && fileMeta.downloaded_at.length > 0
-          ? fileMeta.downloaded_at
-          : null),
+      song_master_file_name: fileName,
+      song_master_schema_version: schemaVersion,
+      song_master_sha256: sha256,
+      song_master_byte_size: byteSize,
+      song_master_generated_at: generatedAt,
+      song_master_updated_at: generatedAt,
+      song_master_downloaded_at: downloadedAt,
+      last_song_master_file_name: fileName,
+      last_song_master_schema_version: schemaVersion,
+      last_song_master_sha256: sha256,
+      last_song_master_byte_size: byteSize,
+      last_song_master_generated_at: generatedAt,
+      last_song_master_downloaded_at: downloadedAt,
     };
   }
 
@@ -431,10 +484,10 @@ export class AppDatabase {
     try {
       const rows = await this.client.query<{
         chart_id: number;
-        title: string | null;
-        play_style: string | null;
-        difficulty: string | null;
-        level: string | null;
+        title: unknown;
+        play_style: unknown;
+        difficulty: unknown;
+        level: unknown;
       }>({
         dbId,
         sql: `
@@ -449,12 +502,16 @@ export class AppDatabase {
 
       return rows.map((row) => {
         const chartId = Number(row.chart_id);
+        const title = normalizeDbText(row.title);
+        const playStyle = normalizeDbText(row.play_style);
+        const difficulty = normalizeDbText(row.difficulty);
+        const level = normalizeDbText(row.level);
         return {
           chartId,
-          title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : `chart:${chartId}`,
-          playStyle: typeof row.play_style === 'string' && row.play_style.trim().length > 0 ? row.play_style : '-',
-          difficulty: typeof row.difficulty === 'string' && row.difficulty.trim().length > 0 ? row.difficulty : '-',
-          level: typeof row.level === 'string' && row.level.trim().length > 0 ? row.level : '-',
+          title: title ?? `chart:${chartId}`,
+          playStyle: playStyle ?? '-',
+          difficulty: difficulty ?? '-',
+          level: level ?? '-',
         };
       });
     } finally {
@@ -804,9 +861,9 @@ export class AppDatabase {
       const rows = await this.client.query<{
         chart_id: number;
         music_id: number;
-        play_style: string;
-        difficulty: string;
-        level: string;
+        play_style: unknown;
+        difficulty: unknown;
+        level: unknown;
         is_active: number;
       }>({
         dbId,
@@ -823,9 +880,9 @@ export class AppDatabase {
       return rows.map((row) => ({
         chartId: Number(row.chart_id),
         musicId: Number(row.music_id),
-        playStyle: row.play_style,
-        difficulty: row.difficulty,
-        level: row.level,
+        playStyle: normalizeDbText(row.play_style) ?? '-',
+        difficulty: normalizeDbText(row.difficulty) ?? '-',
+        level: normalizeDbText(row.level) ?? '-',
         isActive: Number(row.is_active),
       }));
     } finally {
@@ -853,80 +910,63 @@ export class AppDatabase {
       return [];
     }
 
+    const toFallbackChart = (
+      row: { chart_id: number; update_seq: number | null; file_deleted: number | null },
+      resolveIssue: 'MASTER_MISSING' | 'CHART_NOT_FOUND',
+    ): TournamentDetailChart => {
+      const chartId = Number(row.chart_id);
+      const updateSeq = Number(row.update_seq ?? 0);
+      const fileDeleted = Number(row.file_deleted ?? 0) === 1;
+      return {
+        chartId,
+        title: `chart:${chartId}`,
+        playStyle: '-',
+        difficulty: '-',
+        level: '-',
+        resolveIssue,
+        submitted: updateSeq > 0 && !fileDeleted,
+        updateSeq,
+        fileDeleted,
+      };
+    };
+
     const fileName = await this.getSongMasterDbFileName();
     if (!fileName) {
-      return chartRows.map((row) => {
-        const chartId = Number(row.chart_id);
-        const updateSeq = Number(row.update_seq ?? 0);
-        const fileDeleted = Number(row.file_deleted ?? 0) === 1;
-        return {
-          chartId,
-          title: `chart:${chartId}`,
-          playStyle: '-',
-          difficulty: '-',
-          level: '-',
-          submitted: updateSeq > 0 && !fileDeleted,
-          updateSeq,
-          fileDeleted,
-        };
-      });
+      return chartRows.map((row) => toFallbackChart(row, 'MASTER_MISSING'));
+    }
+
+    const exists = await this.opfs.fileExists(`${SONG_MASTER_DIR}/${fileName}`);
+    if (!exists) {
+      return chartRows.map((row) => toFallbackChart(row, 'MASTER_MISSING'));
     }
 
     const chartIds = chartRows.map((row) => Number(row.chart_id));
-    const placeholders = chartIds.map(() => '?').join(', ');
-    const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
-    try {
-      const songMasterRows = await this.client.query<{
-        chart_id: number;
-        title: string | null;
-        play_style: string | null;
-        difficulty: string | null;
-        level: string | null;
-      }>({
-        dbId,
-        sql: `
-          SELECT c.chart_id, m.title, c.play_style, c.difficulty, c.level
-          FROM chart c
-          LEFT JOIN music m ON m.music_id = c.music_id
-          WHERE c.chart_id IN (${placeholders})
-        `,
-        bind: chartIds,
-      });
-
-      const songMasterByChartId = new Map<number, {
-        title: string | null;
-        playStyle: string | null;
-        difficulty: string | null;
-        level: string | null;
-      }>();
-      for (const row of songMasterRows) {
-        songMasterByChartId.set(Number(row.chart_id), {
-          title: typeof row.title === 'string' ? row.title : null,
-          playStyle: typeof row.play_style === 'string' ? row.play_style : null,
-          difficulty: typeof row.difficulty === 'string' ? row.difficulty : null,
-          level: typeof row.level === 'string' ? row.level : null,
-        });
-      }
-
-      return chartRows.map((row) => {
-        const chartId = Number(row.chart_id);
-        const updateSeq = Number(row.update_seq ?? 0);
-        const fileDeleted = Number(row.file_deleted ?? 0) === 1;
-        const songMaster = songMasterByChartId.get(chartId);
-        return {
-          chartId,
-          title: songMaster?.title ?? `chart:${chartId}`,
-          playStyle: songMaster?.playStyle ?? '-',
-          difficulty: songMaster?.difficulty ?? '-',
-          level: songMaster?.level ?? '-',
-          submitted: updateSeq > 0 && !fileDeleted,
-          updateSeq,
-          fileDeleted,
-        };
-      });
-    } finally {
-      await this.client.close(dbId);
+    const songMasterRows = await this.listSongMasterChartsByIds(chartIds);
+    const songMasterByChartId = new Map<number, SongMasterChartDetail>();
+    for (const row of songMasterRows) {
+      songMasterByChartId.set(row.chartId, row);
     }
+
+    return chartRows.map((row) => {
+      const chartId = Number(row.chart_id);
+      const updateSeq = Number(row.update_seq ?? 0);
+      const fileDeleted = Number(row.file_deleted ?? 0) === 1;
+      const songMaster = songMasterByChartId.get(chartId);
+      if (!songMaster) {
+        return toFallbackChart(row, 'CHART_NOT_FOUND');
+      }
+      return {
+        chartId,
+        title: songMaster.title,
+        playStyle: songMaster.playStyle,
+        difficulty: songMaster.difficulty,
+        level: songMaster.level,
+        resolveIssue: null,
+        submitted: updateSeq > 0 && !fileDeleted,
+        updateSeq,
+        fileDeleted,
+      };
+    });
   }
 
   async upsertEvidenceMetadata(input: EvidenceUpsertInput): Promise<{ updated: boolean; updateSeq: number; fileName: string }> {

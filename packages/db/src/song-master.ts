@@ -3,7 +3,7 @@ import { sha256Hex } from '@iidx/shared';
 import { AppDatabase } from './app-db.js';
 import { SongMasterLatest } from './models.js';
 import { OpfsStorage } from './opfs.js';
-import { SqliteWorkerClient } from './sqlite-client.js';
+import { SqliteDbId, SqliteWorkerClient } from './sqlite-client.js';
 
 export type SongMasterUpdateSource =
   | 'initial_download'
@@ -25,25 +25,51 @@ export interface SongMasterServiceOptions {
   fetchImpl?: typeof fetch;
 }
 
-const SONG_MASTER_DIR = 'song_master';
-const SONG_MASTER_META_FILE = `${SONG_MASTER_DIR}/latest_meta.json`;
+type SongMasterErrorCode =
+  | 'network'
+  | 'json_invalid'
+  | 'schema_mismatch'
+  | 'integrity_mismatch'
+  | 'sqlite_invalid'
+  | 'storage_failure';
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+class SongMasterUpdateError extends Error {
+  constructor(
+    public readonly code: SongMasterErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'SongMasterUpdateError';
+  }
 }
 
-function parseLatestJsonText(rawText: string, latestJsonUrl: string): Record<string, unknown> {
-  try {
-    return JSON.parse(rawText) as Record<string, unknown>;
-  } catch {
-    const preview = rawText.slice(0, 80).replace(/\s+/g, ' ');
-    throw new Error(
-      `latest.json がJSONではありません。URL=${latestJsonUrl} preview="${preview}" ` +
-        `VITE_SONG_MASTER_LATEST_URL を正しい latest.json に設定してください。`,
-    );
+const SONG_MASTER_DIR = 'song_master';
+const SONG_MASTER_META_FILE = `${SONG_MASTER_DIR}/latest_meta.json`;
+const SQLITE_FILE_NAME_RE = /\.sqlite$/i;
+const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
+
+function normalizeUnknownError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
   }
+  return String(error);
+}
+
+function isIsoDateTime(value: string): boolean {
+  if (!value.includes('T')) {
+    return false;
+  }
+  return !Number.isNaN(Date.parse(value));
+}
+
+function isValidSqliteFileName(value: string): boolean {
+  if (value.length === 0) {
+    return false;
+  }
+  if (value.includes('/') || value.includes('\\')) {
+    return false;
+  }
+  return SQLITE_FILE_NAME_RE.test(value);
 }
 
 export class SongMasterService {
@@ -84,36 +110,43 @@ export class SongMasterService {
     try {
       latest = await this.fetchLatest();
     } catch (error) {
-      if (!hasCache) {
+      const message = `Song master update failed (${this.describeFailure(error)}).`;
+      if (hasCache) {
         return {
-          ok: false,
-          source: 'initial_download',
-          message: `曲マスタ初回取得に失敗しました: ${String(error)}`,
+          ok: true,
+          source: 'local_cache',
+          message: `${message} Continue using local cache.`,
         };
       }
       return {
-        ok: true,
-        source: 'local_cache',
-        message: '曲マスタ更新確認に失敗したためローカルキャッシュを利用します。',
+        ok: false,
+        source: 'initial_download',
+        message,
       };
     }
 
-    if (latest.schema_version !== this.options.requiredSchemaVersion) {
+    const requiredSchemaVersion = String(this.options.requiredSchemaVersion);
+    const latestSchemaVersion = String(latest.schema_version);
+    if (latestSchemaVersion !== requiredSchemaVersion) {
       return {
         ok: false,
         source: 'github_download',
-        message: `schema_versionが不一致です。required=${this.options.requiredSchemaVersion}, latest=${latest.schema_version}`,
+        latest,
+        message: this.describeFailure(
+          new SongMasterUpdateError(
+            'schema_mismatch',
+            `schema_version mismatch (required=${requiredSchemaVersion}, latest=${latestSchemaVersion})`,
+          ),
+        ),
       };
     }
 
     const cachedMeta = await this.appDb.getSongMasterMeta();
-    const fileNameChanged = cachedMeta.song_master_file_name !== latest.file_name;
-    const hashChanged = cachedMeta.song_master_sha256 !== latest.sha256;
-    const schemaChanged = cachedMeta.song_master_schema_version !== String(latest.schema_version);
-    const updatedAtChanged = (latest.updated_at ?? '') !== (cachedMeta.song_master_updated_at ?? '');
+    const cachedSha = (cachedMeta.last_song_master_sha256 ?? cachedMeta.song_master_sha256 ?? '').trim();
+    const cachedByteSize = (cachedMeta.last_song_master_byte_size ?? cachedMeta.song_master_byte_size ?? '').trim();
+    const needsDownload = force || !hasCache || cachedSha !== latest.sha256 || cachedByteSize !== String(latest.byte_size);
 
-    const needDownload = force || !hasCache || fileNameChanged || hashChanged || schemaChanged || updatedAtChanged;
-    if (!needDownload) {
+    if (!needsDownload) {
       return {
         ok: true,
         source: 'up_to_date',
@@ -121,134 +154,219 @@ export class SongMasterService {
       };
     }
 
-    const downloadUrl = latest.download_url ?? `${this.options.sqliteBaseUrl.replace(/\/$/, '')}/${latest.file_name}`;
-    const bytes = await this.downloadAndVerify(downloadUrl, latest);
-
-    const relativePath = `${SONG_MASTER_DIR}/${latest.file_name}`;
-    await this.opfs.writeFileAtomic(relativePath, bytes, {
-      validate: async (data) => {
-        const header = new TextDecoder().decode(data.slice(0, 16));
-        if (!header.startsWith('SQLite format 3')) {
-          throw new Error('downloaded file is not sqlite');
-        }
-      },
-    });
-
-    await this.validateSqliteOpen(latest.file_name);
-
-    const now = new Date().toISOString();
-    await this.persistMetaFile(latest, now);
-
-    let settingsWriteError: string | null = null;
     try {
-      await this.appDb.setSetting('song_master_file_name', latest.file_name);
-      await this.appDb.setSetting('song_master_schema_version', String(latest.schema_version));
-      await this.appDb.setSetting('song_master_sha256', latest.sha256);
-      await this.appDb.setSetting('song_master_byte_size', String(latest.byte_size));
-      await this.appDb.setSetting('song_master_updated_at', latest.updated_at ?? '');
-      await this.appDb.setSetting('song_master_downloaded_at', now);
+      const sqliteUrl = this.buildSqliteDownloadUrl(latest.file_name);
+      const bytes = await this.downloadAndVerify(sqliteUrl, latest);
+
+      const relativePath = `${SONG_MASTER_DIR}/${latest.file_name}`;
+      await this.opfs.writeFileAtomic(relativePath, bytes, {
+        validate: async (data) => {
+          const header = new TextDecoder().decode(data.slice(0, 16));
+          if (!header.startsWith('SQLite format 3')) {
+            throw new SongMasterUpdateError('sqlite_invalid', 'downloaded file is not sqlite');
+          }
+        },
+      });
+
+      await this.validateSqliteOpen(latest.file_name);
+
+      const downloadedAt = new Date().toISOString();
+      await this.persistMetaFile(latest, downloadedAt);
+      await this.persistSettings(latest, downloadedAt);
+
+      return {
+        ok: true,
+        source: hasCache ? 'github_download' : 'initial_download',
+        latest,
+      };
     } catch (error) {
-      settingsWriteError = error instanceof Error ? error.message : String(error);
+      const message = `Song master update failed (${this.describeFailure(error)}).`;
+      if (hasCache) {
+        return {
+          ok: true,
+          source: 'local_cache',
+          latest,
+          message: `${message} Continue using local cache.`,
+        };
+      }
+      return {
+        ok: false,
+        source: 'initial_download',
+        latest,
+        message,
+      };
     }
-
-    let savedMeta = await this.appDb.getSongMasterMeta();
-    let metaPersisted =
-      String(savedMeta.song_master_file_name ?? '') === latest.file_name &&
-      String(savedMeta.song_master_schema_version ?? '') === String(latest.schema_version) &&
-      String(savedMeta.song_master_sha256 ?? '') === latest.sha256;
-    for (let attempt = 0; attempt < 3 && !metaPersisted; attempt += 1) {
-      await sleep(25 * (attempt + 1));
-      savedMeta = await this.appDb.getSongMasterMeta();
-      metaPersisted =
-        String(savedMeta.song_master_file_name ?? '') === latest.file_name &&
-        String(savedMeta.song_master_schema_version ?? '') === String(latest.schema_version) &&
-        String(savedMeta.song_master_sha256 ?? '') === latest.sha256;
-    }
-    if (!metaPersisted) {
-      throw new Error(
-        `曲マスタメタデータの保存確認に失敗しました。expected=${JSON.stringify({
-          file_name: latest.file_name,
-          schema_version: String(latest.schema_version),
-          sha256: latest.sha256,
-        })} actual=${JSON.stringify({
-          file_name: savedMeta.song_master_file_name ?? null,
-          schema_version: savedMeta.song_master_schema_version ?? null,
-          sha256: savedMeta.song_master_sha256 ?? null,
-        })}`,
-      );
-    }
-
-    const hasCacheAfterUpdate = await this.appDb.hasSongMaster();
-    if (!hasCacheAfterUpdate) {
-      throw new Error('曲マスタファイルの保存確認に失敗しました。');
-    }
-
-    return {
-      ok: true,
-      source: hasCache ? 'github_download' : 'initial_download',
-      latest,
-      ...(settingsWriteError ? { message: `app_settings保存に失敗: ${settingsWriteError}` } : {}),
-    };
   }
 
   private async fetchLatest(): Promise<SongMasterLatest> {
-    const response = await this.fetchImpl(this.options.latestJsonUrl, {
-      cache: 'no-store',
-    });
-    if (!response.ok) {
-      throw new Error(`latest.json fetch failed: ${response.status}`);
-    }
-
+    const response = await this.fetchNoStore(this.options.latestJsonUrl, 'latest.json');
     const rawText = await response.text();
-    const body = parseLatestJsonText(rawText, this.options.latestJsonUrl);
+    let body: unknown;
 
-    const latest: SongMasterLatest = {
-      file_name: String(body.file_name ?? ''),
-      schema_version: Number(body.schema_version),
-      sha256: String(body.sha256 ?? ''),
-      byte_size: Number(body.byte_size),
-      ...(typeof body.updated_at === 'string' ? { updated_at: body.updated_at } : {}),
-      ...(typeof body.download_url === 'string' ? { download_url: body.download_url } : {}),
-    };
-
-    if (!latest.file_name || !latest.sha256 || !Number.isFinite(latest.byte_size)) {
-      throw new Error('latest.json fields are invalid');
+    try {
+      body = JSON.parse(rawText);
+    } catch {
+      throw new SongMasterUpdateError('json_invalid', 'latest.json is not valid JSON');
     }
 
-    return latest;
+    if (!body || typeof body !== 'object') {
+      throw new SongMasterUpdateError('json_invalid', 'latest.json root must be an object');
+    }
+
+    const payload = body as Record<string, unknown>;
+    const fileName = this.requireTextField(payload, 'file_name');
+    if (!isValidSqliteFileName(fileName)) {
+      throw new SongMasterUpdateError('json_invalid', 'file_name must be a sqlite file name');
+    }
+
+    const schemaVersion = this.requireSchemaVersion(payload, 'schema_version');
+    const generatedAt = this.requireTextField(payload, 'generated_at');
+    if (!isIsoDateTime(generatedAt)) {
+      throw new SongMasterUpdateError('json_invalid', 'generated_at must be an ISO8601 datetime');
+    }
+
+    const sha256 = this.requireTextField(payload, 'sha256').toLowerCase();
+    if (!SHA256_HEX_RE.test(sha256)) {
+      throw new SongMasterUpdateError('json_invalid', 'sha256 must be a 64-char hex string');
+    }
+
+    const byteSize = this.requireByteSize(payload, 'byte_size');
+
+    return {
+      file_name: fileName,
+      schema_version: schemaVersion,
+      generated_at: generatedAt,
+      sha256,
+      byte_size: byteSize,
+    };
   }
 
   private async downloadAndVerify(downloadUrl: string, latest: SongMasterLatest): Promise<Uint8Array> {
-    const response = await this.fetchImpl(downloadUrl, {
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      throw new Error(`song master download failed: ${response.status}`);
-    }
-
+    const response = await this.fetchNoStore(downloadUrl, latest.file_name);
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.byteLength !== latest.byte_size) {
-      throw new Error('song master byte_size mismatch');
+      throw new SongMasterUpdateError(
+        'integrity_mismatch',
+        `byte_size mismatch (expected=${latest.byte_size}, actual=${bytes.byteLength})`,
+      );
     }
 
-    const hash = sha256Hex(bytes);
-    if (hash !== latest.sha256) {
-      throw new Error('song master sha256 mismatch');
+    const digest = sha256Hex(bytes);
+    if (digest !== latest.sha256) {
+      throw new SongMasterUpdateError(
+        'integrity_mismatch',
+        `sha256 mismatch (expected=${latest.sha256}, actual=${digest})`,
+      );
     }
 
     return bytes;
   }
 
-  private async validateSqliteOpen(fileName: string): Promise<void> {
-    const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
+  private async fetchNoStore(url: string, label: string): Promise<Response> {
+    let response: Response;
     try {
+      response = await this.fetchImpl(url, { cache: 'no-store' });
+    } catch (error) {
+      throw new SongMasterUpdateError('network', `${label} fetch failed: ${normalizeUnknownError(error)}`);
+    }
+
+    if (!response.ok) {
+      throw new SongMasterUpdateError('network', `${label} fetch failed: ${response.status}`);
+    }
+
+    return response;
+  }
+
+  private buildSqliteDownloadUrl(fileName: string): string {
+    const base = this.options.sqliteBaseUrl.endsWith('/') ? this.options.sqliteBaseUrl : `${this.options.sqliteBaseUrl}/`;
+    return new URL(fileName, base).toString();
+  }
+
+  private requireTextField(payload: Record<string, unknown>, key: string): string {
+    const value = payload[key];
+    if (typeof value !== 'string') {
+      throw new SongMasterUpdateError('json_invalid', `${key} is missing`);
+    }
+    const normalized = value.trim();
+    if (normalized.length === 0) {
+      throw new SongMasterUpdateError('json_invalid', `${key} is empty`);
+    }
+    return normalized;
+  }
+
+  private requireSchemaVersion(payload: Record<string, unknown>, key: string): string | number {
+    const value = payload[key];
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      throw new SongMasterUpdateError('json_invalid', `${key} must be string or number`);
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) {
+        throw new SongMasterUpdateError('json_invalid', `${key} number is invalid`);
+      }
+      return value;
+    }
+    const normalized = value.trim();
+    if (normalized.length === 0) {
+      throw new SongMasterUpdateError('json_invalid', `${key} is empty`);
+    }
+    return normalized;
+  }
+
+  private requireByteSize(payload: Record<string, unknown>, key: string): number {
+    const raw = payload[key];
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
+      throw new SongMasterUpdateError('json_invalid', `${key} must be a positive integer`);
+    }
+    return parsed;
+  }
+
+  private async validateSqliteOpen(fileName: string): Promise<void> {
+    let dbId: SqliteDbId | null = null;
+    try {
+      dbId = await this.client.open({
+        filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1`,
+      });
       await this.client.query({
         dbId,
         sql: 'SELECT 1',
       });
+    } catch (error) {
+      throw new SongMasterUpdateError('sqlite_invalid', `sqlite validation failed: ${normalizeUnknownError(error)}`);
     } finally {
-      await this.client.close(dbId);
+      if (dbId !== null) {
+        await this.client.close(dbId);
+      }
+    }
+  }
+
+  private async persistSettings(latest: SongMasterLatest, downloadedAt: string): Promise<void> {
+    const schemaVersion = String(latest.schema_version);
+    const entries: Array<[string, string]> = [
+      ['song_master_file_name', latest.file_name],
+      ['song_master_schema_version', schemaVersion],
+      ['song_master_sha256', latest.sha256],
+      ['song_master_byte_size', String(latest.byte_size)],
+      ['song_master_updated_at', latest.generated_at],
+      ['song_master_generated_at', latest.generated_at],
+      ['song_master_downloaded_at', downloadedAt],
+      ['last_song_master_file_name', latest.file_name],
+      ['last_song_master_schema_version', schemaVersion],
+      ['last_song_master_sha256', latest.sha256],
+      ['last_song_master_byte_size', String(latest.byte_size)],
+      ['last_song_master_generated_at', latest.generated_at],
+      ['last_song_master_downloaded_at', downloadedAt],
+    ];
+
+    try {
+      for (const [key, value] of entries) {
+        await this.appDb.setSetting(key, value);
+      }
+    } catch (error) {
+      throw new SongMasterUpdateError(
+        'storage_failure',
+        `failed to persist song master settings: ${normalizeUnknownError(error)}`,
+      );
     }
   }
 
@@ -259,13 +377,39 @@ export class SongMasterService {
         schema_version: String(latest.schema_version),
         sha256: latest.sha256,
         byte_size: latest.byte_size,
-        updated_at: latest.updated_at ?? '',
+        generated_at: latest.generated_at,
         downloaded_at: downloadedAt,
       },
       null,
       2,
     );
     const bytes = new TextEncoder().encode(metaJson);
-    await this.opfs.writeFileAtomic(SONG_MASTER_META_FILE, bytes);
+    try {
+      await this.opfs.writeFileAtomic(SONG_MASTER_META_FILE, bytes);
+    } catch (error) {
+      throw new SongMasterUpdateError('storage_failure', `failed to persist meta file: ${normalizeUnknownError(error)}`);
+    }
+  }
+
+  private describeFailure(error: unknown): string {
+    if (error instanceof SongMasterUpdateError) {
+      switch (error.code) {
+        case 'network':
+          return `network_error: ${error.message}`;
+        case 'json_invalid':
+          return `invalid_latest_json: ${error.message}`;
+        case 'schema_mismatch':
+          return `schema_mismatch: ${error.message}`;
+        case 'integrity_mismatch':
+          return `integrity_mismatch: ${error.message}`;
+        case 'sqlite_invalid':
+          return `sqlite_validation_failed: ${error.message}`;
+        case 'storage_failure':
+          return `storage_failure: ${error.message}`;
+        default:
+          return error.message;
+      }
+    }
+    return normalizeUnknownError(error);
   }
 }
