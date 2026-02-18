@@ -1,6 +1,6 @@
 import React from 'react';
 import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
-import { decodeTournamentPayload, type TournamentPayload } from '@iidx/shared';
+import { type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import {
   AppBar,
@@ -34,7 +34,7 @@ import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
 import { useAppServices } from './services/context';
 import { extractQrTextFromImage } from './utils/image';
-import { extractPayloadFromFreeText, HOME_PATH, IMPORT_CONFIRM_PATH } from './utils/payload-url';
+import { buildImportConfirmPath, HOME_PATH, IMPORT_CONFIRM_PATH, resolveRawImportPayloadParam } from './utils/payload-url';
 
 function todayJst(): string {
   const now = new Date();
@@ -255,6 +255,19 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setRouteStack([next]);
   }, []);
 
+  const openImportConfirm = React.useCallback(
+    (rawPayloadParam: string | null) => {
+      const targetPath = buildImportConfirmPath(rawPayloadParam);
+      window.history.replaceState(window.history.state, '', targetPath);
+      if (route.name === 'import-confirm') {
+        replaceRoute({ name: 'import-confirm' });
+        return;
+      }
+      pushRoute({ name: 'import-confirm' });
+    },
+    [pushRoute, replaceRoute, route.name],
+  );
+
   const pushToast = React.useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => {
@@ -442,30 +455,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         return;
       }
 
-      const extracted = extractPayloadFromFreeText(raw);
-      if (!extracted) {
+      const rawPayloadParam = resolveRawImportPayloadParam(raw, true);
+      if (rawPayloadParam === null && raw.trim().length === 0) {
         pushToast('取込データを認識できません。');
         return;
       }
-
-      try {
-        const decoded = decodeTournamentPayload(extracted, { nowDate: todayDate });
-        const result = await appDb.importTournament(decoded.payload);
-        if (result.status === 'unchanged') {
-          pushToast('変更なし');
-        } else if (result.status === 'incompatible') {
-          pushToast('既存大会と開催期間が矛盾するため取り込みできません。');
-        } else if (result.status === 'merged') {
-          pushToast('取り込みました');
-        } else {
-          pushToast('取り込みました');
-        }
-        await refreshTournamentList();
-      } catch (error) {
-        pushToast(error instanceof Error ? error.message : String(error));
-      }
+      openImportConfirm(rawPayloadParam);
     },
-    [appDb, pushToast, refreshTournamentList, songMasterReady, todayDate],
+    [openImportConfirm, pushToast, songMasterReady],
   );
 
   const importFromFile = React.useCallback(
@@ -488,6 +485,19 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       }
     },
     [importFromPayload, pushToast],
+  );
+
+  const importFromQrScan = React.useCallback(
+    async (qrText: string) => {
+      if (!songMasterReady) {
+        pushToast('曲マスタが未取得のため、大会作成/取込は利用できません。');
+        return;
+      }
+
+      const rawPayloadParam = resolveRawImportPayloadParam(qrText, false);
+      openImportConfirm(rawPayloadParam);
+    },
+    [openImportConfirm, pushToast, songMasterReady],
   );
 
   const confirmImport = React.useCallback(
@@ -789,6 +799,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             busy={busy}
             onImportPayload={importFromPayload}
             onImportFile={importFromFile}
+            onImportQrScan={importFromQrScan}
             onRefreshSongMaster={() => updateSongMaster(false)}
           />
         )}

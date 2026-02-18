@@ -7,6 +7,7 @@ import {
   PayloadValidationError,
   type DecodeTournamentPayloadResult,
 } from '@iidx/shared';
+import { extractRawQueryParam } from './payload-url';
 
 export type ImportConfirmErrorCode =
   | 'INVALID_PARAM'
@@ -39,33 +40,6 @@ function normalizeBase64Input(value: string): string {
     return normalized;
   }
   return `${normalized}${'='.repeat(4 - remainder)}`;
-}
-
-export function extractRawQueryParam(search: string, key: string): string | null {
-  const query = search.startsWith('?') ? search.slice(1) : search;
-  if (query.length === 0) {
-    return null;
-  }
-
-  for (const token of query.split('&')) {
-    if (token.length === 0) {
-      continue;
-    }
-    const separatorIndex = token.indexOf('=');
-    const rawKey = separatorIndex >= 0 ? token.slice(0, separatorIndex) : token;
-    let decodedKey = '';
-    try {
-      decodedKey = decodeURIComponent(rawKey);
-    } catch {
-      continue;
-    }
-    if (decodedKey !== key) {
-      continue;
-    }
-    return separatorIndex >= 0 ? token.slice(separatorIndex + 1) : '';
-  }
-
-  return null;
 }
 
 export function decodeImportPayload(rawParam: string): DecodeTournamentPayloadResult {
@@ -128,3 +102,5 @@ export function classifyImportDecodeError(error: unknown): ImportConfirmError {
     message: '取り込みデータの検証に失敗しました。',
   };
 }
+
+export { extractRawQueryParam };

@@ -64,6 +64,10 @@ export async function extractQrTextFromImage(file: File): Promise<string | null>
   bitmap.close();
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  return extractQrTextFromImageData(imageData);
+}
+
+export function extractQrTextFromImageData(imageData: ImageData): string | null {
   const qr = jsQR(imageData.data, imageData.width, imageData.height);
   return qr?.data ?? null;
 }

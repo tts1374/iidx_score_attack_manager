@@ -28,6 +28,57 @@ export function buildImportUrl(payloadBase64: string): string {
   return url.toString();
 }
 
+export function extractRawQueryParam(search: string, key: string): string | null {
+  const query = search.startsWith('?') ? search.slice(1) : search;
+  if (query.length === 0) {
+    return null;
+  }
+
+  for (const token of query.split('&')) {
+    if (token.length === 0) {
+      continue;
+    }
+    const separatorIndex = token.indexOf('=');
+    const rawKey = separatorIndex >= 0 ? token.slice(0, separatorIndex) : token;
+    let decodedKey = '';
+    try {
+      decodedKey = decodeURIComponent(rawKey);
+    } catch {
+      continue;
+    }
+    if (decodedKey !== key) {
+      continue;
+    }
+    return separatorIndex >= 0 ? token.slice(separatorIndex + 1) : '';
+  }
+
+  return null;
+}
+
+export function buildImportConfirmPath(rawPayloadParam: string | null): string {
+  if (rawPayloadParam === null) {
+    return IMPORT_CONFIRM_PATH;
+  }
+  return `${IMPORT_CONFIRM_PATH}?p=${rawPayloadParam}`;
+}
+
+export function resolveRawImportPayloadParam(value: string, allowRawPayload = true): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    return extractRawQueryParam(url.search, 'p');
+  } catch {
+    if (!allowRawPayload) {
+      return null;
+    }
+    return encodeURIComponent(trimmed);
+  }
+}
+
 export function tryExtractPayloadFromUrl(value: string): string | null {
   try {
     const url = new URL(value);
