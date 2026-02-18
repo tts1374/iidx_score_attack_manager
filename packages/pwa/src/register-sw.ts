@@ -3,12 +3,20 @@ export interface RegisterPwaOptions {
   onUpdateFound?: (registration: ServiceWorkerRegistration) => void;
 }
 
+function resolveDefaultSwUrl(): string {
+  const meta = import.meta as ImportMeta & {
+    env?: { BASE_URL?: string };
+  };
+  const baseUrl = meta.env?.BASE_URL ?? '/';
+  return `${baseUrl}sw.js`;
+}
+
 export async function registerPwa(options: RegisterPwaOptions = {}): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
     return null;
   }
 
-  const registration = await navigator.serviceWorker.register(options.swUrl ?? '/sw.js');
+  const registration = await navigator.serviceWorker.register(options.swUrl ?? resolveDefaultSwUrl());
 
   const reportWaiting = () => {
     if (registration.waiting && options.onUpdateFound) {

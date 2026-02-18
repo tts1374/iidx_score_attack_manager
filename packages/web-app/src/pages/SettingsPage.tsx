@@ -23,6 +23,8 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
+import { resolveSongMasterRuntimeConfig } from '../services/song-master-config';
+
 interface SettingsPageProps {
   songMasterMeta: Record<string, string | null>;
   autoDeleteEnabled: boolean;
@@ -43,6 +45,7 @@ interface SongMasterLatestPayload {
 
 type SongMasterStatus = 'not_fetched' | 'unchecked' | 'latest' | 'update_available' | 'check_unavailable';
 
+const runtimeConfig = resolveSongMasterRuntimeConfig(import.meta.env);
 const AUTO_DELETE_DAYS_MIN = 1;
 const AUTO_DELETE_DAYS_MAX = 3650;
 
@@ -235,6 +238,18 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
     try {
       setCheckStatus(null);
       await props.onCheckUpdate(false);
+      const response = await fetch(runtimeConfig.latestJsonUrl, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`latest.json fetch failed: ${response.status}`);
+      }
+      const payload = parseLatestPayload(await response.json());
+      setLatestPayload(payload);
+      const localSha = props.songMasterMeta.song_master_sha256;
+      if (!localSha) {
+        setCheckStatus(null);
+        return;
+      }
+      setCheckStatus(payload.sha256 === localSha ? 'latest' : 'update_available');
     } catch {
       setCheckStatus('check_unavailable');
     } finally {

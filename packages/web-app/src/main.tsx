@@ -7,6 +7,41 @@ import { createAppServices } from './services/app-services';
 import { AppServicesProvider } from './services/context';
 import './styles.css';
 
+const COI_RELOAD_FLAG = 'iidx-coi-sw-reload';
+
+async function ensureCrossOriginIsolationByServiceWorker(): Promise<void> {
+  if (import.meta.env.DEV || globalThis.crossOriginIsolated) {
+    sessionStorage.removeItem(COI_RELOAD_FLAG);
+    return;
+  }
+
+  if (!('serviceWorker' in navigator)) {
+    return;
+  }
+
+  const swUrl = `${import.meta.env.BASE_URL}sw.js`;
+  try {
+    await navigator.serviceWorker.register(swUrl);
+  } catch {
+    return;
+  }
+
+  if (globalThis.crossOriginIsolated || navigator.serviceWorker.controller) {
+    sessionStorage.removeItem(COI_RELOAD_FLAG);
+    return;
+  }
+
+  if (sessionStorage.getItem(COI_RELOAD_FLAG) === '1') {
+    return;
+  }
+
+  sessionStorage.setItem(COI_RELOAD_FLAG, '1');
+  window.location.reload();
+  await new Promise<never>(() => {
+    /* stop boot sequence until reload */
+  });
+}
+
 async function bootstrap(): Promise<void> {
   const rootElement = document.getElementById('root');
   if (!rootElement) {
@@ -22,6 +57,8 @@ async function bootstrap(): Promise<void> {
       </main>
     </React.StrictMode>,
   );
+
+  await ensureCrossOriginIsolationByServiceWorker();
 
   const capability = checkRuntimeCapabilities();
   const reasons: string[] = [];

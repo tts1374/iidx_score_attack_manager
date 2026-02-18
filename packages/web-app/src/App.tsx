@@ -226,6 +226,7 @@ export function App(): JSX.Element {
           }
         } else {
           const registration = await registerPwa({
+            swUrl: `${import.meta.env.BASE_URL}sw.js`,
             onUpdateFound: (reg) => {
               if (mounted) {
                 setPwaUpdate(reg);

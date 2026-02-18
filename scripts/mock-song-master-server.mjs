@@ -19,7 +19,7 @@ function parseArgs() {
     port: Number(map.get('port') ?? '8787'),
     sqlitePath: resolve(map.get('sqlite') ?? './song_master.sqlite'),
     schemaVersion: Number(map.get('schema') ?? '1'),
-    updatedAt: map.get('updated-at') ?? new Date().toISOString(),
+    generatedAt: map.get('generated-at') ?? map.get('updated-at') ?? new Date().toISOString(),
   };
 }
 
@@ -34,7 +34,8 @@ const latestJson = JSON.stringify(
     schema_version: args.schemaVersion,
     sha256,
     byte_size: sqliteBytes.byteLength,
-    updated_at: args.updatedAt,
+    generated_at: args.generatedAt,
+    updated_at: args.generatedAt,
     download_url: `http://localhost:${args.port}/song-master/${sqliteFileName}`,
   },
   null,
