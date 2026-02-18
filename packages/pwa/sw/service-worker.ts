@@ -3,10 +3,13 @@
 declare const self: ServiceWorkerGlobalScope;
 
 const CACHE_NAME = 'iidx-app-shell-v2';
-const SONG_MASTER_LATEST_JSON_RE =
+const SW_VERSION = '2026-02-18-1';
+const SONG_MASTER_GITHUB_LATEST_JSON_RE =
   /^\/tts1374\/iidx_all_songs_master\/releases\/latest\/download\/latest\.json$/;
-const SONG_MASTER_SQLITE_RE =
+const SONG_MASTER_GITHUB_SQLITE_RE =
   /^\/tts1374\/iidx_all_songs_master\/releases\/latest\/download\/.+\.sqlite$/i;
+const SONG_MASTER_LOCAL_LATEST_JSON_RE = /\/song-master\/latest\.json$/;
+const SONG_MASTER_LOCAL_SQLITE_RE = /\/song-master\/.+\.sqlite$/i;
 
 function resolveScopePath(): string {
   const scope = self.registration?.scope ?? `${self.location.origin}/`;
@@ -32,7 +35,12 @@ function withIsolationHeaders(response: Response): Response {
 
 function shouldBypassSongMasterCache(urlText: string): boolean {
   const parsed = new URL(urlText);
-  return SONG_MASTER_LATEST_JSON_RE.test(parsed.pathname) || SONG_MASTER_SQLITE_RE.test(parsed.pathname);
+  return (
+    SONG_MASTER_GITHUB_LATEST_JSON_RE.test(parsed.pathname) ||
+    SONG_MASTER_GITHUB_SQLITE_RE.test(parsed.pathname) ||
+    SONG_MASTER_LOCAL_LATEST_JSON_RE.test(parsed.pathname) ||
+    SONG_MASTER_LOCAL_SQLITE_RE.test(parsed.pathname)
+  );
 }
 
 const SCOPE_PATH = resolveScopePath();
@@ -54,6 +62,10 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 });
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if ((event.data as { type?: string } | undefined)?.type === 'GET_SW_VERSION') {
+    event.ports[0]?.postMessage({ type: 'SW_VERSION', value: SW_VERSION });
+    return;
+  }
   if ((event.data as { type?: string } | undefined)?.type === 'SKIP_WAITING') {
     void self.skipWaiting();
   }
@@ -87,8 +99,10 @@ self.addEventListener('fetch', (event: FetchEvent) => {
         return withIsolationHeaders(cached);
       }
       return fetch(event.request).then((response) => {
-        void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-        return withIsolationHeaders(response);
+        const responseForCache = response.clone();
+        const responseForClient = withIsolationHeaders(response);
+        void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseForCache));
+        return responseForClient;
       });
     }),
   );

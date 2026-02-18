@@ -26,6 +26,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { resolveSongMasterRuntimeConfig } from '../services/song-master-config';
 
 interface SettingsPageProps {
+  appInfo: AppInfoCardData;
   songMasterMeta: Record<string, string | null>;
   autoDeleteEnabled: boolean;
   autoDeleteDays: number;
@@ -44,10 +45,29 @@ interface SongMasterLatestPayload {
 }
 
 type SongMasterStatus = 'not_fetched' | 'unchecked' | 'latest' | 'update_available' | 'check_unavailable';
+export type AppSwStatus = 'update_available' | 'enabled' | 'unregistered';
+
+export interface AppInfoCardData {
+  appVersion: string;
+  buildTime: string;
+  swStatus: AppSwStatus;
+  swVersion: string;
+  appDbUserVersion: number | null;
+  appDbSizeBytes: number | null;
+  webLocksStatus: 'acquired' | 'unsupported' | 'not_acquired';
+  opfsStatus: 'available' | 'unsupported' | 'error';
+}
 
 const runtimeConfig = resolveSongMasterRuntimeConfig(import.meta.env);
 const AUTO_DELETE_DAYS_MIN = 1;
 const AUTO_DELETE_DAYS_MAX = 3650;
+const settingsCardSx = {
+  p: { xs: 2, sm: 2.5 },
+  borderColor: '#dde4f1',
+  boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
+  display: 'grid',
+  gap: 2,
+} as const;
 
 function pickText(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -108,7 +128,7 @@ function formatSha256Short(value: string | null): string {
   return `${value.slice(0, 8)}…${value.slice(-8)}`;
 }
 
-function formatByteSize(rawBytes: string | null): string {
+function formatByteSize(rawBytes: string | number | null): string {
   const bytes = Number(rawBytes);
   if (!Number.isFinite(bytes) || bytes <= 0) {
     return '-';
@@ -149,6 +169,45 @@ function statusChipStyle(status: SongMasterStatus): {
     case 'unchecked':
     default:
       return { label: '未確認', color: 'default' };
+  }
+}
+
+function appInfoStatusChipStyle(status: AppSwStatus): {
+  label: string;
+  color: 'default' | 'success' | 'warning';
+} {
+  switch (status) {
+    case 'update_available':
+      return { label: '更新あり', color: 'warning' };
+    case 'enabled':
+      return { label: '有効', color: 'success' };
+    case 'unregistered':
+    default:
+      return { label: '未登録', color: 'default' };
+  }
+}
+
+function webLocksStatusText(status: AppInfoCardData['webLocksStatus']): string {
+  switch (status) {
+    case 'acquired':
+      return '取得済み';
+    case 'unsupported':
+      return '未対応';
+    case 'not_acquired':
+    default:
+      return '未取得';
+  }
+}
+
+function opfsStatusText(status: AppInfoCardData['opfsStatus']): string {
+  switch (status) {
+    case 'available':
+      return '利用可';
+    case 'unsupported':
+      return '未対応';
+    case 'error':
+    default:
+      return 'エラー';
   }
 }
 
@@ -223,6 +282,19 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         ? 'not_fetched'
         : checkStatus ?? 'unchecked';
   const chip = statusChipStyle(status);
+  const appInfoChip = appInfoStatusChipStyle(props.appInfo.swStatus);
+  const appSummaryRows = [
+    ['アプリ版本体', props.appInfo.appVersion || '-'],
+    ['ビルド日時', props.appInfo.buildTime || '-'],
+    ['Service Worker', appInfoChip.label],
+  ] as const;
+  const appDetailRows = [
+    ['SWバージョン', props.appInfo.swVersion || '-'],
+    ['DBスキーマ（app_data）', props.appInfo.appDbUserVersion === null ? '-' : String(props.appInfo.appDbUserVersion)],
+    ['DBファイルサイズ', formatByteSize(props.appInfo.appDbSizeBytes)],
+    ['Web Locks', webLocksStatusText(props.appInfo.webLocksStatus)],
+    ['OPFS', opfsStatusText(props.appInfo.opfsStatus)],
+  ] as const;
 
   const summaryRows = [
     ['ファイル名', props.songMasterMeta.song_master_file_name ?? '-'],
@@ -259,15 +331,35 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
 
   return (
     <Box sx={{ display: 'grid', gap: 2.5 }}>
+      <Card variant="outlined" sx={settingsCardSx}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+          <Typography variant="h6" component="h2" fontWeight={700}>
+            アプリ情報
+          </Typography>
+          <Chip label={appInfoChip.label} color={appInfoChip.color} size="small" />
+        </Box>
+
+        <List dense disablePadding>
+          {appSummaryRows.map(([label, value]) => keyValueRow(label, value))}
+        </List>
+
+        <Accordion disableGutters elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 2 }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ borderRadius: 2 }}>
+            <Typography variant="body2" fontWeight={700}>
+              詳細を表示
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0 }}>
+            <List dense disablePadding>
+              {appDetailRows.map(([label, value]) => keyValueRow(label, value))}
+            </List>
+          </AccordionDetails>
+        </Accordion>
+      </Card>
+
       <Card
         variant="outlined"
-        sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderColor: '#dde4f1',
-          boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
-          display: 'grid',
-          gap: 2,
-        }}
+        sx={settingsCardSx}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
           <Typography variant="h6" component="h2" fontWeight={700}>
@@ -352,13 +444,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
 
       <Card
         variant="outlined"
-        sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderColor: '#dde4f1',
-          boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
-          display: 'grid',
-          gap: 2,
-        }}
+        sx={settingsCardSx}
       >
         <Typography variant="h6" component="h2" fontWeight={700}>
           画像自動削除

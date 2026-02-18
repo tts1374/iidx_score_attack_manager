@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  GITHUB_RELEASE_LATEST_DOWNLOAD_BASE_URL,
-  GITHUB_RELEASE_LATEST_JSON_URL,
   LOCAL_MOCK_BASE_URL,
   LOCAL_MOCK_LATEST_JSON_URL,
+  PRODUCTION_SONG_MASTER_PATH_SEGMENT,
   resolveSongMasterRuntimeConfig,
 } from './song-master-config';
 
@@ -22,16 +21,21 @@ describe('resolveSongMasterRuntimeConfig', () => {
     expect(config.requiredSchemaVersion).toBe(33);
   });
 
-  it('resolves to fixed GitHub latest download URLs when not running in dev', () => {
+  it('resolves to same-origin song-master URLs when not running in dev', () => {
     const env = {
       DEV: false,
+      BASE_URL: '/iidx_score_attack_manager/',
       VITE_SONG_MASTER_SCHEMA_VERSION: '33',
     } as ImportMetaEnv;
 
     const config = resolveSongMasterRuntimeConfig(env);
     expect(config.source).toBe('github_latest_download');
-    expect(config.latestJsonUrl).toBe(GITHUB_RELEASE_LATEST_JSON_URL);
-    expect(config.sqliteBaseUrl).toBe(GITHUB_RELEASE_LATEST_DOWNLOAD_BASE_URL);
+    expect(config.latestJsonUrl).toMatch(
+      new RegExp(`/iidx_score_attack_manager/${PRODUCTION_SONG_MASTER_PATH_SEGMENT}/latest\\.json$`),
+    );
+    expect(config.sqliteBaseUrl).toMatch(
+      new RegExp(`/iidx_score_attack_manager/${PRODUCTION_SONG_MASTER_PATH_SEGMENT}/$`),
+    );
     expect(config.requiredSchemaVersion).toBe(33);
   });
 

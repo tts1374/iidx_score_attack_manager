@@ -1,5 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+
+const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version?: string;
+};
+const appVersion = typeof packageJson.version === 'string' ? packageJson.version : '0.0.0';
+const buildTime = new Date().toISOString();
 
 export default defineConfig({
   plugins: [react()],
@@ -14,6 +21,8 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __BUILD_TIME__: JSON.stringify(buildTime),
   },
   server: {
     port: 5173,

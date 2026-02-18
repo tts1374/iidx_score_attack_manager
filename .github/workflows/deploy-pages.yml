@@ -32,6 +32,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
+      - run: node scripts/sync-song-master-assets.mjs
       - run: pnpm --filter @iidx/web-app build
 
       - uses: actions/upload-pages-artifact@v3

@@ -29,7 +29,7 @@ import { CreateTournamentPage } from './pages/CreateTournamentPage';
 import { HomePage } from './pages/HomePage';
 import { ImportConfirmPage } from './pages/ImportConfirmPage';
 import { ImportTournamentPage } from './pages/ImportTournamentPage';
-import { SettingsPage } from './pages/SettingsPage';
+import { SettingsPage, type AppInfoCardData, type AppSwStatus } from './pages/SettingsPage';
 import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
 import { useAppServices } from './services/context';
@@ -85,7 +85,100 @@ const INITIAL_SONG_MASTER_META: Record<string, string | null> = {
   last_song_master_downloaded_at: null,
 };
 
-export function App(): JSX.Element {
+const APP_VERSION =
+  typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim().length > 0 ? __APP_VERSION__ : '-';
+const BUILD_TIME =
+  typeof __BUILD_TIME__ === 'string' && __BUILD_TIME__.trim().length > 0 ? __BUILD_TIME__ : '-';
+const SW_VERSION_REQUEST_TIMEOUT_MS = 1500;
+
+interface AppProps {
+  webLockAcquired?: boolean;
+}
+
+interface AppInfoDetailState {
+  swVersion: string;
+  appDbUserVersion: number | null;
+  appDbSizeBytes: number | null;
+  webLocksStatus: AppInfoCardData['webLocksStatus'];
+  opfsStatus: AppInfoCardData['opfsStatus'];
+}
+
+function resolveServiceWorkerStatus(pwaUpdate: ServiceWorkerRegistration | null, hasController: boolean): AppSwStatus {
+  if (pwaUpdate) {
+    return 'update_available';
+  }
+  return hasController ? 'enabled' : 'unregistered';
+}
+
+async function requestServiceWorkerVersion(): Promise<string | null> {
+  if (!('serviceWorker' in navigator)) {
+    return null;
+  }
+  const controller = navigator.serviceWorker.controller;
+  if (!controller) {
+    return null;
+  }
+
+  return new Promise<string | null>((resolve) => {
+    const channel = new MessageChannel();
+    let settled = false;
+    const timerId = window.setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      channel.port1.close();
+      resolve(null);
+    }, SW_VERSION_REQUEST_TIMEOUT_MS);
+
+    channel.port1.onmessage = (event: MessageEvent) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      window.clearTimeout(timerId);
+      channel.port1.close();
+      const payload = event.data as { type?: string; value?: unknown } | undefined;
+      if (payload?.type === 'SW_VERSION' && typeof payload.value === 'string' && payload.value.trim().length > 0) {
+        resolve(payload.value);
+        return;
+      }
+      resolve(null);
+    };
+
+    try {
+      controller.postMessage({ type: 'GET_SW_VERSION' }, [channel.port2]);
+    } catch {
+      window.clearTimeout(timerId);
+      channel.port1.close();
+      resolve(null);
+    }
+  });
+}
+
+function resolveWebLocksStatus(webLockAcquired: boolean): AppInfoCardData['webLocksStatus'] {
+  if (!navigator.locks?.request) {
+    return 'unsupported';
+  }
+  return webLockAcquired ? 'acquired' : 'not_acquired';
+}
+
+async function resolveOpfsStatus(): Promise<AppInfoCardData['opfsStatus']> {
+  const nav = navigator as Navigator & {
+    storage?: { getDirectory?: () => Promise<FileSystemDirectoryHandle> };
+  };
+  if (typeof nav.storage?.getDirectory !== 'function') {
+    return 'unsupported';
+  }
+  try {
+    await nav.storage.getDirectory();
+    return 'available';
+  } catch {
+    return 'error';
+  }
+}
+
+export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const { appDb, songMasterService } = useAppServices();
 
   const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
@@ -99,6 +192,16 @@ export function App(): JSX.Element {
   const [autoDeleteDays, setAutoDeleteDays] = React.useState(30);
   const [toast, setToast] = React.useState<string | null>(null);
   const [pwaUpdate, setPwaUpdate] = React.useState<ServiceWorkerRegistration | null>(null);
+  const [hasSwController, setHasSwController] = React.useState(() =>
+    'serviceWorker' in navigator ? Boolean(navigator.serviceWorker.controller) : false,
+  );
+  const [appInfoDetails, setAppInfoDetails] = React.useState<AppInfoDetailState>(() => ({
+    swVersion: '-',
+    appDbUserVersion: null,
+    appDbSizeBytes: null,
+    webLocksStatus: resolveWebLocksStatus(webLockAcquired),
+    opfsStatus: 'unsupported',
+  }));
   const [fatalError, setFatalError] = React.useState<string | null>(null);
   const [homeMenuAnchorEl, setHomeMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [detailMenuAnchorEl, setDetailMenuAnchorEl] = React.useState<HTMLElement | null>(null);
@@ -111,6 +214,20 @@ export function App(): JSX.Element {
   const isDetailRoute = route.name === 'detail';
   const isSettingsRoute = route.name === 'settings';
   const todayDate = todayJst();
+  const swStatus = resolveServiceWorkerStatus(pwaUpdate, hasSwController);
+  const appInfoSnapshot = React.useMemo<AppInfoCardData>(
+    () => ({
+      appVersion: APP_VERSION,
+      buildTime: BUILD_TIME,
+      swStatus,
+      swVersion: appInfoDetails.swVersion,
+      appDbUserVersion: appInfoDetails.appDbUserVersion,
+      appDbSizeBytes: appInfoDetails.appDbSizeBytes,
+      webLocksStatus: appInfoDetails.webLocksStatus,
+      opfsStatus: appInfoDetails.opfsStatus,
+    }),
+    [appInfoDetails, swStatus],
+  );
 
   const pushRoute = React.useCallback((next: RouteState) => {
     setRouteStack((previous) => [...previous, next]);
@@ -164,6 +281,23 @@ export function App(): JSX.Element {
     };
   }, [appDb]);
 
+  const collectAppInfoDetails = React.useCallback(async (): Promise<AppInfoDetailState> => {
+    const [appDbUserVersion, appDbSizeBytes, opfsStatus, swVersion] = await Promise.all([
+      appDb.getAppDbUserVersion().catch(() => null),
+      appDb.getAppDbFileSize().catch(() => null),
+      resolveOpfsStatus(),
+      hasSwController ? requestServiceWorkerVersion().catch(() => null) : Promise.resolve<string | null>(null),
+    ]);
+
+    return {
+      swVersion: swVersion ?? '-',
+      appDbUserVersion,
+      appDbSizeBytes,
+      webLocksStatus: resolveWebLocksStatus(webLockAcquired),
+      opfsStatus,
+    };
+  }, [appDb, hasSwController, webLockAcquired]);
+
   const updateSongMaster = React.useCallback(
     async (force: boolean) => {
       setBusy(true);
@@ -204,6 +338,19 @@ export function App(): JSX.Element {
     },
     [appDb, pushToast, refreshSettingsSnapshot, songMasterService],
   );
+
+  React.useEffect(() => {
+    if (!('serviceWorker' in navigator)) {
+      return;
+    }
+    const onControllerChange = () => {
+      setHasSwController(Boolean(navigator.serviceWorker.controller));
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    };
+  }, []);
 
   React.useEffect(() => {
     let mounted = true;
@@ -254,6 +401,21 @@ export function App(): JSX.Element {
   React.useEffect(() => {
     void refreshTournamentList();
   }, [refreshTournamentList]);
+
+  React.useEffect(() => {
+    if (route.name !== 'settings') {
+      return;
+    }
+    let mounted = true;
+    void collectAppInfoDetails().then((details) => {
+      if (mounted) {
+        setAppInfoDetails(details);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [collectAppInfoDetails, route.name]);
 
   React.useEffect(() => {
     if (route.name === 'home' && isImportConfirmPath(window.location.pathname)) {
@@ -685,6 +847,7 @@ export function App(): JSX.Element {
 
         {route.name === 'settings' && (
           <SettingsPage
+            appInfo={appInfoSnapshot}
             songMasterMeta={songMasterMeta}
             autoDeleteEnabled={autoDeleteEnabled}
             autoDeleteDays={autoDeleteDays}

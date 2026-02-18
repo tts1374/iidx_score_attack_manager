@@ -26,6 +26,7 @@ import { migrateAppDatabase } from './schema.js';
 import { SqliteDbId, SqliteWorkerClient } from './sqlite-client.js';
 
 const APP_DB_URI = 'file:app_data.sqlite?vfs=opfs';
+const APP_DB_FILE_NAME = 'app_data.sqlite';
 const SONG_MASTER_DIR = 'song_master';
 const SONG_MASTER_META_FILE = `${SONG_MASTER_DIR}/latest_meta.json`;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -1162,6 +1163,31 @@ export class AppDatabase {
     const enabled = (await this.getSetting('auto_delete_enabled')) === '1';
     const days = Number(await this.getSetting('auto_delete_days')) || 0;
     return { enabled, days };
+  }
+
+  async getAppDbUserVersion(): Promise<number | null> {
+    const rows = await this.query<Record<string, unknown>>('PRAGMA user_version;');
+    const row = rows[0];
+    if (!row) {
+      return null;
+    }
+    const version = Number(Object.values(row)[0]);
+    if (!Number.isInteger(version) || version < 0) {
+      return null;
+    }
+    return version;
+  }
+
+  async getAppDbFileSize(): Promise<number | null> {
+    try {
+      const root = await this.opfs.getRoot();
+      const fileHandle = await root.getFileHandle(APP_DB_FILE_NAME);
+      const file = await fileHandle.getFile();
+      const size = Number(file.size);
+      return Number.isFinite(size) && size >= 0 ? size : null;
+    } catch {
+      return null;
+    }
   }
 
   async purgeExpiredEvidenceIfNeeded(): Promise<number> {
