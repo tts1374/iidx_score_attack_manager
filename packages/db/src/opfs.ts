@@ -23,6 +23,20 @@ function isLockedMoveError(error: unknown): boolean {
   return message.includes('cannot be moved to a destination which is locked');
 }
 
+function isMoveSignatureError(error: unknown): boolean {
+  const message = String(error ?? '').toLowerCase();
+  return (
+    message.includes('not enough arguments') ||
+    message.includes('arguments required') ||
+    message.includes('failed to execute \'move\'')
+  );
+}
+
+function isMoveUnsupportedError(error: unknown): boolean {
+  const message = String(error ?? '').toLowerCase();
+  return message.includes('not supported');
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -51,6 +65,28 @@ export class OpfsStorage {
       current = await current.getDirectoryHandle(part);
     }
     return current;
+  }
+
+  private async moveFileHandleCompat(
+    handle: FileSystemFileHandle,
+    destinationDir: FileSystemDirectoryHandle,
+    destinationName: string,
+  ): Promise<void> {
+    const moveFn = (handle as unknown as { move?: (...args: unknown[]) => Promise<void> }).move;
+    if (typeof moveFn !== 'function') {
+      throw new Error('move() is unavailable');
+    }
+
+    try {
+      await moveFn.call(handle, destinationName);
+      return;
+    } catch (error) {
+      if (!isMoveSignatureError(error)) {
+        throw error;
+      }
+    }
+
+    await moveFn.call(handle, destinationDir, destinationName);
   }
 
   async writeFile(relativePath: string, bytes: Uint8Array): Promise<void> {
@@ -87,9 +123,10 @@ export class OpfsStorage {
       await options.validate(validated);
     }
 
-    const moveFn = (tmpHandle as unknown as { move?: (name: string) => Promise<void> }).move;
+    const moveFn = (tmpHandle as unknown as { move?: (...args: unknown[]) => Promise<void> }).move;
     if (typeof moveFn === 'function') {
       let lastError: unknown;
+      let shouldFallbackToCopy = false;
       for (let attempt = 0; attempt < 6; attempt += 1) {
         try {
           await dir.removeEntry(fileName);
@@ -98,18 +135,28 @@ export class OpfsStorage {
         }
 
         try {
-          await moveFn.call(tmpHandle, fileName);
+          await this.moveFileHandleCompat(tmpHandle, dir, fileName);
           return;
         } catch (error) {
           lastError = error;
+          if (isMoveUnsupportedError(error)) {
+            shouldFallbackToCopy = true;
+            break;
+          }
           if (!isLockedMoveError(error) || attempt === 5) {
+            if (isMoveSignatureError(error)) {
+              shouldFallbackToCopy = true;
+              break;
+            }
             throw error;
           }
           await sleep(80 * (attempt + 1));
         }
       }
 
-      throw lastError instanceof Error ? lastError : new Error(String(lastError));
+      if (!shouldFallbackToCopy) {
+        throw lastError instanceof Error ? lastError : new Error(String(lastError));
+      }
     }
 
     // Fallback if move() is unavailable: copy then remove temp.

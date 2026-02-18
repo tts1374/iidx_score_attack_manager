@@ -4,8 +4,15 @@ import { OpfsStorage } from '../src/opfs.js';
 
 class MemoryFileHandle {
   private bytes = new Uint8Array();
+  private currentName: string;
 
-  constructor(private readonly name: string) {}
+  constructor(
+    name: string,
+    private readonly parent: MemoryDirectoryHandle,
+    private readonly moveRequiresDirectoryArg: boolean,
+  ) {
+    this.currentName = name;
+  }
 
   async createWritable() {
     let next = this.bytes;
@@ -23,8 +30,28 @@ class MemoryFileHandle {
     const current = this.bytes;
     return {
       arrayBuffer: async () => current.buffer.slice(current.byteOffset, current.byteOffset + current.byteLength),
-      name: this.name,
+      name: this.currentName,
     };
+  }
+
+  async move(destinationOrName: unknown, maybeName?: unknown) {
+    if (this.moveRequiresDirectoryArg) {
+      if (!(destinationOrName instanceof MemoryDirectoryHandle) || typeof maybeName !== 'string') {
+        throw new TypeError("Failed to execute 'move' on 'FileSystemHandle': Not enough arguments");
+      }
+      if (destinationOrName !== this.parent) {
+        throw new Error('cross-directory move is not supported in test handle');
+      }
+      this.parent.renameFile(this.currentName, maybeName, this);
+      this.currentName = maybeName;
+      return;
+    }
+
+    if (typeof destinationOrName !== 'string') {
+      throw new TypeError("Failed to execute 'move' on 'FileSystemHandle': Not enough arguments");
+    }
+    this.parent.renameFile(this.currentName, destinationOrName, this);
+    this.currentName = destinationOrName;
   }
 }
 
@@ -32,13 +59,15 @@ class MemoryDirectoryHandle {
   private readonly directories = new Map<string, MemoryDirectoryHandle>();
   private readonly files = new Map<string, MemoryFileHandle>();
 
+  constructor(private readonly moveRequiresDirectoryArg = false) {}
+
   async getDirectoryHandle(name: string, options?: { create?: boolean }) {
     const found = this.directories.get(name);
     if (found) {
       return found;
     }
     if (options?.create) {
-      const created = new MemoryDirectoryHandle();
+      const created = new MemoryDirectoryHandle(this.moveRequiresDirectoryArg);
       this.directories.set(name, created);
       return created;
     }
@@ -51,11 +80,16 @@ class MemoryDirectoryHandle {
       return found;
     }
     if (options?.create) {
-      const created = new MemoryFileHandle(name);
+      const created = new MemoryFileHandle(name, this, this.moveRequiresDirectoryArg);
       this.files.set(name, created);
       return created;
     }
     throw new Error('file not found');
+  }
+
+  renameFile(from: string, to: string, handle: MemoryFileHandle) {
+    this.files.delete(from);
+    this.files.set(to, handle);
   }
 
   async removeEntry(name: string) {
@@ -95,5 +129,16 @@ describe('OpfsStorage atomic write', () => {
     expect(await storage.fileExists('evidences/t1/1.jpg')).toBe(true);
     const bytes = await storage.readFile('evidences/t1/1.jpg');
     expect(Array.from(bytes)).toEqual([1, 2, 3]);
+  });
+
+  it('supports move() implementations that require destination directory + name arguments', async () => {
+    const root = new MemoryDirectoryHandle(true);
+    const storage = new TestOpfsStorage(root);
+
+    await storage.writeFileAtomic('song_master/song_master.sqlite', new Uint8Array([9, 8, 7]));
+
+    expect(await storage.fileExists('song_master/song_master.sqlite')).toBe(true);
+    const bytes = await storage.readFile('song_master/song_master.sqlite');
+    expect(Array.from(bytes)).toEqual([9, 8, 7]);
   });
 });
