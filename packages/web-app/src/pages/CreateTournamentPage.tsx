@@ -11,25 +11,21 @@ import { ja } from 'date-fns/locale/ja';
 
 import { useAppServices } from '../services/context';
 import { difficultyColor, versionLabel } from '../utils/iidx';
+import {
+  MAX_CHART_ROWS,
+  createEmptyChartDraft,
+  resolveCreateTournamentValidation,
+  type CreateTournamentChartDraft,
+  type CreateTournamentDraft,
+} from './create-tournament-draft';
 
 interface CreateTournamentPageProps {
-  todayDate: string;
-  onSaved: (tournamentUuid: string) => Promise<void> | void;
-}
-
-interface ChartDraft {
-  key: string;
-  query: string;
-  options: SongSummary[];
-  selectedSong: SongSummary | null;
-  playStyle: 'SP' | 'DP';
-  chartOptions: ChartSummary[];
-  selectedChartId: number | null;
-  loading: boolean;
+  draft: CreateTournamentDraft;
+  onDraftChange: (updater: (draft: CreateTournamentDraft) => CreateTournamentDraft) => void;
+  onProceedConfirm: () => void;
 }
 
 const SONG_SEARCH_DEBUG_STORAGE_KEY = 'iidx:debug:song-search';
-const MAX_CHART_ROWS = 4;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const JA_PICKER_LOCALE_TEXT = jaJP.components.MuiLocalizationProvider.defaultProps.localeText as any;
 const SONG_AUTOCOMPLETE_SX = {
@@ -61,19 +57,6 @@ function debugSongSearch(message: string, payload?: unknown): void {
     return;
   }
   console.info(`[song-search-ui] ${message}`, payload);
-}
-
-function emptyDraft(): ChartDraft {
-  return {
-    key: crypto.randomUUID(),
-    query: '',
-    options: [],
-    selectedSong: null,
-    playStyle: 'SP',
-    chartOptions: [],
-    selectedChartId: null,
-    loading: false,
-  };
 }
 
 function isSelectableChart(chart: ChartSummary): boolean {
@@ -133,54 +116,22 @@ function formatIsoDate(value: Date): string {
 
 export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Element {
   const { appDb } = useAppServices();
-  const [name, setName] = React.useState('');
-  const [owner, setOwner] = React.useState('');
-  const [hashtag, setHashtag] = React.useState('');
-  const [startDate, setStartDate] = React.useState(props.todayDate);
-  const [endDate, setEndDate] = React.useState(props.todayDate);
-  const [rows, setRows] = React.useState<ChartDraft[]>([emptyDraft()]);
-  const [saving, setSaving] = React.useState(false);
-  const startDateValue = React.useMemo(() => parseIsoDate(startDate), [startDate]);
-  const endDateValue = React.useMemo(() => parseIsoDate(endDate), [endDate]);
-
-  const selectedChartIds = rows
-    .map((row) => row.selectedChartId)
-    .filter((value): value is number => value !== null);
-
-  const duplicateChartIds = React.useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const chartId of selectedChartIds) {
-      counts.set(chartId, (counts.get(chartId) ?? 0) + 1);
-    }
-    const duplicates = new Set<number>();
-    for (const [chartId, count] of counts.entries()) {
-      if (count > 1) {
-        duplicates.add(chartId);
-      }
-    }
-    return duplicates;
-  }, [selectedChartIds]);
-
+  const draft = props.draft;
+  const rows = draft.rows;
+  const startDateValue = React.useMemo(() => parseIsoDate(draft.startDate), [draft.startDate]);
+  const endDateValue = React.useMemo(() => parseIsoDate(draft.endDate), [draft.endDate]);
+  const validation = React.useMemo(() => resolveCreateTournamentValidation(draft), [draft]);
   const canAddRow = rows.length < MAX_CHART_ROWS;
-  const hasRequiredFields =
-    name.trim().length > 0 &&
-    owner.trim().length > 0 &&
-    hashtag.trim().length > 0 &&
-    startDate.trim().length > 0 &&
-    endDate.trim().length > 0;
-  const periodError = startDate && endDate && startDate > endDate ? '開始日は終了日以前を指定してください。' : null;
-  const hasUnselectedChart = rows.some((row) => row.selectedChartId === null);
-  const canSave =
-    !saving &&
-    rows.length > 0 &&
-    hasRequiredFields &&
-    periodError === null &&
-    !hasUnselectedChart &&
-    duplicateChartIds.size === 0;
 
-  const updateRow = React.useCallback((key: string, updater: (draft: ChartDraft) => ChartDraft) => {
-    setRows((prev) => prev.map((row) => (row.key === key ? updater(row) : row)));
-  }, []);
+  const updateRow = React.useCallback(
+    (key: string, updater: (row: CreateTournamentChartDraft) => CreateTournamentChartDraft) => {
+      props.onDraftChange((current) => ({
+        ...current,
+        rows: current.rows.map((row) => (row.key === key ? updater(row) : row)),
+      }));
+    },
+    [props],
+  );
 
   const loadCharts = React.useCallback(
     async (key: string, musicId: number, playStyle: 'SP' | 'DP') => {
@@ -211,9 +162,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         return;
       }
       const options = await appDb.searchSongsByPrefix(normalized, 30);
-      const uniqueOptions = Array.from(
-        new Map(options.map((option) => [option.musicId, option] as const)).values(),
-      );
+      const uniqueOptions = Array.from(new Map(options.map((option) => [option.musicId, option] as const)).values());
       debugSongSearch('search response', {
         query: value,
         optionCount: options.length,
@@ -229,28 +178,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
     [appDb, updateRow],
   );
 
-  const saveTournament = async () => {
-    if (!canSave) {
-      return;
-    }
-    setSaving(true);
-    try {
-      const tournamentUuid = await appDb.createTournament({
-        tournamentName: name.trim(),
-        owner: owner.trim(),
-        hashtag: hashtag.trim(),
-        startDate,
-        endDate,
-        chartIds: selectedChartIds,
-      });
-      await props.onSaved(tournamentUuid);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : String(error));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="page createTournamentPage">
       <section className="createSection">
@@ -258,28 +185,48 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         <div className="createFieldStack">
           <label className="createField">
             <span className="fieldChipLabel">大会名 *</span>
-            <input maxLength={50} value={name} onChange={(event) => setName(event.target.value)} />
+            <input
+              maxLength={50}
+              value={draft.name}
+              onChange={(event) => {
+                const value = event.target.value;
+                props.onDraftChange((current) => ({ ...current, name: value }));
+              }}
+            />
           </label>
           <label className="createField">
             <span className="fieldChipLabel">開催者 *</span>
-            <input maxLength={50} value={owner} onChange={(event) => setOwner(event.target.value)} />
+            <input
+              maxLength={50}
+              value={draft.owner}
+              onChange={(event) => {
+                const value = event.target.value;
+                props.onDraftChange((current) => ({ ...current, owner: value }));
+              }}
+            />
           </label>
           <label className="createField">
             <span className="fieldChipLabel">ハッシュタグ *</span>
-            <input maxLength={50} value={hashtag} onChange={(event) => setHashtag(event.target.value)} />
+            <input
+              maxLength={50}
+              value={draft.hashtag}
+              onChange={(event) => {
+                const value = event.target.value;
+                props.onDraftChange((current) => ({ ...current, hashtag: value }));
+              }}
+            />
           </label>
           <div className="createField">
             <span className="fieldChipLabel">期間 *</span>
             <div className="periodRangeInputs">
-              <LocalizationProvider
-                dateAdapter={AdapterDateFns}
-                adapterLocale={ja}
-                localeText={JA_PICKER_LOCALE_TEXT}
-              >
+              <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ja} localeText={JA_PICKER_LOCALE_TEXT}>
                 <DatePicker
                   value={startDateValue}
                   onChange={(value) => {
-                    setStartDate(isValidDate(value) ? formatIsoDate(value) : '');
+                    props.onDraftChange((current) => ({
+                      ...current,
+                      startDate: isValidDate(value) ? formatIsoDate(value) : '',
+                    }));
                   }}
                   format="yyyy/MM/dd"
                   slotProps={{ textField: { placeholder: '開始日', fullWidth: true, size: 'small' } }}
@@ -288,7 +235,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 <DatePicker
                   value={endDateValue}
                   onChange={(value) => {
-                    setEndDate(isValidDate(value) ? formatIsoDate(value) : '');
+                    props.onDraftChange((current) => ({
+                      ...current,
+                      endDate: isValidDate(value) ? formatIsoDate(value) : '',
+                    }));
                   }}
                   format="yyyy/MM/dd"
                   slotProps={{ textField: { placeholder: '終了日', fullWidth: true, size: 'small' } }}
@@ -296,7 +246,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               </LocalizationProvider>
             </div>
           </div>
-          {periodError ? <p className="errorText createInlineError">{periodError}</p> : null}
+          {validation.periodError ? <p className="errorText createInlineError">{validation.periodError}</p> : null}
         </div>
       </section>
 
@@ -313,7 +263,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               if (!canAddRow) {
                 return;
               }
-              setRows((prev) => [...prev, emptyDraft()]);
+              props.onDraftChange((current) => ({
+                ...current,
+                rows: [...current.rows, createEmptyChartDraft()],
+              }));
             }}
           >
             ＋追加
@@ -329,7 +282,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   type="button"
                   className="iconOnlyButton"
                   aria-label={`選曲 ${index + 1} を削除`}
-                  onClick={() => setRows((prev) => prev.filter((item) => item.key !== row.key))}
+                  onClick={() =>
+                    props.onDraftChange((current) => ({
+                      ...current,
+                      rows: current.rows.filter((item) => item.key !== row.key),
+                    }))
+                  }
                   disabled={rows.length === 1}
                 >
                   <DeleteOutlineIcon fontSize="small" />
@@ -478,7 +436,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 ) : null}
               </div>
 
-              {row.selectedChartId !== null && duplicateChartIds.has(row.selectedChartId) ? (
+              {row.selectedChartId !== null && validation.duplicateChartIds.has(row.selectedChartId) ? (
                 <p className="errorText createInlineError">同一譜面が重複しています。</p>
               ) : null}
             </article>
@@ -489,12 +447,21 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       <footer className="createStickyFooter">
         <p className="createActionTitle">③ アクション</p>
         <div className="createFooterErrors">
-          {!hasRequiredFields ? <p className="errorText createInlineError">必須項目を入力してください。</p> : null}
-          {hasUnselectedChart ? <p className="errorText createInlineError">各選曲で譜面を選択してください。</p> : null}
-          {duplicateChartIds.size > 0 ? <p className="errorText createInlineError">同一譜面を重複登録できません。</p> : null}
+          {!validation.hasRequiredFields ? <p className="errorText createInlineError">必須項目を入力してください。</p> : null}
+          {validation.hasUnselectedChart ? (
+            <p className="errorText createInlineError">各選曲で譜面を選択してください。</p>
+          ) : null}
+          {validation.duplicateChartIds.size > 0 ? (
+            <p className="errorText createInlineError">同一譜面を重複登録できません。</p>
+          ) : null}
         </div>
-        <button type="button" className="primaryActionButton" onClick={() => void saveTournament()} disabled={!canSave}>
-          {saving ? '保存中...' : '保存'}
+        <button
+          type="button"
+          className="primaryActionButton"
+          onClick={props.onProceedConfirm}
+          disabled={!validation.canProceed}
+        >
+          確認画面へ
         </button>
       </footer>
     </div>

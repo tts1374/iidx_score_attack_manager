@@ -24,7 +24,9 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 
+import { ImportQrScannerDialog } from './components/ImportQrScannerDialog';
 import { UnsupportedScreen } from './components/UnsupportedScreen';
+import { CreateTournamentConfirmPage } from './pages/CreateTournamentConfirmPage';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
 import { HomePage } from './pages/HomePage';
 import { ImportConfirmPage } from './pages/ImportConfirmPage';
@@ -32,9 +34,22 @@ import { ImportTournamentPage } from './pages/ImportTournamentPage';
 import { SettingsPage, type AppInfoCardData, type AppSwStatus } from './pages/SettingsPage';
 import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
+import {
+  buildCreateTournamentInput,
+  createInitialTournamentDraft,
+  resolveCreateTournamentValidation,
+  type CreateTournamentDraft,
+} from './pages/create-tournament-draft';
 import { useAppServices } from './services/context';
 import { extractQrTextFromImage } from './utils/image';
-import { buildImportConfirmPath, HOME_PATH, IMPORT_CONFIRM_PATH, resolveRawImportPayloadParam } from './utils/payload-url';
+import {
+  CREATE_TOURNAMENT_CONFIRM_PATH,
+  CREATE_TOURNAMENT_PATH,
+  HOME_PATH,
+  IMPORT_CONFIRM_PATH,
+  buildImportConfirmPath,
+  resolveRawImportPayloadParam,
+} from './utils/payload-url';
 
 function todayJst(): string {
   const now = new Date();
@@ -47,6 +62,7 @@ type RouteState =
   | { name: 'import' }
   | { name: 'import-confirm' }
   | { name: 'create' }
+  | { name: 'create-confirm' }
   | { name: 'detail'; tournamentUuid: string }
   | { name: 'submit'; tournamentUuid: string; chartId: number }
   | { name: 'settings' };
@@ -60,6 +76,14 @@ function normalizePathname(pathname: string): string {
 
 function isImportConfirmPath(pathname: string): boolean {
   return normalizePathname(pathname) === IMPORT_CONFIRM_PATH;
+}
+
+function isCreatePath(pathname: string): boolean {
+  return normalizePathname(pathname) === CREATE_TOURNAMENT_PATH;
+}
+
+function isCreateConfirmPath(pathname: string): boolean {
+  return normalizePathname(pathname) === CREATE_TOURNAMENT_CONFIRM_PATH;
 }
 
 function createInitialRouteStack(): RouteState[] {
@@ -208,11 +232,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [deleteTournamentDialogOpen, setDeleteTournamentDialogOpen] = React.useState(false);
   const [deleteTournamentBusy, setDeleteTournamentBusy] = React.useState(false);
   const [speedDialOpen, setSpeedDialOpen] = React.useState(false);
+  const [qrImportDialogOpen, setQrImportDialogOpen] = React.useState(false);
+  const [createDraft, setCreateDraft] = React.useState<CreateTournamentDraft | null>(null);
+  const [createSaving, setCreateSaving] = React.useState(false);
+  const [createSaveError, setCreateSaveError] = React.useState<string | null>(null);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
   const isDetailRoute = route.name === 'detail';
   const isSettingsRoute = route.name === 'settings';
+  const canUseQrImport = window.isSecureContext === true && typeof navigator.mediaDevices?.getUserMedia === 'function';
   const todayDate = todayJst();
   const swStatus = resolveServiceWorkerStatus(pwaUpdate, hasSwController);
   const appInfoSnapshot = React.useMemo<AppInfoCardData>(
@@ -431,10 +460,34 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [collectAppInfoDetails, route.name]);
 
   React.useEffect(() => {
-    if (route.name === 'home' && isImportConfirmPath(window.location.pathname)) {
-      window.history.replaceState(window.history.state, '', HOME_PATH);
+    const pathname = window.location.pathname;
+    if (route.name === 'home') {
+      if (isImportConfirmPath(pathname) || isCreatePath(pathname) || isCreateConfirmPath(pathname)) {
+        window.history.replaceState(window.history.state, '', HOME_PATH);
+      }
+      return;
+    }
+    if (route.name === 'create' && !isCreatePath(pathname)) {
+      window.history.replaceState(window.history.state, '', CREATE_TOURNAMENT_PATH);
+      return;
+    }
+    if (route.name === 'create-confirm' && !isCreateConfirmPath(pathname)) {
+      window.history.replaceState(window.history.state, '', CREATE_TOURNAMENT_CONFIRM_PATH);
     }
   }, [route.name]);
+
+  React.useEffect(() => {
+    if (route.name !== 'create' && route.name !== 'create-confirm') {
+      return;
+    }
+    if (createDraft !== null) {
+      return;
+    }
+    setCreateDraft(createInitialTournamentDraft(todayDate));
+    if (route.name === 'create-confirm') {
+      replaceRoute({ name: 'create' });
+    }
+  }, [createDraft, replaceRoute, route.name, todayDate]);
 
   const reloadDetail = React.useCallback(
     async (tournamentUuid: string) => {
@@ -500,6 +553,18 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     [openImportConfirm, pushToast, songMasterReady],
   );
 
+  const closeQrImportDialog = React.useCallback(() => {
+    setQrImportDialogOpen(false);
+  }, []);
+
+  const handleDetectedImportQr = React.useCallback(
+    (qrText: string) => {
+      setQrImportDialogOpen(false);
+      void importFromQrScan(qrText);
+    },
+    [importFromQrScan],
+  );
+
   const confirmImport = React.useCallback(
     async (payload: TournamentPayload) => {
       const result = await appDb.importTournament(payload);
@@ -524,6 +589,53 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     },
     [appDb, pushToast, refreshTournamentList, reloadDetail, replaceRoute, resetRoute],
   );
+
+  const updateCreateDraft = React.useCallback(
+    (updater: (draft: CreateTournamentDraft) => CreateTournamentDraft) => {
+      setCreateDraft((current) => updater(current ?? createInitialTournamentDraft(todayDate)));
+    },
+    [todayDate],
+  );
+
+  const openCreateConfirm = React.useCallback(() => {
+    if (!createDraft) {
+      return;
+    }
+    const validation = resolveCreateTournamentValidation(createDraft);
+    if (!validation.canProceed) {
+      pushToast('入力内容を確認してください。');
+      return;
+    }
+    setCreateSaveError(null);
+    pushRoute({ name: 'create-confirm' });
+  }, [createDraft, pushRoute, pushToast]);
+
+  const confirmCreateTournament = React.useCallback(async () => {
+    if (!createDraft || createSaving) {
+      return;
+    }
+
+    const validation = resolveCreateTournamentValidation(createDraft);
+    if (!validation.canProceed) {
+      setCreateSaveError('入力内容を確認してください。');
+      return;
+    }
+
+    setCreateSaving(true);
+    setCreateSaveError(null);
+    try {
+      const input = buildCreateTournamentInput(createDraft, validation.selectedChartIds);
+      await appDb.createTournament(input);
+      pushToast('保存しました。');
+      await refreshTournamentList();
+      setCreateDraft(null);
+      resetRoute({ name: 'home' });
+    } catch (error) {
+      setCreateSaveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCreateSaving(false);
+    }
+  }, [appDb, createDraft, createSaving, pushToast, refreshTournamentList, resetRoute]);
 
   const saveAutoDelete = React.useCallback(
     async (enabled: boolean, days: number) => {
@@ -555,6 +667,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         return '取り込み確認';
       case 'create':
         return '大会作成';
+      case 'create-confirm':
+        return '確認';
       case 'detail':
         return '大会詳細';
       case 'submit':
@@ -571,16 +685,23 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       pushToast('曲マスタが未取得のため大会作成は利用できません。');
       return;
     }
+    setCreateDraft(createInitialTournamentDraft(todayDate));
+    setCreateSaving(false);
+    setCreateSaveError(null);
     pushRoute({ name: 'create' });
-  }, [pushRoute, pushToast, songMasterReady]);
+  }, [pushRoute, pushToast, songMasterReady, todayDate]);
 
   const openImportPage = React.useCallback(() => {
     if (!songMasterReady) {
       pushToast('曲マスタが未取得のため大会取込は利用できません。');
       return;
     }
+    if (canUseQrImport) {
+      setQrImportDialogOpen(true);
+      return;
+    }
     pushRoute({ name: 'import' });
-  }, [pushRoute, pushToast, songMasterReady]);
+  }, [canUseQrImport, pushRoute, pushToast, songMasterReady]);
 
   const openSettingsPage = React.useCallback(() => {
     if (route.name === 'settings') {
@@ -647,6 +768,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     try {
       await appDb.resetLocalData();
       setDetail(null);
+      setCreateDraft(null);
+      setCreateSaving(false);
+      setCreateSaveError(null);
       setTab('active');
       setTournaments(await appDb.listTournaments('active'));
       await refreshSettingsSnapshot();
@@ -799,7 +923,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             busy={busy}
             onImportPayload={importFromPayload}
             onImportFile={importFromFile}
-            onImportQrScan={importFromQrScan}
             onRefreshSongMaster={() => updateSongMaster(false)}
           />
         )}
@@ -819,14 +942,23 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           />
         )}
 
-        {route.name === 'create' && (
-          <CreateTournamentPage
-            todayDate={todayDate}
-            onSaved={async () => {
-              pushToast('保存しました。');
-              await refreshTournamentList();
-              resetRoute({ name: 'home' });
+        {route.name === 'create' && createDraft && (
+          <CreateTournamentPage draft={createDraft} onDraftChange={updateCreateDraft} onProceedConfirm={openCreateConfirm} />
+        )}
+
+        {route.name === 'create-confirm' && createDraft && (
+          <CreateTournamentConfirmPage
+            draft={createDraft}
+            saving={createSaving}
+            errorMessage={createSaveError}
+            onBack={() => {
+              if (createSaving) {
+                return;
+              }
+              setCreateSaveError(null);
+              popRoute();
             }}
+            onConfirmCreate={confirmCreateTournament}
           />
         )}
 
@@ -899,6 +1031,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             />
           </SpeedDial>
         ) : null}
+
+        <ImportQrScannerDialog
+          open={qrImportDialogOpen}
+          onClose={closeQrImportDialog}
+          onDetected={handleDetectedImportQr}
+        />
 
         <Dialog open={deleteTournamentDialogOpen} onClose={closeDeleteTournamentDialog} fullWidth maxWidth="xs">
           <DialogTitle>大会を削除しますか？</DialogTitle>

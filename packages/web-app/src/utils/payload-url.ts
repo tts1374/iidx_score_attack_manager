@@ -18,6 +18,8 @@ const BASE_PATH = resolveBasePath();
 
 export const HOME_PATH = BASE_PATH ? `${BASE_PATH}/` : '/';
 export const IMPORT_CONFIRM_PATH = `${BASE_PATH}/import/confirm`;
+export const CREATE_TOURNAMENT_PATH = `${BASE_PATH}/tournaments/new`;
+export const CREATE_TOURNAMENT_CONFIRM_PATH = `${CREATE_TOURNAMENT_PATH}/confirm`;
 
 export function buildImportUrl(payloadBase64: string): string {
   const url = new URL(window.location.origin);
