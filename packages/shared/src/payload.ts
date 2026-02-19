@@ -51,7 +51,7 @@ function base64ToBytes(base64: string): Uint8Array {
 }
 
 export function encodeTournamentPayload(payload: TournamentPayload): string {
-  const normalized = canonicalTournamentPayload(normalizeTournamentPayload(payload));
+  const normalized = normalizeTournamentPayload(payload);
   const json = JSON.stringify(normalized);
   const compressed = gzip(utf8Encode(json));
   if (compressed.byteLength > ENCODED_PAYLOAD_MAX_BYTES) {
@@ -94,9 +94,7 @@ export function decodeTournamentPayload(
     throw new PayloadJsonParseError('json parse failed');
   }
 
-  const payload = canonicalTournamentPayload(
-    normalizeTournamentPayload(parsed, options),
-  );
+  const payload = normalizeTournamentPayload(parsed, options);
 
   return { payload, rawJson };
 }

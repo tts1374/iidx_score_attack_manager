@@ -27,10 +27,10 @@ describe('payload encode/decode', () => {
     expect(normalized.charts).toEqual([200, 100]);
   });
 
-  it('encodes then decodes normalized payload', () => {
+  it('encodes then decodes while preserving chart order', () => {
     const encoded = encodeTournamentPayload(validPayload);
     const decoded = decodeTournamentPayload(encoded);
-    expect(decoded.payload.charts).toEqual([100, 200]);
+    expect(decoded.payload.charts).toEqual([200, 100]);
   });
 
   it('throws on invalid base64', () => {

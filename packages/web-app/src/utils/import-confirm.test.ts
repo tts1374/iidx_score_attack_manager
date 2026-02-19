@@ -11,7 +11,7 @@ const validPayload = {
   hashtag: 'iidx',
   start: '2026-02-01',
   end: '2026-02-28',
-  charts: [100, 200],
+  charts: [200, 100],
 };
 
 describe('import confirm utility', () => {
@@ -26,7 +26,7 @@ describe('import confirm utility', () => {
     const rawParam = encodeURIComponent(urlSafe);
     const decoded = decodeImportPayload(rawParam);
     expect(decoded.payload.uuid).toBe(validPayload.uuid);
-    expect(decoded.payload.charts).toEqual([100, 200]);
+    expect(decoded.payload.charts).toEqual([200, 100]);
   });
 
   it('maps unsupported version to UNSUPPORTED_VERSION', () => {
