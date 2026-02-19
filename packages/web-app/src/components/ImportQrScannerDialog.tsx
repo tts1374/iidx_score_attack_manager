@@ -6,6 +6,7 @@ interface ImportQrScannerDialogProps {
   open: boolean;
   onClose: () => void;
   onDetected: (qrText: string) => void;
+  onOpenTextImport: () => void;
 }
 
 export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.Element {
@@ -140,6 +141,8 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
     };
   }, [props.onDetected, props.open, stopScanner]);
 
+  const showTextImportButton = errorMessage?.startsWith('カメラを起動できませんでした。') ?? false;
+
   return (
     <Dialog open={props.open} onClose={props.onClose} fullWidth maxWidth="xs">
       <DialogTitle>QR読み取り</DialogTitle>
@@ -156,9 +159,18 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
           </Typography>
         ) : null}
         {errorMessage ? (
-          <Typography variant="body2" className="errorText">
-            {errorMessage}
-          </Typography>
+          <div className="importQrScannerErrorBlock">
+            <Typography variant="body2" className="errorText">
+              {errorMessage}
+            </Typography>
+            {showTextImportButton ? (
+              <div className="importQrScannerErrorActions">
+                <Button size="small" onClick={props.onOpenTextImport}>
+                  テキスト取込
+                </Button>
+              </div>
+            ) : null}
+          </div>
         ) : null}
         <canvas ref={canvasRef} className="importQrScannerCanvas" />
       </DialogContent>

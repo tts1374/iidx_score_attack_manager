@@ -27,9 +27,9 @@ export function ImportTournamentPage(props: ImportTournamentPageProps): JSX.Elem
 
       <section className="detailCard importSection">
         <h2>大会取込</h2>
-        <p className="hintText">URL またはペイロード文字列、もしくは画像/テキストファイルを取り込めます。</p>
+        <p className="hintText">URLもしくは画像/テキストファイルを取り込めます。</p>
         <textarea
-          placeholder="URLまたはペイロードを貼り付け"
+          placeholder="URLを貼り付け"
           value={importText}
           onChange={(event) => setImportText(event.target.value)}
           rows={4}

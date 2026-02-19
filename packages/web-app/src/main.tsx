@@ -188,8 +188,9 @@ function SetupLoadingScreen(): JSX.Element {
   return (
     <main className="page startupShell">
       <section className="unsupported startupCard">
-        <h1>初回セットアップ中</h1>
-        <p>Service Worker の導入を確認しています。完了後に起動判定へ進みます。</p>
+        <div className="startupLoading" role="status" aria-live="polite" aria-label="読み込み中">
+          <span className="startupLoadingSpinner" aria-hidden="true" />
+        </div>
       </section>
     </main>
   );

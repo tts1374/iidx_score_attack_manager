@@ -58,11 +58,11 @@ function normalizeCharts(input: unknown): number[] {
     return v;
   });
 
-  const uniqueSorted = [...new Set(normalized)].sort((a, b) => a - b);
-  if (uniqueSorted.length !== normalized.length) {
+  const uniqueChartIds = new Set(normalized);
+  if (uniqueChartIds.size !== normalized.length) {
     throw new PayloadValidationError('charts contains duplicates');
   }
-  return uniqueSorted;
+  return normalized;
 }
 
 export function normalizeTournamentPayload(

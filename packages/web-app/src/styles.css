@@ -159,6 +159,28 @@ label {
   background: #f8fafc;
 }
 
+.startupLoading {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.startupLoadingSpinner {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  border: 5px solid #dbe5f5;
+  border-top-color: #2563eb;
+  animation: startupLoadingSpin 0.8s linear infinite;
+}
+
+@keyframes startupLoadingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .tabRow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -835,6 +857,16 @@ label {
 
 .importQrScannerCanvas {
   display: none;
+}
+
+.importQrScannerErrorBlock {
+  display: grid;
+  gap: 6px;
+}
+
+.importQrScannerErrorActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .importConfirmPage {

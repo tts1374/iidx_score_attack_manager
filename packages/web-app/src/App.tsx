@@ -565,6 +565,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     [importFromQrScan],
   );
 
+  const openTextImportFromQrError = React.useCallback(() => {
+    setQrImportDialogOpen(false);
+    pushRoute({ name: 'import' });
+  }, [pushRoute]);
+
   const confirmImport = React.useCallback(
     async (payload: TournamentPayload) => {
       const result = await appDb.importTournament(payload);
@@ -1036,6 +1041,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           open={qrImportDialogOpen}
           onClose={closeQrImportDialog}
           onDetected={handleDetectedImportQr}
+          onOpenTextImport={openTextImportFromQrError}
         />
 
         <Dialog open={deleteTournamentDialogOpen} onClose={closeDeleteTournamentDialog} fullWidth maxWidth="xs">

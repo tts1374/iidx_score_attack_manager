@@ -22,6 +22,11 @@ const validPayload = {
 };
 
 describe('payload encode/decode', () => {
+  it('normalizes payload without changing chart order', () => {
+    const normalized = normalizeTournamentPayload(validPayload);
+    expect(normalized.charts).toEqual([200, 100]);
+  });
+
   it('encodes then decodes normalized payload', () => {
     const encoded = encodeTournamentPayload(validPayload);
     const decoded = decodeTournamentPayload(encoded);
