@@ -198,6 +198,27 @@ export class OpfsStorage {
     }
   }
 
+  async getFileSize(relativePath: string): Promise<number | null> {
+    const parts = splitPath(relativePath);
+    const fileName = parts.pop();
+    if (!fileName) {
+      return null;
+    }
+
+    try {
+      const dir = await this.getDirectory(parts);
+      const handle = await dir.getFileHandle(fileName);
+      const file = await handle.getFile();
+      const size = Number(file.size);
+      if (!Number.isFinite(size) || size < 0) {
+        return null;
+      }
+      return size;
+    } catch {
+      return null;
+    }
+  }
+
   async deleteFile(relativePath: string): Promise<void> {
     const parts = splitPath(relativePath);
     const fileName = parts.pop();

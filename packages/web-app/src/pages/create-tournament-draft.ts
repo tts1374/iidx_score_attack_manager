@@ -1,6 +1,8 @@
 import type { ChartSummary, CreateTournamentInput, SongSummary } from '@iidx/db';
 
 export type CreateTournamentPlayStyle = 'SP' | 'DP';
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface CreateTournamentChartDraft {
   key: string;
@@ -14,6 +16,7 @@ export interface CreateTournamentChartDraft {
 }
 
 export interface CreateTournamentDraft {
+  tournamentUuid: string;
   name: string;
   owner: string;
   hashtag: string;
@@ -25,14 +28,21 @@ export interface CreateTournamentDraft {
 export interface CreateTournamentValidationResult {
   selectedChartIds: number[];
   duplicateChartIds: Set<number>;
+  nameError: string | null;
+  ownerError: string | null;
+  hashtagError: string | null;
+  startDateError: string | null;
+  endDateError: string | null;
+  missingBasicFields: string[];
+  basicCompletedCount: number;
   hasRequiredFields: boolean;
   hasUnselectedChart: boolean;
+  chartStepError: string | null;
   periodError: string | null;
   canProceed: boolean;
 }
 
 export const MAX_CHART_ROWS = 4;
-export const CREATE_TOURNAMENT_CONFIRM_NOTICES = ['大会定義は作成後に変更できません。'] as const;
 
 export function createEmptyChartDraft(): CreateTournamentChartDraft {
   return {
@@ -49,6 +59,7 @@ export function createEmptyChartDraft(): CreateTournamentChartDraft {
 
 export function createInitialTournamentDraft(todayDate: string): CreateTournamentDraft {
   return {
+    tournamentUuid: crypto.randomUUID(),
     name: '',
     owner: '',
     hashtag: '',
@@ -58,7 +69,61 @@ export function createInitialTournamentDraft(todayDate: string): CreateTournamen
   };
 }
 
-export function resolveCreateTournamentValidation(draft: CreateTournamentDraft): CreateTournamentValidationResult {
+export function parseIsoDate(value: string): Date | null {
+  const match = ISO_DATE_RE.exec(value);
+  if (!match) {
+    return null;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+  return parsed;
+}
+
+export function formatIsoDate(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function resolveNextMonthDateRange(todayDate: string): { startDate: string; endDate: string } {
+  const baseDate = parseIsoDate(todayDate) ?? new Date();
+  const startDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1);
+  const endDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + 2, 0);
+  return {
+    startDate: formatIsoDate(startDate),
+    endDate: formatIsoDate(endDate),
+  };
+}
+
+export function resolveRangeDayCount(startDate: string, endDate: string): number | null {
+  const start = parseIsoDate(startDate);
+  const end = parseIsoDate(endDate);
+  if (!start || !end) {
+    return null;
+  }
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  if (endUtc < startUtc) {
+    return null;
+  }
+  return Math.floor((endUtc - startUtc) / DAY_MS) + 1;
+}
+
+export function resolveCreateTournamentValidation(
+  draft: CreateTournamentDraft,
+  todayDate: string,
+): CreateTournamentValidationResult {
   const selectedChartIds = draft.rows
     .map((row) => row.selectedChartId)
     .filter((value): value is number => value !== null);
@@ -74,33 +139,71 @@ export function resolveCreateTournamentValidation(draft: CreateTournamentDraft):
     }
   }
 
-  const hasRequiredFields =
-    draft.name.trim().length > 0 &&
-    draft.owner.trim().length > 0 &&
-    draft.hashtag.trim().length > 0 &&
-    draft.startDate.trim().length > 0 &&
-    draft.endDate.trim().length > 0;
-  const periodError =
-    draft.startDate && draft.endDate && draft.startDate > draft.endDate ? '開始日は終了日以前を指定してください。' : null;
+  const nameError = draft.name.trim().length === 0 ? '大会名を入力してください。' : null;
+  const ownerError = draft.owner.trim().length === 0 ? '開催者を入力してください。' : null;
+  const hashtagError = draft.hashtag.trim().length === 0 ? 'ハッシュタグを入力してください。' : null;
+  const startDateRequiredError = draft.startDate.trim().length === 0 ? '開始日を選択してください。' : null;
+  const endDateRequiredError = draft.endDate.trim().length === 0 ? '終了日を選択してください。' : null;
+  const startDateError = startDateRequiredError;
+
+  let endDateError = endDateRequiredError;
+  if (!endDateError && !startDateRequiredError && draft.startDate > draft.endDate) {
+    endDateError = '終了日は開始日以降を指定してください。';
+  } else if (!endDateError && draft.endDate < todayDate) {
+    endDateError = '終了日には今日以降の日付を指定してください。';
+  }
+  const periodError = endDateError;
+
+  const missingBasicFields: string[] = [];
+  if (nameError) {
+    missingBasicFields.push('大会名');
+  }
+  if (ownerError) {
+    missingBasicFields.push('開催者');
+  }
+  if (hashtagError) {
+    missingBasicFields.push('ハッシュタグ');
+  }
+  if (startDateRequiredError || endDateRequiredError) {
+    missingBasicFields.push('期間');
+  }
+  const basicCompletedCount = 4 - missingBasicFields.length;
+  const hasRequiredFields = missingBasicFields.length === 0 && periodError === null;
+
   const hasUnselectedChart = draft.rows.some((row) => row.selectedChartId === null);
+  const chartStepError =
+    draft.rows.length === 0
+      ? '譜面を1件以上選択してください。'
+      : hasUnselectedChart
+        ? '各譜面で難易度を選択してください。'
+        : duplicateChartIds.size > 0
+          ? '同一譜面を重複登録できません。'
+          : null;
 
   return {
     selectedChartIds,
     duplicateChartIds,
+    nameError,
+    ownerError,
+    hashtagError,
+    startDateError,
+    endDateError,
+    missingBasicFields,
+    basicCompletedCount,
     hasRequiredFields,
     hasUnselectedChart,
+    chartStepError,
     periodError,
     canProceed:
       draft.rows.length > 0 &&
       hasRequiredFields &&
-      periodError === null &&
-      !hasUnselectedChart &&
-      duplicateChartIds.size === 0,
+      chartStepError === null,
   };
 }
 
 export function buildCreateTournamentInput(draft: CreateTournamentDraft, selectedChartIds: number[]): CreateTournamentInput {
   return {
+    tournamentUuid: draft.tournamentUuid,
     tournamentName: draft.name.trim(),
     owner: draft.owner.trim(),
     hashtag: draft.hashtag.trim(),

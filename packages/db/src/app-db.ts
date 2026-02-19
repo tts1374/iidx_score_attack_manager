@@ -174,6 +174,23 @@ export interface EvidenceRecord {
   updatedAt: string;
 }
 
+export interface EvidenceCleanupEstimate {
+  thresholdDate: string;
+  targetTournamentCount: number;
+  targetImageCount: number;
+  estimatedReleaseBytes: number | null;
+  unknownSizeCount: number;
+}
+
+export interface EvidenceCleanupResult {
+  thresholdDate: string;
+  deletedTournamentCount: number;
+  deletedImageCount: number;
+  releasedBytes: number | null;
+  unknownSizeCount: number;
+  executedAt: string;
+}
+
 export class AppDatabase {
   private dbId: SqliteDbId | null = null;
 
@@ -344,7 +361,7 @@ export class AppDatabase {
       throw new Error(errors[0]);
     }
 
-    const tournamentUuid = this.idFactory.uuid();
+    const tournamentUuid = input.tournamentUuid ?? this.idFactory.uuid();
     const now = this.clock.nowIso();
     const payload: TournamentPayload = normalizeTournamentPayload({
       v: PAYLOAD_VERSION,
@@ -730,6 +747,7 @@ export class AppDatabase {
     const tournamentRows = await this.query<{
       tournament_uuid: string;
       source_tournament_uuid: string | null;
+      def_hash: string;
       tournament_name: string;
       owner: string;
       hashtag: string;
@@ -738,11 +756,13 @@ export class AppDatabase {
       is_imported: number;
       chart_count: number;
       submitted_count: number;
+      last_submitted_at: string | null;
     }>(
       `
       SELECT
         t.tournament_uuid,
         t.source_tournament_uuid,
+        t.def_hash,
         t.tournament_name,
         t.owner,
         t.hashtag,
@@ -750,7 +770,8 @@ export class AppDatabase {
         t.end_date,
         t.is_imported,
         COUNT(DISTINCT tc.chart_id) AS chart_count,
-        COUNT(DISTINCT CASE WHEN e.update_seq > 0 AND e.file_deleted = 0 THEN tc.chart_id END) AS submitted_count
+        COUNT(DISTINCT CASE WHEN e.update_seq > 0 AND e.file_deleted = 0 THEN tc.chart_id END) AS submitted_count,
+        MAX(CASE WHEN e.update_seq > 0 AND e.file_deleted = 0 THEN e.updated_at END) AS last_submitted_at
       FROM tournaments t
       INNER JOIN tournament_charts tc ON tc.tournament_uuid = t.tournament_uuid
       LEFT JOIN evidences e
@@ -774,6 +795,7 @@ export class AppDatabase {
     return {
       tournamentUuid: base.tournament_uuid,
       sourceTournamentUuid: base.source_tournament_uuid,
+      defHash: base.def_hash,
       tournamentName: base.tournament_name,
       owner: base.owner,
       hashtag: base.hashtag,
@@ -783,6 +805,7 @@ export class AppDatabase {
       chartCount: Number(base.chart_count),
       submittedCount: Number(base.submitted_count),
       pendingCount: Math.max(0, Number(base.chart_count) - Number(base.submitted_count)),
+      lastSubmittedAt: base.last_submitted_at,
       charts,
     };
   }
@@ -1098,6 +1121,29 @@ export class AppDatabase {
     return `evidences/${tournamentUuid}/${chartId}.jpg`;
   }
 
+  async deleteEvidence(tournamentUuid: string, chartId: number): Promise<boolean> {
+    const record = await this.getEvidenceRecord(tournamentUuid, chartId);
+    if (!record || record.fileDeleted) {
+      return false;
+    }
+
+    const relativePath = await this.getEvidenceRelativePath(tournamentUuid, chartId);
+    await this.opfs.deleteFile(relativePath);
+
+    const now = this.clock.nowIso();
+    await this.exec(
+      `UPDATE evidences
+       SET file_deleted = 1,
+           deleted_at = ?,
+           updated_at = ?
+       WHERE tournament_uuid = ?
+         AND chart_id = ?`,
+      [now, now, tournamentUuid, chartId],
+    );
+
+    return true;
+  }
+
   async deleteTournament(tournamentUuid: string): Promise<void> {
     const evidenceRows = await this.query<{ chart_id: number }>(
       `SELECT chart_id
@@ -1190,17 +1236,28 @@ export class AppDatabase {
     }
   }
 
-  async purgeExpiredEvidenceIfNeeded(): Promise<number> {
-    const config = await this.getAutoDeleteConfig();
-    if (!config.enabled || config.days <= 0) {
-      return 0;
+  async getAppDbIntegrityCheck(): Promise<string> {
+    const rows = await this.query<Record<string, unknown>>('PRAGMA integrity_check;');
+    const row = rows[0];
+    if (!row) {
+      return 'unknown';
     }
+    const first = Object.values(row)[0];
+    const normalized = normalizeDbText(first);
+    return normalized ?? String(first ?? 'unknown');
+  }
 
+  private resolveAutoDeleteThresholdDate(days: number): string {
+    const normalizedDays = Number.isFinite(days) ? Math.max(0, Math.trunc(days)) : 0;
     const threshold = new Date(`${this.clock.todayJst()}T00:00:00.000Z`);
-    threshold.setUTCDate(threshold.getUTCDate() - config.days);
-    const thresholdDate = threshold.toISOString().slice(0, 10);
+    threshold.setUTCDate(threshold.getUTCDate() - normalizedDays);
+    return threshold.toISOString().slice(0, 10);
+  }
 
-    const rows = await this.query<{ tournament_uuid: string; chart_id: number }>(
+  private async queryExpiredEvidenceRows(
+    thresholdDate: string,
+  ): Promise<Array<{ tournament_uuid: string; chart_id: number }>> {
+    return this.query<{ tournament_uuid: string; chart_id: number }>(
       `
       SELECT e.tournament_uuid, e.chart_id
       FROM evidences e
@@ -1210,11 +1267,53 @@ export class AppDatabase {
       `,
       [thresholdDate],
     );
+  }
 
-    const now = this.clock.nowIso();
-    let deletedCount = 0;
+  async estimateEvidenceCleanup(days: number): Promise<EvidenceCleanupEstimate> {
+    const thresholdDate = this.resolveAutoDeleteThresholdDate(days);
+    const rows = await this.queryExpiredEvidenceRows(thresholdDate);
+    const targetTournaments = new Set<string>();
+    let estimatedReleaseBytes = 0;
+    let unknownSizeCount = 0;
+
     for (const row of rows) {
+      targetTournaments.add(row.tournament_uuid);
       const path = await this.getEvidenceRelativePath(row.tournament_uuid, Number(row.chart_id));
+      const size = await this.opfs.getFileSize(path);
+      if (size === null) {
+        unknownSizeCount += 1;
+        continue;
+      }
+      estimatedReleaseBytes += size;
+    }
+
+    return {
+      thresholdDate,
+      targetTournamentCount: targetTournaments.size,
+      targetImageCount: rows.length,
+      estimatedReleaseBytes: unknownSizeCount === rows.length && rows.length > 0 ? null : estimatedReleaseBytes,
+      unknownSizeCount,
+    };
+  }
+
+  async purgeExpiredEvidence(days: number): Promise<EvidenceCleanupResult> {
+    const thresholdDate = this.resolveAutoDeleteThresholdDate(days);
+    const rows = await this.queryExpiredEvidenceRows(thresholdDate);
+    const targetTournaments = new Set<string>();
+    const now = this.clock.nowIso();
+    let deletedImageCount = 0;
+    let releasedBytes = 0;
+    let unknownSizeCount = 0;
+
+    for (const row of rows) {
+      targetTournaments.add(row.tournament_uuid);
+      const path = await this.getEvidenceRelativePath(row.tournament_uuid, Number(row.chart_id));
+      const size = await this.opfs.getFileSize(path);
+      if (size === null) {
+        unknownSizeCount += 1;
+      } else {
+        releasedBytes += size;
+      }
       await this.opfs.deleteFile(path);
       await this.exec(
         `UPDATE evidences
@@ -1225,9 +1324,26 @@ export class AppDatabase {
            AND chart_id = ?`,
         [now, now, row.tournament_uuid, row.chart_id],
       );
-      deletedCount += 1;
+      deletedImageCount += 1;
     }
 
-    return deletedCount;
+    return {
+      thresholdDate,
+      deletedTournamentCount: targetTournaments.size,
+      deletedImageCount,
+      releasedBytes: unknownSizeCount === deletedImageCount && deletedImageCount > 0 ? null : releasedBytes,
+      unknownSizeCount,
+      executedAt: now,
+    };
+  }
+
+  async purgeExpiredEvidenceIfNeeded(): Promise<number> {
+    const config = await this.getAutoDeleteConfig();
+    if (!config.enabled || config.days <= 0) {
+      return 0;
+    }
+
+    const result = await this.purgeExpiredEvidence(config.days);
+    return result.deletedImageCount;
   }
 }

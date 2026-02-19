@@ -17,6 +17,8 @@ export interface TournamentListItem {
 }
 
 export interface TournamentDetailItem extends TournamentListItem {
+  defHash: string;
+  lastSubmittedAt: string | null;
   charts: TournamentDetailChart[];
 }
 
@@ -35,6 +37,7 @@ export interface TournamentDetailChart {
 }
 
 export interface CreateTournamentInput {
+  tournamentUuid?: string;
   tournamentName: string;
   owner: string;
   hashtag: string;

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
-import { type TournamentPayload } from '@iidx/shared';
+import { PAYLOAD_VERSION, encodeTournamentPayload, type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import {
   AppBar,
@@ -16,6 +16,7 @@ import {
   SpeedDial,
   SpeedDialAction,
   Toolbar,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -26,7 +27,6 @@ import PostAddIcon from '@mui/icons-material/PostAdd';
 
 import { ImportQrScannerDialog } from './components/ImportQrScannerDialog';
 import { UnsupportedScreen } from './components/UnsupportedScreen';
-import { CreateTournamentConfirmPage } from './pages/CreateTournamentConfirmPage';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
 import { HomePage } from './pages/HomePage';
 import { ImportConfirmPage } from './pages/ImportConfirmPage';
@@ -43,7 +43,6 @@ import {
 import { useAppServices } from './services/context';
 import { extractQrTextFromImage } from './utils/image';
 import {
-  CREATE_TOURNAMENT_CONFIRM_PATH,
   CREATE_TOURNAMENT_PATH,
   HOME_PATH,
   IMPORT_CONFIRM_PATH,
@@ -57,12 +56,30 @@ function todayJst(): string {
   return jst.toISOString().slice(0, 10);
 }
 
+function formatByteSize(rawBytes: number | null): string {
+  if (rawBytes === null || !Number.isFinite(rawBytes) || rawBytes < 0) {
+    return '不明';
+  }
+  const bytes = rawBytes;
+  const gb = 1024 ** 3;
+  const mb = 1024 ** 2;
+  if (bytes >= gb) {
+    return `${(bytes / gb).toFixed(2)} GB`;
+  }
+  if (bytes >= mb) {
+    return `${(bytes / mb).toFixed(2)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(2)} KB`;
+  }
+  return `${bytes} bytes`;
+}
+
 type RouteState =
   | { name: 'home' }
   | { name: 'import' }
   | { name: 'import-confirm' }
   | { name: 'create' }
-  | { name: 'create-confirm' }
   | { name: 'detail'; tournamentUuid: string }
   | { name: 'submit'; tournamentUuid: string; chartId: number }
   | { name: 'settings' };
@@ -80,10 +97,6 @@ function isImportConfirmPath(pathname: string): boolean {
 
 function isCreatePath(pathname: string): boolean {
   return normalizePathname(pathname) === CREATE_TOURNAMENT_PATH;
-}
-
-function isCreateConfirmPath(pathname: string): boolean {
-  return normalizePathname(pathname) === CREATE_TOURNAMENT_CONFIRM_PATH;
 }
 
 function createInitialRouteStack(): RouteState[] {
@@ -114,6 +127,24 @@ const APP_VERSION =
 const BUILD_TIME =
   typeof __BUILD_TIME__ === 'string' && __BUILD_TIME__.trim().length > 0 ? __BUILD_TIME__ : '-';
 const SW_VERSION_REQUEST_TIMEOUT_MS = 1500;
+const DEBUG_MODE_STORAGE_KEY = 'iidx:debug:mode';
+
+function readDebugMode(): boolean {
+  try {
+    return window.localStorage.getItem(DEBUG_MODE_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeDebugMode(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(DEBUG_MODE_STORAGE_KEY, enabled ? '1' : '0');
+  } catch {
+    // ignore storage failures
+  }
+}
+const HOME_CREATE_FAB_TOOLTIP_KEY = 'iidx.home.create-fab-tooltip-seen';
 
 interface AppProps {
   webLockAcquired?: boolean;
@@ -121,10 +152,72 @@ interface AppProps {
 
 interface AppInfoDetailState {
   swVersion: string;
+  swScope: string;
+  swState: string;
+  swClientsClaim: boolean | null;
+  swSkipWaiting: boolean | null;
   appDbUserVersion: number | null;
   appDbSizeBytes: number | null;
+  appDbIntegrityCheck: string | null;
   webLocksStatus: AppInfoCardData['webLocksStatus'];
+  webLocksReason: string | null;
   opfsStatus: AppInfoCardData['opfsStatus'];
+  storageUsageBytes: number | null;
+  storageQuotaBytes: number | null;
+}
+
+interface SongMasterActionResult {
+  ok: boolean;
+  source: string;
+  message: string | null;
+  latestSha256: string | null;
+  localSha256: string | null;
+  checkedAt: string;
+}
+
+interface RuntimeLogEntry {
+  id: string;
+  timestamp: string;
+  level: 'info' | 'warn' | 'error';
+  category: string;
+  message: string;
+  detail?: string;
+}
+
+function resolveWebLocksReason(status: AppInfoCardData['webLocksStatus']): string | null {
+  switch (status) {
+    case 'acquired':
+      return null;
+    case 'unsupported':
+      return 'ブラウザが Web Locks API に未対応です。';
+    case 'not_acquired':
+    default:
+      return '別タブで稼働中の可能性があります。';
+  }
+}
+
+function resolveServiceWorkerState(registration: ServiceWorkerRegistration | null): string {
+  if (!registration) {
+    return 'inactive';
+  }
+  return registration.active?.state ?? registration.waiting?.state ?? registration.installing?.state ?? 'inactive';
+}
+
+async function resolveStorageEstimate(): Promise<{ usageBytes: number | null; quotaBytes: number | null }> {
+  if (!navigator.storage?.estimate) {
+    return { usageBytes: null, quotaBytes: null };
+  }
+  try {
+    const estimate = await navigator.storage.estimate();
+    const usageBytes = Number(estimate.usage);
+    const quotaBytes = Number(estimate.quota);
+    return {
+      usageBytes: Number.isFinite(usageBytes) && usageBytes >= 0 ? usageBytes : null,
+      quotaBytes: Number.isFinite(quotaBytes) && quotaBytes > 0 ? quotaBytes : null,
+    };
+  } catch {
+    return { usageBytes: null, quotaBytes: null };
+  }
 }
 
 function resolveServiceWorkerStatus(pwaUpdate: ServiceWorkerRegistration | null, hasController: boolean): AppSwStatus {
@@ -221,21 +314,37 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   );
   const [appInfoDetails, setAppInfoDetails] = React.useState<AppInfoDetailState>(() => ({
     swVersion: '-',
+    swScope: '-',
+    swState: 'inactive',
+    swClientsClaim: null,
+    swSkipWaiting: null,
     appDbUserVersion: null,
     appDbSizeBytes: null,
+    appDbIntegrityCheck: null,
     webLocksStatus: resolveWebLocksStatus(webLockAcquired),
+    webLocksReason: resolveWebLocksReason(resolveWebLocksStatus(webLockAcquired)),
     opfsStatus: 'unsupported',
+    storageUsageBytes: null,
+    storageQuotaBytes: null,
   }));
+  const [runtimeLogs, setRuntimeLogs] = React.useState<RuntimeLogEntry[]>([]);
+  const [lastCleanupResult, setLastCleanupResult] = React.useState<Awaited<ReturnType<typeof appDb.purgeExpiredEvidence>> | null>(
+    null,
+  );
   const [fatalError, setFatalError] = React.useState<string | null>(null);
   const [homeMenuAnchorEl, setHomeMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [detailMenuAnchorEl, setDetailMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [deleteTournamentDialogOpen, setDeleteTournamentDialogOpen] = React.useState(false);
   const [deleteTournamentBusy, setDeleteTournamentBusy] = React.useState(false);
   const [speedDialOpen, setSpeedDialOpen] = React.useState(false);
+  const [showCreateFabTooltip, setShowCreateFabTooltip] = React.useState(false);
   const [qrImportDialogOpen, setQrImportDialogOpen] = React.useState(false);
   const [createDraft, setCreateDraft] = React.useState<CreateTournamentDraft | null>(null);
   const [createSaving, setCreateSaving] = React.useState(false);
   const [createSaveError, setCreateSaveError] = React.useState<string | null>(null);
+  const [debugModeEnabled, setDebugModeEnabled] = React.useState(() => readDebugMode());
+  const [detailTechnicalDialogOpen, setDetailTechnicalDialogOpen] = React.useState(false);
+  const [detailDebugLastError, setDetailDebugLastError] = React.useState<string | null>(null);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
@@ -250,13 +359,72 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       buildTime: BUILD_TIME,
       swStatus,
       swVersion: appInfoDetails.swVersion,
+      swScope: appInfoDetails.swScope,
+      swState: appInfoDetails.swState,
+      swClientsClaim: appInfoDetails.swClientsClaim,
+      swSkipWaiting: appInfoDetails.swSkipWaiting,
       appDbUserVersion: appInfoDetails.appDbUserVersion,
       appDbSizeBytes: appInfoDetails.appDbSizeBytes,
+      appDbIntegrityCheck: appInfoDetails.appDbIntegrityCheck,
       webLocksStatus: appInfoDetails.webLocksStatus,
+      webLocksReason: appInfoDetails.webLocksReason,
       opfsStatus: appInfoDetails.opfsStatus,
+      storageUsageBytes: appInfoDetails.storageUsageBytes,
+      storageQuotaBytes: appInfoDetails.storageQuotaBytes,
     }),
     [appInfoDetails, swStatus],
   );
+  const latestRuntimeError = React.useMemo(
+    () => runtimeLogs.find((entry) => entry.level === 'error') ?? null,
+    [runtimeLogs],
+  );
+  const detailPayloadSizeBytes = React.useMemo(() => {
+    if (!detail) {
+      return 0;
+    }
+    const payload = encodeTournamentPayload({
+      v: PAYLOAD_VERSION,
+      uuid: detail.sourceTournamentUuid ?? detail.tournamentUuid,
+      name: detail.tournamentName,
+      owner: detail.owner,
+      hashtag: detail.hashtag,
+      start: detail.startDate,
+      end: detail.endDate,
+      charts: detail.charts.map((chart) => chart.chartId),
+    });
+    return new TextEncoder().encode(payload).length;
+  }, [detail]);
+  const detailTechnicalInfo = React.useMemo(() => {
+    if (!detail) {
+      return null;
+    }
+    return {
+      tournament_uuid: detail.tournamentUuid,
+      source_tournament_uuid: detail.sourceTournamentUuid,
+      def_hash: detail.defHash,
+      payload_size_bytes: detailPayloadSizeBytes,
+      last_error: detailDebugLastError ?? latestRuntimeError?.message ?? null,
+    };
+  }, [detail, detailDebugLastError, detailPayloadSizeBytes, latestRuntimeError]);
+  const detailTechnicalLogText = React.useMemo(() => {
+    if (!detailTechnicalInfo) {
+      return '';
+    }
+    return JSON.stringify(
+      {
+        ...detailTechnicalInfo,
+        runtime_logs: runtimeLogs.slice(0, 20).map((entry) => ({
+          timestamp: entry.timestamp,
+          level: entry.level,
+          category: entry.category,
+          message: entry.message,
+          detail: entry.detail ?? null,
+        })),
+      },
+      null,
+      2,
+    );
+  }, [detailTechnicalInfo, runtimeLogs]);
 
   const pushRoute = React.useCallback((next: RouteState) => {
     setRouteStack((previous) => [...previous, next]);
@@ -304,6 +472,67 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     }, 4000);
   }, []);
 
+  const toggleDebugMode = React.useCallback(() => {
+    setDebugModeEnabled((current) => {
+      const next = !current;
+      writeDebugMode(next);
+      pushToast(next ? 'デバッグモードを有効にしました。' : 'デバッグモードを無効にしました。');
+      return next;
+    });
+  }, [pushToast]);
+  const closeCreateFabTooltip = React.useCallback(() => {
+    setShowCreateFabTooltip(false);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isHomeRoute) {
+      setShowCreateFabTooltip(false);
+      return;
+    }
+    let shouldShow = false;
+    try {
+      shouldShow = window.localStorage.getItem(HOME_CREATE_FAB_TOOLTIP_KEY) !== '1';
+      if (shouldShow) {
+        window.localStorage.setItem(HOME_CREATE_FAB_TOOLTIP_KEY, '1');
+      }
+    } catch {
+      shouldShow = true;
+    }
+    if (shouldShow) {
+      setShowCreateFabTooltip(true);
+    }
+  }, [isHomeRoute]);
+
+  React.useEffect(() => {
+    if (!showCreateFabTooltip) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setShowCreateFabTooltip(false);
+    }, 3200);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [showCreateFabTooltip]);
+
+  const appendRuntimeLog = React.useCallback(
+    (entry: Omit<RuntimeLogEntry, 'id' | 'timestamp'> & { timestamp?: string }) => {
+      const timestamp = entry.timestamp ?? new Date().toISOString();
+      setRuntimeLogs((previous) => [
+        {
+          id: `${timestamp}:${crypto.randomUUID()}`,
+          timestamp,
+          level: entry.level,
+          category: entry.category,
+          message: entry.message,
+          ...(entry.detail ? { detail: entry.detail } : {}),
+        },
+        ...previous,
+      ].slice(0, 60));
+    },
+    [],
+  );
+
   const refreshTournamentList = React.useCallback(async () => {
     const rows = await appDb.listTournaments(tab);
     setTournaments(rows);
@@ -324,35 +553,65 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [appDb]);
 
   const collectAppInfoDetails = React.useCallback(async (): Promise<AppInfoDetailState> => {
-    const [appDbUserVersion, appDbSizeBytes, opfsStatus, swVersion] = await Promise.all([
+    const [appDbUserVersion, appDbSizeBytes, appDbIntegrityCheck, opfsStatus, swVersion, swRegistration, storageEstimate] =
+      await Promise.all([
       appDb.getAppDbUserVersion().catch(() => null),
       appDb.getAppDbFileSize().catch(() => null),
+      appDb.getAppDbIntegrityCheck().catch(() => null),
       resolveOpfsStatus(),
       hasSwController ? requestServiceWorkerVersion().catch(() => null) : Promise.resolve<string | null>(null),
+      'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null),
+      resolveStorageEstimate(),
     ]);
+    const webLocksStatus = resolveWebLocksStatus(webLockAcquired);
+    const normalizedSwRegistration = swRegistration ?? null;
 
     return {
       swVersion: swVersion ?? '-',
+      swScope: normalizedSwRegistration?.scope ?? '-',
+      swState: resolveServiceWorkerState(normalizedSwRegistration),
+      swClientsClaim: hasSwController,
+      swSkipWaiting: normalizedSwRegistration ? Boolean(normalizedSwRegistration.waiting) : null,
       appDbUserVersion,
       appDbSizeBytes,
-      webLocksStatus: resolveWebLocksStatus(webLockAcquired),
+      appDbIntegrityCheck,
+      webLocksStatus,
+      webLocksReason: resolveWebLocksReason(webLocksStatus),
       opfsStatus,
+      storageUsageBytes: storageEstimate.usageBytes,
+      storageQuotaBytes: storageEstimate.quotaBytes,
     };
   }, [appDb, hasSwController, webLockAcquired]);
 
   const updateSongMaster = React.useCallback(
-    async (force: boolean) => {
+    async (force: boolean): Promise<SongMasterActionResult> => {
+      const checkedAt = new Date().toISOString();
       setBusy(true);
       try {
         const result = await songMasterService.updateIfNeeded(force);
         const snapshot = await refreshSettingsSnapshot();
+        const actionResult: SongMasterActionResult = {
+          ok: result.ok,
+          source: result.source,
+          message: result.message ?? null,
+          latestSha256: result.latest?.sha256 ?? null,
+          localSha256: snapshot.songMeta.song_master_sha256 ?? null,
+          checkedAt,
+        };
         if (!result.ok) {
           const message = result.message ?? '曲マスタ更新に失敗しました。';
           if (result.source !== 'local_cache') {
             setFatalError(message);
           }
           pushToast(message);
-          return;
+          appendRuntimeLog({
+            level: result.source === 'local_cache' ? 'warn' : 'error',
+            category: 'song-master',
+            message: force ? '再取得（キャッシュ破棄）に失敗しました。' : '更新確認に失敗しました。',
+            detail: message,
+            timestamp: checkedAt,
+          });
+          return actionResult;
         }
 
         if (result.source === 'github_download' || result.source === 'initial_download') {
@@ -368,17 +627,45 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         if (result.message) {
           pushToast(result.message);
         }
+        appendRuntimeLog({
+          level: result.source === 'local_cache' ? 'warn' : 'info',
+          category: 'song-master',
+          message:
+            result.source === 'up_to_date'
+              ? '曲データは最新です。'
+              : force
+                ? '曲データを再取得しました。'
+                : '曲データの更新確認を実行しました。',
+          ...(result.message ? { detail: result.message } : {}),
+          timestamp: checkedAt,
+        });
+        return actionResult;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (!(await appDb.hasSongMaster())) {
           setFatalError(message);
         }
         pushToast(message);
+        appendRuntimeLog({
+          level: 'error',
+          category: 'song-master',
+          message: force ? '再取得（キャッシュ破棄）で例外が発生しました。' : '更新確認で例外が発生しました。',
+          detail: message,
+          timestamp: checkedAt,
+        });
+        return {
+          ok: false,
+          source: 'error',
+          message,
+          latestSha256: null,
+          localSha256: null,
+          checkedAt,
+        };
       } finally {
         setBusy(false);
       }
     },
-    [appDb, pushToast, refreshSettingsSnapshot, songMasterService],
+    [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, songMasterService],
   );
 
   React.useEffect(() => {
@@ -395,12 +682,49 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, []);
 
   React.useEffect(() => {
+    const onError = (event: ErrorEvent) => {
+      appendRuntimeLog({
+        level: 'error',
+        category: 'runtime',
+        message: '未処理の例外が発生しました。',
+        detail: event.error instanceof Error ? event.error.message : event.message,
+      });
+    };
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      appendRuntimeLog({
+        level: 'error',
+        category: 'runtime',
+        message: '未処理の Promise rejection が発生しました。',
+        detail:
+          event.reason instanceof Error
+            ? event.reason.message
+            : typeof event.reason === 'string'
+              ? event.reason
+              : JSON.stringify(event.reason),
+      });
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
+    };
+  }, [appendRuntimeLog]);
+
+  React.useEffect(() => {
     let mounted = true;
 
     const bootstrap = async () => {
       try {
         await appDb.reconcileEvidenceFiles();
-        await appDb.purgeExpiredEvidenceIfNeeded();
+        const purged = await appDb.purgeExpiredEvidenceIfNeeded();
+        if (purged > 0) {
+          appendRuntimeLog({
+            level: 'info',
+            category: 'storage',
+            message: `起動時の自動削除で ${purged} 件の画像を削除しました。`,
+          });
+        }
         await refreshSettingsSnapshot();
         setTournaments(await appDb.listTournaments('active'));
 
@@ -428,7 +752,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         }
       } catch (error) {
         if (mounted) {
-          pushToast(error instanceof Error ? error.message : String(error));
+          const message = error instanceof Error ? error.message : String(error);
+          pushToast(message);
+          appendRuntimeLog({
+            level: 'error',
+            category: 'bootstrap',
+            message: '起動処理でエラーが発生しました。',
+            detail: message,
+          });
         }
       }
     };
@@ -438,7 +769,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     return () => {
       mounted = false;
     };
-  }, [appDb, pushToast, refreshSettingsSnapshot]);
+  }, [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot]);
 
   React.useEffect(() => {
     void refreshTournamentList();
@@ -462,37 +793,31 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   React.useEffect(() => {
     const pathname = window.location.pathname;
     if (route.name === 'home') {
-      if (isImportConfirmPath(pathname) || isCreatePath(pathname) || isCreateConfirmPath(pathname)) {
+      if (isImportConfirmPath(pathname) || isCreatePath(pathname)) {
         window.history.replaceState(window.history.state, '', HOME_PATH);
       }
       return;
     }
     if (route.name === 'create' && !isCreatePath(pathname)) {
       window.history.replaceState(window.history.state, '', CREATE_TOURNAMENT_PATH);
-      return;
-    }
-    if (route.name === 'create-confirm' && !isCreateConfirmPath(pathname)) {
-      window.history.replaceState(window.history.state, '', CREATE_TOURNAMENT_CONFIRM_PATH);
     }
   }, [route.name]);
 
   React.useEffect(() => {
-    if (route.name !== 'create' && route.name !== 'create-confirm') {
+    if (route.name !== 'create') {
       return;
     }
     if (createDraft !== null) {
       return;
     }
     setCreateDraft(createInitialTournamentDraft(todayDate));
-    if (route.name === 'create-confirm') {
-      replaceRoute({ name: 'create' });
-    }
-  }, [createDraft, replaceRoute, route.name, todayDate]);
+  }, [createDraft, route.name, todayDate]);
 
   const reloadDetail = React.useCallback(
     async (tournamentUuid: string) => {
       const next = await appDb.getTournamentDetail(tournamentUuid);
       setDetail(next);
+      setDetailDebugLastError(null);
       if (!next) {
         replaceRoute({ name: 'home' });
       }
@@ -602,25 +927,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     [todayDate],
   );
 
-  const openCreateConfirm = React.useCallback(() => {
-    if (!createDraft) {
-      return;
-    }
-    const validation = resolveCreateTournamentValidation(createDraft);
-    if (!validation.canProceed) {
-      pushToast('入力内容を確認してください。');
-      return;
-    }
-    setCreateSaveError(null);
-    pushRoute({ name: 'create-confirm' });
-  }, [createDraft, pushRoute, pushToast]);
-
   const confirmCreateTournament = React.useCallback(async () => {
     if (!createDraft || createSaving) {
       return;
     }
 
-    const validation = resolveCreateTournamentValidation(createDraft);
+    const validation = resolveCreateTournamentValidation(createDraft, todayDate);
     if (!validation.canProceed) {
       setCreateSaveError('入力内容を確認してください。');
       return;
@@ -640,22 +952,43 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     } finally {
       setCreateSaving(false);
     }
-  }, [appDb, createDraft, createSaving, pushToast, refreshTournamentList, resetRoute]);
+  }, [appDb, createDraft, createSaving, pushToast, refreshTournamentList, resetRoute, todayDate]);
 
   const saveAutoDelete = React.useCallback(
     async (enabled: boolean, days: number) => {
       await appDb.setAutoDeleteConfig(enabled, days);
       await refreshSettingsSnapshot();
-      pushToast('自動削除設定を保存しました。');
+      appendRuntimeLog({
+        level: 'info',
+        category: 'storage',
+        message: `画像自動削除設定を更新しました。（${enabled ? '有効' : '無効'} / ${days}日）`,
+      });
     },
-    [appDb, pushToast, refreshSettingsSnapshot],
+    [appDb, appendRuntimeLog, refreshSettingsSnapshot],
   );
 
-  const runAutoDelete = React.useCallback(async () => {
-    const deleted = await appDb.purgeExpiredEvidenceIfNeeded();
-    await refreshTournamentList();
-    pushToast(`${deleted}件の画像を削除しました。`);
-  }, [appDb, pushToast, refreshTournamentList]);
+  const estimateStorageCleanup = React.useCallback(
+    async (days: number) => appDb.estimateEvidenceCleanup(days),
+    [appDb],
+  );
+
+  const runStorageCleanup = React.useCallback(
+    async (days: number) => {
+      const result = await appDb.purgeExpiredEvidence(days);
+      await refreshTournamentList();
+      await refreshSettingsSnapshot();
+      setLastCleanupResult(result);
+      const releasedText = formatByteSize(result.releasedBytes);
+      pushToast(`${result.deletedImageCount}件の画像を削除（解放 ${releasedText}）`);
+      appendRuntimeLog({
+        level: 'info',
+        category: 'storage',
+        message: `容量整理を実行しました。（画像 ${result.deletedImageCount} 件 / 解放 ${releasedText}）`,
+      });
+      return result;
+    },
+    [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, refreshTournamentList],
+  );
 
   const submitChart =
     route.name === 'submit' && detail
@@ -672,8 +1005,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         return '取り込み確認';
       case 'create':
         return '大会作成';
-      case 'create-confirm':
-        return '確認';
       case 'detail':
         return '大会詳細';
       case 'submit':
@@ -715,6 +1046,18 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     pushRoute({ name: 'settings' });
   }, [pushRoute, route.name]);
 
+  const applyPendingAppUpdate = React.useCallback(() => {
+    if (!pwaUpdate) {
+      return;
+    }
+    appendRuntimeLog({
+      level: 'info',
+      category: 'pwa',
+      message: 'アプリ更新を適用します。',
+    });
+    applyPwaUpdate(pwaUpdate);
+  }, [appendRuntimeLog, pwaUpdate]);
+
   const openHomeMenu = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
     setHomeMenuAnchorEl(event.currentTarget);
   }, []);
@@ -730,6 +1073,30 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const closeDetailMenu = React.useCallback(() => {
     setDetailMenuAnchorEl(null);
   }, []);
+
+  const openDetailTechnicalDialog = React.useCallback(() => {
+    closeDetailMenu();
+    setDetailTechnicalDialogOpen(true);
+  }, [closeDetailMenu]);
+
+  const closeDetailTechnicalDialog = React.useCallback(() => {
+    setDetailTechnicalDialogOpen(false);
+  }, []);
+
+  const copyDetailTechnicalLog = React.useCallback(async () => {
+    if (!detailTechnicalLogText) {
+      return;
+    }
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        throw new Error('clipboard unavailable');
+      }
+      await navigator.clipboard.writeText(detailTechnicalLogText);
+      pushToast('技術ログをコピーしました。');
+    } catch {
+      pushToast('技術ログのコピーに失敗しました。');
+    }
+  }, [detailTechnicalLogText, pushToast]);
 
   const openDeleteTournamentDialog = React.useCallback(() => {
     closeDetailMenu();
@@ -764,8 +1131,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [appDb, closeDetailMenu, deleteTournamentBusy, detail, pushToast, refreshTournamentList, resetRoute]);
 
   const resetLocalData = React.useCallback(async () => {
-    closeHomeMenu();
-    if (!window.confirm('ローカル初期化を実行します。大会/提出画像/設定を削除します。続行しますか？')) {
+    if (busy) {
       return;
     }
 
@@ -777,6 +1143,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       setCreateSaving(false);
       setCreateSaveError(null);
       setTab('active');
+      resetRoute({ name: 'home' });
       setTournaments(await appDb.listTournaments('active'));
       await refreshSettingsSnapshot();
       pushToast('ローカル初期化を実行しました。');
@@ -785,7 +1152,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     } finally {
       setBusy(false);
     }
-  }, [appDb, closeHomeMenu, pushToast, refreshSettingsSnapshot]);
+  }, [appDb, busy, pushToast, refreshSettingsSnapshot, resetRoute]);
 
   const homeMenuOpen = homeMenuAnchorEl !== null;
   const detailMenuOpen = detailMenuAnchorEl !== null;
@@ -797,7 +1164,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     }
     setDetailMenuAnchorEl(null);
     setDeleteTournamentDialogOpen(false);
+    setDetailTechnicalDialogOpen(false);
+    setDetailDebugLastError(null);
   }, [route.name]);
+
+  React.useEffect(() => {
+    if (debugModeEnabled) {
+      return;
+    }
+    setDetailTechnicalDialogOpen(false);
+  }, [debugModeEnabled]);
 
   if (fatalError) {
     return <UnsupportedScreen title="曲マスタ起動エラー" reasons={[fatalError]} />;
@@ -816,18 +1192,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 <MoreVertIcon />
               </IconButton>
               <Menu anchorEl={homeMenuAnchorEl} open={homeMenuOpen} onClose={closeHomeMenu}>
-                <MenuItem
-                  disabled={busy}
-                  onClick={() => {
-                    closeHomeMenu();
-                    void updateSongMaster(true);
-                  }}
-                >
-                  曲データ更新
-                </MenuItem>
-                <MenuItem disabled={busy} onClick={() => void resetLocalData()}>
-                  ローカル初期化
-                </MenuItem>
                 <MenuItem
                   onClick={() => {
                     closeHomeMenu();
@@ -878,6 +1242,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                         <MoreVertIcon />
                       </IconButton>
                       <Menu anchorEl={detailMenuAnchorEl} open={detailMenuOpen} onClose={closeDetailMenu}>
+                        {debugModeEnabled ? (
+                          <MenuItem onClick={openDetailTechnicalDialog}>
+                            技術情報
+                          </MenuItem>
+                        ) : null}
                         <MenuItem disabled={deleteTournamentBusy} onClick={openDeleteTournamentDialog}>
                           削除
                         </MenuItem>
@@ -892,16 +1261,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       </AppBar>
 
       <div className="appRoot">
-        {pwaUpdate ? (
+        {pwaUpdate && route.name !== 'settings' ? (
           <div className="updateBanner">
             <span>更新があります。</span>
-            <button
-              onClick={() => {
-                applyPwaUpdate(pwaUpdate);
-              }}
-            >
-              更新適用
-            </button>
+            <button onClick={applyPendingAppUpdate}>更新適用</button>
           </div>
         ) : null}
 
@@ -928,7 +1291,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             busy={busy}
             onImportPayload={importFromPayload}
             onImportFile={importFromFile}
-            onRefreshSongMaster={() => updateSongMaster(false)}
           />
         )}
 
@@ -942,27 +1304,18 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 window.history.replaceState(window.history.state, '', HOME_PATH);
               }
             }}
-            onRefreshSongMaster={() => updateSongMaster(true)}
+            onOpenSettings={openSettingsPage}
             onConfirmImport={confirmImport}
           />
         )}
 
         {route.name === 'create' && createDraft && (
-          <CreateTournamentPage draft={createDraft} onDraftChange={updateCreateDraft} onProceedConfirm={openCreateConfirm} />
-        )}
-
-        {route.name === 'create-confirm' && createDraft && (
-          <CreateTournamentConfirmPage
+          <CreateTournamentPage
             draft={createDraft}
+            todayDate={todayDate}
             saving={createSaving}
             errorMessage={createSaveError}
-            onBack={() => {
-              if (createSaving) {
-                return;
-              }
-              setCreateSaveError(null);
-              popRoute();
-            }}
+            onDraftChange={updateCreateDraft}
             onConfirmCreate={confirmCreateTournament}
           />
         )}
@@ -975,6 +1328,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               pushRoute({ name: 'submit', tournamentUuid: detail.tournamentUuid, chartId });
             }}
             onOpenSettings={openSettingsPage}
+            debugModeEnabled={debugModeEnabled}
+            debugLastError={detailTechnicalInfo?.last_error ?? null}
+            onReportDebugError={setDetailDebugLastError}
           />
         )}
 
@@ -982,13 +1338,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           <SubmitEvidencePage
             detail={detail}
             chart={submitChart}
-            todayDate={todayDate}
-            onBack={popRoute}
             onSaved={async () => {
-              pushToast('スコア画像を登録しました。');
               await reloadDetail(detail.tournamentUuid);
               await refreshTournamentList();
-              popRoute();
             }}
           />
         )}
@@ -999,42 +1351,66 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             songMasterMeta={songMasterMeta}
             autoDeleteEnabled={autoDeleteEnabled}
             autoDeleteDays={autoDeleteDays}
+            debugModeEnabled={debugModeEnabled}
             busy={busy}
             onCheckUpdate={updateSongMaster}
-            onSaveAutoDelete={saveAutoDelete}
-            onRunAutoDelete={runAutoDelete}
+            logs={runtimeLogs}
+            lastCleanupResult={lastCleanupResult}
+            onAutoDeleteConfigChange={saveAutoDelete}
+            onEstimateStorageCleanup={estimateStorageCleanup}
+            onRunStorageCleanup={runStorageCleanup}
+            onToggleDebugMode={toggleDebugMode}
+            onApplyAppUpdate={applyPendingAppUpdate}
+            onResetLocalData={resetLocalData}
           />
         )}
 
         {isHomeRoute ? (
-          <SpeedDial
-            ariaLabel="大会アクション"
-            icon={<AddIcon />}
-            direction="up"
-            open={speedDialOpen}
-            onOpen={() => setSpeedDialOpen(true)}
-            onClose={() => setSpeedDialOpen(false)}
-            sx={{ position: 'fixed', right: 24, bottom: 24, zIndex: 30 }}
+          <Tooltip
+            title="大会を作成"
+            placement="left"
+            arrow
+            open={showCreateFabTooltip && !speedDialOpen}
+            disableFocusListener
+            disableHoverListener
+            disableTouchListener
           >
-            <SpeedDialAction
-              icon={<PostAddIcon />}
-              tooltipTitle="大会作成"
-              FabProps={{ disabled: !songMasterReady || busy }}
-              onClick={() => {
-                setSpeedDialOpen(false);
-                openCreatePage();
-              }}
-            />
-            <SpeedDialAction
-              icon={<FileDownloadIcon />}
-              tooltipTitle="大会取込"
-              FabProps={{ disabled: !songMasterReady || busy }}
-              onClick={() => {
-                setSpeedDialOpen(false);
-                openImportPage();
-              }}
-            />
-          </SpeedDial>
+            <Box sx={{ position: 'fixed', right: 24, bottom: 24, zIndex: 30 }} onClick={closeCreateFabTooltip}>
+              <SpeedDial
+                ariaLabel="大会アクション"
+                icon={<AddIcon />}
+                direction="up"
+                open={speedDialOpen}
+                onOpen={() => {
+                  closeCreateFabTooltip();
+                  setSpeedDialOpen(true);
+                }}
+                onClose={() => setSpeedDialOpen(false)}
+                sx={{ position: 'static' }}
+              >
+                <SpeedDialAction
+                  icon={<PostAddIcon />}
+                  tooltipTitle="大会作成"
+                  FabProps={{ disabled: !songMasterReady || busy }}
+                  onClick={() => {
+                    closeCreateFabTooltip();
+                    setSpeedDialOpen(false);
+                    openCreatePage();
+                  }}
+                />
+                <SpeedDialAction
+                  icon={<FileDownloadIcon />}
+                  tooltipTitle="大会取込"
+                  FabProps={{ disabled: !songMasterReady || busy }}
+                  onClick={() => {
+                    closeCreateFabTooltip();
+                    setSpeedDialOpen(false);
+                    openImportPage();
+                  }}
+                />
+              </SpeedDial>
+            </Box>
+          </Tooltip>
         ) : null}
 
         <ImportQrScannerDialog
@@ -1043,6 +1419,34 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           onDetected={handleDetectedImportQr}
           onOpenTextImport={openTextImportFromQrError}
         />
+
+        <Dialog
+          open={Boolean(debugModeEnabled && detailTechnicalDialogOpen && detailTechnicalInfo)}
+          onClose={closeDetailTechnicalDialog}
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle>技術情報</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 1.25 }}>
+            {detailTechnicalInfo ? (
+              <>
+                <Typography variant="body2">tournament_uuid: {detailTechnicalInfo.tournament_uuid}</Typography>
+                <Typography variant="body2">
+                  source_tournament_uuid: {detailTechnicalInfo.source_tournament_uuid ?? '-'}
+                </Typography>
+                <Typography variant="body2">def_hash: {detailTechnicalInfo.def_hash}</Typography>
+                <Typography variant="body2">共有ペイロードサイズ: {detailTechnicalInfo.payload_size_bytes} bytes</Typography>
+                <Typography variant="body2">直近エラー: {detailTechnicalInfo.last_error ?? '-'}</Typography>
+                <Button variant="outlined" size="small" onClick={() => void copyDetailTechnicalLog()}>
+                  ログコピー
+                </Button>
+              </>
+            ) : null}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeDetailTechnicalDialog}>閉じる</Button>
+          </DialogActions>
+        </Dialog>
 
         <Dialog open={deleteTournamentDialogOpen} onClose={closeDeleteTournamentDialog} fullWidth maxWidth="xs">
           <DialogTitle>大会を削除しますか？</DialogTitle>

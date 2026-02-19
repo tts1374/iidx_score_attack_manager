@@ -6,7 +6,6 @@ interface ImportTournamentPageProps {
   busy: boolean;
   onImportPayload: (text: string) => Promise<void>;
   onImportFile: (file: File) => Promise<void>;
-  onRefreshSongMaster: () => Promise<void>;
 }
 
 export function ImportTournamentPage(props: ImportTournamentPageProps): JSX.Element {
@@ -19,9 +18,7 @@ export function ImportTournamentPage(props: ImportTournamentPageProps): JSX.Elem
         <section className="warningBox">
           <p>曲マスタが未取得のため、大会取込は利用できません。</p>
           {props.songMasterMessage && <p>{props.songMasterMessage}</p>}
-          <button onClick={props.onRefreshSongMaster} disabled={props.busy}>
-            曲データ更新
-          </button>
+          <p>設定画面の「曲データ」セクションで更新を確認してください。</p>
         </section>
       )}
 

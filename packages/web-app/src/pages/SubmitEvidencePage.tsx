@@ -1,5 +1,16 @@
 import React from 'react';
-import { getTournamentStatus, sha256Hex } from '@iidx/shared';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
+  Menu,
+  MenuItem,
+} from '@mui/material';
+import { sha256Hex } from '@iidx/shared';
 import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
 
 import { useAppServices } from '../services/context';
@@ -9,61 +20,194 @@ import { reencodeImageToJpeg, toSafeArrayBuffer } from '../utils/image';
 interface SubmitEvidencePageProps {
   detail: TournamentDetailItem;
   chart: TournamentDetailChart;
-  todayDate: string;
-  onBack: () => void;
-  onSaved: () => void;
+  onSaved: () => Promise<void> | void;
+}
+
+enum SubmitState {
+  NOT_SUBMITTED = 'NOT_SUBMITTED',
+  READY = 'READY',
+  PROCESSING = 'PROCESSING',
+  SUCCESS = 'SUCCESS',
+  ERROR = 'ERROR',
+}
+
+type PreviewImageSource = 'existing' | 'selected';
+
+interface PreviewImageState {
+  url: string;
+  blob: Blob;
+  source: PreviewImageSource;
+}
+
+function formatSubmittedAt(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+}
+
+function resolveFailureReason(error: unknown): string {
+  if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+    return '容量不足';
+  }
+  return '保存に失敗しました';
 }
 
 export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element {
   const { appDb, opfs } = useAppServices();
-  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-  const [busy, setBusy] = React.useState(false);
+  const [submitState, setSubmitState] = React.useState<SubmitState>(SubmitState.NOT_SUBMITTED);
+  const [previewImage, setPreviewImage] = React.useState<PreviewImageState | null>(null);
+  const [hasSubmittedEvidence, setHasSubmittedEvidence] = React.useState(false);
+  const [submittedAt, setSubmittedAt] = React.useState<string | null>(null);
+  const [errorReason, setErrorReason] = React.useState<string | null>(null);
+  const [menuAnchorEl, setMenuAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [deleteBusy, setDeleteBusy] = React.useState(false);
+  const cameraInputRef = React.useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = React.useRef<HTMLInputElement | null>(null);
+  const previewUrlRef = React.useRef<string | null>(null);
+  const manualSelectionRef = React.useRef(false);
 
-  const status = getTournamentStatus(props.detail.startDate, props.detail.endDate, props.todayDate);
-  const canSubmit = status === 'active';
+  const closeMenu = React.useCallback(() => {
+    setMenuAnchorEl(null);
+  }, []);
+
+  const revokePreviewUrl = React.useCallback(() => {
+    if (!previewUrlRef.current) {
+      return;
+    }
+    URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = null;
+  }, []);
+
+  const clearPreview = React.useCallback(() => {
+    revokePreviewUrl();
+    setPreviewImage(null);
+  }, [revokePreviewUrl]);
+
+  const setPreviewFromBlob = React.useCallback(
+    (blob: Blob, source: PreviewImageSource) => {
+      revokePreviewUrl();
+      const url = URL.createObjectURL(blob);
+      previewUrlRef.current = url;
+      setPreviewImage({ url, blob, source });
+    },
+    [revokePreviewUrl],
+  );
+
+  const applyPickedFile = React.useCallback(
+    (file: File) => {
+      manualSelectionRef.current = true;
+      setErrorReason(null);
+      setSubmitState(SubmitState.READY);
+      setPreviewFromBlob(file, 'selected');
+    },
+    [setPreviewFromBlob],
+  );
+
+  const onSelectFile = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.currentTarget.files?.[0];
+      event.currentTarget.value = '';
+      if (!file) {
+        return;
+      }
+      applyPickedFile(file);
+    },
+    [applyPickedFile],
+  );
+
+  const openCameraPicker = React.useCallback(() => {
+    cameraInputRef.current?.click();
+  }, []);
+
+  const openGalleryPicker = React.useCallback(() => {
+    galleryInputRef.current?.click();
+  }, []);
 
   React.useEffect(() => {
-    let revokedUrl: string | null = null;
+    clearPreview();
+    closeMenu();
+    setDeleteDialogOpen(false);
+    setDeleteBusy(false);
+    setErrorReason(null);
+    setHasSubmittedEvidence(false);
+    setSubmittedAt(null);
+    setSubmitState(SubmitState.NOT_SUBMITTED);
+    manualSelectionRef.current = false;
+
     let cancelled = false;
 
     const loadExisting = async () => {
       const evidence = await appDb.getEvidenceRecord(props.detail.tournamentUuid, props.chart.chartId);
-      if (!evidence || evidence.fileDeleted) {
+      if (cancelled || !evidence || evidence.fileDeleted) {
         return;
       }
+
+      setHasSubmittedEvidence(true);
+      setSubmittedAt(evidence.updatedAt);
+
       const relativePath = await appDb.getEvidenceRelativePath(props.detail.tournamentUuid, props.chart.chartId);
       const bytes = await opfs.readFile(relativePath);
-      const blob = new Blob([toSafeArrayBuffer(bytes)], { type: 'image/jpeg' });
-      const url = URL.createObjectURL(blob);
-      if (cancelled) {
-        URL.revokeObjectURL(url);
+      if (cancelled || manualSelectionRef.current) {
         return;
       }
-      revokedUrl = url;
-      setPreviewUrl(url);
+      const blob = new Blob([toSafeArrayBuffer(bytes)], { type: 'image/jpeg' });
+      setPreviewFromBlob(blob, 'existing');
+      setSubmitState(SubmitState.READY);
     };
 
     void loadExisting().catch(() => {
-      // ignore preview load failures
+      if (cancelled) {
+        return;
+      }
+      setSubmitState(SubmitState.NOT_SUBMITTED);
     });
 
     return () => {
       cancelled = true;
-      if (revokedUrl) {
-        URL.revokeObjectURL(revokedUrl);
-      }
     };
-  }, [appDb, opfs, props.chart.chartId, props.detail.tournamentUuid]);
+  }, [appDb, clearPreview, closeMenu, opfs, props.chart.chartId, props.detail.tournamentUuid, setPreviewFromBlob]);
+
+  React.useEffect(
+    () => () => {
+      revokePreviewUrl();
+    },
+    [revokePreviewUrl],
+  );
 
   const submit = async () => {
-    if (!selectedFile) {
+    if (submitState === SubmitState.PROCESSING || deleteBusy) {
       return;
     }
 
-    setBusy(true);
+    setSubmitState(SubmitState.PROCESSING);
+    setErrorReason(null);
     try {
-      const encoded = await reencodeImageToJpeg(selectedFile);
+      let sourceBlob = previewImage?.blob ?? null;
+      if (!sourceBlob && hasSubmittedEvidence) {
+        const relativePath = await appDb.getEvidenceRelativePath(props.detail.tournamentUuid, props.chart.chartId);
+        const bytes = await opfs.readFile(relativePath);
+        sourceBlob = new Blob([toSafeArrayBuffer(bytes)], { type: 'image/jpeg' });
+      }
+      if (!sourceBlob) {
+        throw new Error('evidence image not found');
+      }
+
+      const encoded = await reencodeImageToJpeg(sourceBlob);
       const hash = sha256Hex(encoded.bytes);
       const relativePath = await appDb.getEvidenceRelativePath(props.detail.tournamentUuid, props.chart.chartId);
       await opfs.writeFileAtomic(relativePath, encoded.bytes, {
@@ -82,60 +226,242 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
         height: encoded.height,
       });
 
-      props.onSaved();
+      const savedRecord = await appDb.getEvidenceRecord(props.detail.tournamentUuid, props.chart.chartId);
+      const savedAt = savedRecord?.updatedAt ?? new Date().toISOString();
+
+      setHasSubmittedEvidence(true);
+      setSubmittedAt(savedAt);
+      setPreviewFromBlob(encoded.blob, 'existing');
+      setSubmitState(SubmitState.SUCCESS);
+
+      await Promise.resolve(props.onSaved());
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-        alert('容量不足のため保存できません。設定画面から終了大会画像削除を実行してください。');
-      } else {
-        alert(error instanceof Error ? error.message : String(error));
-      }
-    } finally {
-      setBusy(false);
+      setSubmitState(SubmitState.ERROR);
+      setErrorReason(resolveFailureReason(error));
     }
   };
 
+  const confirmDelete = async () => {
+    if (deleteBusy || submitState === SubmitState.PROCESSING) {
+      return;
+    }
+
+    setDeleteBusy(true);
+    setErrorReason(null);
+    try {
+      await appDb.deleteEvidence(props.detail.tournamentUuid, props.chart.chartId);
+      clearPreview();
+      setHasSubmittedEvidence(false);
+      setSubmittedAt(null);
+      setSubmitState(SubmitState.NOT_SUBMITTED);
+      setDeleteDialogOpen(false);
+      closeMenu();
+      await Promise.resolve(props.onSaved());
+    } catch {
+      setSubmitState(SubmitState.ERROR);
+      setErrorReason('削除に失敗しました');
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
+  const formattedSubmittedAt = formatSubmittedAt(submittedAt);
+  const isProcessing = submitState === SubmitState.PROCESSING;
+  const hasImage = previewImage !== null;
+  const primaryLabel = isProcessing ? '提出処理中' : hasSubmittedEvidence ? '更新して提出' : '提出する';
+  const primaryDisabled = isProcessing || deleteBusy || (!hasSubmittedEvidence && !hasImage);
+
+  const statusBadge = (() => {
+    if (submitState === SubmitState.PROCESSING) {
+      return { tone: 'processing', label: '提出処理中' };
+    }
+    if (submitState === SubmitState.ERROR) {
+      return { tone: 'error', label: '提出失敗' };
+    }
+    if (hasSubmittedEvidence) {
+      return {
+        tone: 'submitted',
+        label: formattedSubmittedAt ? `提出済み ${formattedSubmittedAt}` : '提出済み',
+      };
+    }
+    return { tone: 'idle', label: '未提出' };
+  })();
+
   return (
-    <div className="page">      <h2>{props.detail.tournamentName}</h2>
-
-      <section className="detailCard">
-        <span className="chip">{props.chart.playStyle} {props.chart.difficulty}</span>
-        <h3>{props.chart.title}</h3>
-        <p style={{ color: difficultyColor(props.chart.difficulty) }}>Lv{props.chart.level}</p>
-
-        {canSubmit ? (
-          <p className="successText">提出可能です</p>
-        ) : (
-          <p className="errorText">期間外のため提出できません</p>
-        )}
+    <div className="page submitEvidencePage">
+      <section className="detailCard submitOverviewCard">
+        <div className="submitOverviewTop">
+          <div className="submitOverviewMain">
+            <h2>{props.detail.tournamentName}</h2>
+            <p className="submitChartMeta">
+              {props.chart.playStyle} {props.chart.difficulty}
+            </p>
+            <h3>{props.chart.title}</h3>
+            <p style={{ color: difficultyColor(props.chart.difficulty) }}>Lv{props.chart.level}</p>
+          </div>
+          <div className="submitOverviewSide">
+            <span className={`submitStateBadge submitStateBadge-${statusBadge.tone}`}>{statusBadge.label}</span>
+            {hasSubmittedEvidence ? (
+              <IconButton
+                aria-label="提出画像の操作"
+                size="small"
+                onClick={(event) => {
+                  setMenuAnchorEl(event.currentTarget);
+                }}
+                disabled={isProcessing || deleteBusy}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            ) : null}
+          </div>
+        </div>
       </section>
 
-      <section className="detailCard">
-        {previewUrl ? <img src={previewUrl} alt="選択中" className="evidencePreview" /> : <p>画像未選択</p>}
+      <section className="detailCard submitStepCard">
+        <h3 className="submitStepTitle">Step 1) 画像を選ぶ</h3>
+        <div
+          className={`submitPickerArea ${isProcessing || deleteBusy ? 'disabled' : ''}`}
+          role="button"
+          tabIndex={isProcessing || deleteBusy ? -1 : 0}
+          aria-disabled={isProcessing || deleteBusy}
+          onClick={() => {
+            if (isProcessing || deleteBusy) {
+              return;
+            }
+            openGalleryPicker();
+          }}
+          onKeyDown={(event) => {
+            if (isProcessing || deleteBusy) {
+              return;
+            }
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openGalleryPicker();
+            }
+          }}
+        >
+          タップして画像を選ぶ
+        </div>
+        <div className="submitPickerActions">
+          <button
+            type="button"
+            onClick={openCameraPicker}
+            disabled={isProcessing || deleteBusy}
+            className="submitSecondaryButton"
+          >
+            カメラで撮る
+          </button>
+          <button
+            type="button"
+            onClick={openGalleryPicker}
+            disabled={isProcessing || deleteBusy}
+            className="submitSecondaryButton"
+          >
+            ギャラリーから選ぶ
+          </button>
+        </div>
+
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onSelectFile}
+          className="submitHiddenInput"
+          disabled={isProcessing || deleteBusy}
+        />
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onSelectFile}
+          className="submitHiddenInput"
+          disabled={isProcessing || deleteBusy}
+        />
       </section>
 
-      <section className="detailCard">
-        <label className="fileButton">
-          ギャラリーから選択
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) {
+      {previewImage ? (
+        <section className="detailCard submitStepCard">
+          <h3 className="submitStepTitle">Step 2) 画像を確認</h3>
+          <div className="submitPreviewFrame">
+            <img src={previewImage.url} alt="提出画像プレビュー" className="submitPreviewImage" />
+          </div>
+          {hasSubmittedEvidence && formattedSubmittedAt ? (
+            <p className="submitUpdatedAt">最終更新: {formattedSubmittedAt}</p>
+          ) : null}
+          <div className="submitPreviewActions">
+            <button
+              type="button"
+              onClick={openGalleryPicker}
+              disabled={isProcessing || deleteBusy}
+              className="submitSecondaryButton"
+            >
+              選び直す
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="detailCard submitNoticeCard">
+        <p>画像はこの端末の中だけに保存されます</p>
+        <p>他の人に画像は送られません</p>
+      </section>
+
+      <footer className="submitActionBar">
+        <button type="button" className="primaryActionButton submitPrimaryButton" onClick={submit} disabled={primaryDisabled}>
+          <span className={`submitProcessingDot ${isProcessing ? 'active' : ''}`} aria-hidden />
+          {primaryLabel}
+        </button>
+        {!hasSubmittedEvidence && !hasImage ? <p className="submitActionHint">画像を選ぶと提出できます</p> : null}
+        {submitState === SubmitState.ERROR && errorReason ? (
+          <p className="submitActionError">
+            提出に失敗しました
+            <span>{errorReason}</span>
+          </p>
+        ) : null}
+      </footer>
+
+      {isProcessing ? (
+        <div className="submitScreenLock" role="status" aria-live="polite">
+          提出処理中
+        </div>
+      ) : null}
+
+      <Menu anchorEl={menuAnchorEl} open={menuAnchorEl !== null} onClose={closeMenu}>
+        <MenuItem
+          disabled={isProcessing || deleteBusy}
+          onClick={() => {
+            setDeleteDialogOpen(true);
+            closeMenu();
+          }}
+        >
+          削除
+        </MenuItem>
+      </Menu>
+
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>提出画像を削除しますか？</DialogTitle>
+        <DialogContent>
+          <DialogContentText>削除すると元に戻せません。</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <button
+            type="button"
+            onClick={() => {
+              if (deleteBusy) {
                 return;
               }
-              setSelectedFile(file);
-              const url = URL.createObjectURL(file);
-              setPreviewUrl((previous) => {
-                if (previous) {
-                  URL.revokeObjectURL(previous);
-                }
-                return url;
-              });
+              setDeleteDialogOpen(false);
             }}
-          />
-        </label>
-      </section>    </div>
+            disabled={deleteBusy}
+          >
+            キャンセル
+          </button>
+          <button type="button" onClick={() => void confirmDelete()} disabled={deleteBusy}>
+            削除する
+          </button>
+        </DialogActions>
+      </Dialog>
+    </div>
   );
 }
-

@@ -16,7 +16,7 @@ interface ImportConfirmPageProps {
   todayDate: string;
   busy: boolean;
   onBack: () => void;
-  onRefreshSongMaster: () => Promise<void>;
+  onOpenSettings: () => void;
   onConfirmImport: (payload: TournamentPayload) => Promise<void>;
 }
 
@@ -118,8 +118,6 @@ function summarizeMerge(existing: ImportTargetTournament | null, chartIds: numbe
 export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
   const { appDb } = useAppServices();
   const [validationState, setValidationState] = React.useState<ImportConfirmState>({ status: 'loading' });
-  const [validationVersion, setValidationVersion] = React.useState(0);
-  const [refreshingMaster, setRefreshingMaster] = React.useState(false);
   const [applying, setApplying] = React.useState(false);
 
   const [capturedPayloadParam] = React.useState<string | null>(() => extractRawQueryParam(window.location.search, 'p'));
@@ -256,23 +254,13 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [appDb, capturedPayloadParam, props.todayDate, validationVersion]);
+  }, [appDb, capturedPayloadParam, props.todayDate]);
 
-  const showMasterRefreshAction =
+  const showOpenSettingsAction =
     validationState.status === 'error' &&
     (validationState.error.code === 'MASTER_MISSING' || validationState.error.code === 'CHART_NOT_FOUND');
 
   const importEnabled = validationState.status === 'ready' && !props.busy && !applying;
-
-  const refreshMasterAndRevalidate = React.useCallback(async () => {
-    setRefreshingMaster(true);
-    try {
-      await props.onRefreshSongMaster();
-    } finally {
-      setRefreshingMaster(false);
-      setValidationVersion((current) => current + 1);
-    }
-  }, [props]);
 
   const confirmImport = React.useCallback(async () => {
     if (validationState.status !== 'ready' || applying || props.busy) {
@@ -305,9 +293,9 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
         <section className="warningBox importConfirmErrorCard">
           <p className="importConfirmErrorCode">{validationState.error.code}</p>
           <p>{validationState.error.message}</p>
-          {showMasterRefreshAction ? (
-            <button onClick={() => void refreshMasterAndRevalidate()} disabled={props.busy || refreshingMaster}>
-              {refreshingMaster ? '更新中...' : '曲データ更新'}
+          {showOpenSettingsAction ? (
+            <button onClick={props.onOpenSettings} disabled={props.busy}>
+              設定を開く
             </button>
           ) : null}
         </section>

@@ -43,7 +43,7 @@ export function resolveTournamentCardStatus(
       daysLeft,
     };
   }
-  if (daysLeft <= 3) {
+  if (daysLeft <= 2) {
     return {
       status: 'active-danger',
       label: `残り${daysLeft}日`,
@@ -63,4 +63,3 @@ export function resolveTournamentCardStatus(
     daysLeft,
   };
 }
-
