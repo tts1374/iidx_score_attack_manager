@@ -11,6 +11,7 @@ vi.mock('../services/context', () => ({
     appDb: {
       getEvidenceRecord: vi.fn(),
       getEvidenceRelativePath: vi.fn(),
+      markEvidenceSendCompleted: vi.fn(),
     },
     opfs: {
       readFile: vi.fn(),
@@ -61,6 +62,7 @@ const detail: TournamentDetailItem = {
       resolveIssue: null,
       submitted: false,
       updateSeq: 0,
+      needsSend: false,
       fileDeleted: false,
     },
     {
@@ -72,6 +74,7 @@ const detail: TournamentDetailItem = {
       resolveIssue: null,
       submitted: true,
       updateSeq: 2,
+      needsSend: true,
       fileDeleted: false,
     },
     {
@@ -83,6 +86,7 @@ const detail: TournamentDetailItem = {
       resolveIssue: 'CHART_NOT_FOUND' as const,
       submitted: false,
       updateSeq: 0,
+      needsSend: false,
       fileDeleted: false,
     },
   ],
@@ -97,7 +101,7 @@ function buildDetail(overrides: Partial<TournamentDetailItem> = {}): TournamentD
 }
 
 describe('TournamentDetailPage', () => {
-  it('shows active tournament actions and hashtag-only submit message', async () => {
+  it('shows active tournament actions and hashtag-only send message', async () => {
     render(
       <TournamentDetailPage
         detail={buildDetail()}
@@ -111,15 +115,47 @@ describe('TournamentDetailPage', () => {
     );
 
     expect(screen.getByRole('button', { name: '大会を共有' })).toBeTruthy();
-    const submitButton = screen.getByRole('button', { name: '提出する' }) as HTMLButtonElement;
+    const submitButton = screen.getByRole('button', { name: '送信する' }) as HTMLButtonElement;
     expect(submitButton.disabled).toBe(false);
-    expect(screen.getByText('変更あり 1件')).toBeTruthy();
+    expect(screen.getByText('送信待ち 1件')).toBeTruthy();
     expect(screen.getByRole('button', { name: '差し替え' })).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: '提出' }).length).toBeGreaterThan(0);
-    expect(screen.queryByText('未登録')).toBeNull();
+    expect(screen.getAllByRole('button', { name: '登録' }).length).toBeGreaterThan(0);
+    expect(screen.getByText('登録済')).toBeTruthy();
+    expect(screen.getAllByText('未登録').length).toBeGreaterThan(0);
+    expect(screen.getByText('送信待ち')).toBeTruthy();
+    expect(screen.queryByText('提出する')).toBeNull();
+    expect(screen.queryByText('提出済')).toBeNull();
+    expect(screen.queryByText('未提出')).toBeNull();
 
     await userEvent.click(submitButton);
-    expect(screen.getByDisplayValue('#SCOREATTACK')).toBeTruthy();
+    const submitMessageInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
+    expect(submitMessageInput.value).toBe('#SCOREATTACK ');
+    expect(screen.getByRole('button', { name: '送信完了にする' })).toBeTruthy();
+  });
+
+  it('clears send pending only after explicit completion action', async () => {
+    render(
+      <TournamentDetailPage
+        detail={buildDetail()}
+        todayDate="2026-02-10"
+        onOpenSubmit={() => undefined}
+        onOpenSettings={() => undefined}
+        debugModeEnabled={false}
+        debugLastError={null}
+        onReportDebugError={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText('送信待ち 1件')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: '送信する' }));
+    await userEvent.click(screen.getByRole('button', { name: '送信完了にする' }));
+
+    expect(await screen.findByText('1件を送信完了にしました。')).toBeTruthy();
+    expect(screen.getByText('送信待ち 0件')).toBeTruthy();
+    expect(screen.queryByText('送信待ち', { selector: '.chartSendPendingBadge' })).toBeNull();
+    const completeButton = screen.getByRole('button', { name: '送信完了にする' }) as HTMLButtonElement;
+    expect(completeButton.disabled).toBe(true);
   });
 
   it('separates share modal content and debug info visibility', async () => {
@@ -158,7 +194,7 @@ describe('TournamentDetailPage', () => {
     expect(screen.queryByRole('button', { name: '大会を共有' })).toBeNull();
   });
 
-  it('hides chart submit buttons and disables submit bar outside active period', () => {
+  it('hides chart register buttons and disables send bar outside active period', () => {
     const { rerender } = render(
       <TournamentDetailPage
         detail={buildDetail()}
@@ -171,10 +207,10 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    const upcomingSubmitButton = screen.getByRole('button', { name: '提出する' }) as HTMLButtonElement;
+    const upcomingSubmitButton = screen.getByRole('button', { name: '送信する' }) as HTMLButtonElement;
     expect(upcomingSubmitButton.disabled).toBe(true);
     expect(screen.queryByRole('button', { name: '差し替え' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '提出' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '登録' })).toBeNull();
 
     rerender(
       <TournamentDetailPage
@@ -188,13 +224,13 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    const endedSubmitButton = screen.getByRole('button', { name: '提出する' }) as HTMLButtonElement;
+    const endedSubmitButton = screen.getByRole('button', { name: '送信する' }) as HTMLButtonElement;
     expect(endedSubmitButton.disabled).toBe(true);
     expect(screen.queryByRole('button', { name: '差し替え' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '提出' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '登録' })).toBeNull();
   });
 
-  it('disables submit bar when all charts are unsubmitted', () => {
+  it('disables send bar when all charts are unregistered', () => {
     render(
       <TournamentDetailPage
         detail={buildDetail({
@@ -217,7 +253,7 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    const submitButton = screen.getByRole('button', { name: '提出する' }) as HTMLButtonElement;
+    const submitButton = screen.getByRole('button', { name: '送信する' }) as HTMLButtonElement;
     expect(submitButton.disabled).toBe(true);
   });
 });

@@ -33,6 +33,7 @@ export interface TournamentDetailChart {
   resolveIssue: TournamentChartResolveIssue | null;
   submitted: boolean;
   updateSeq: number;
+  needsSend: boolean;
   fileDeleted: boolean;
 }
 

@@ -169,6 +169,7 @@ export interface EvidenceRecord {
   width: number;
   height: number;
   updateSeq: number;
+  needsSend: boolean;
   fileDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -918,10 +919,11 @@ export class AppDatabase {
     const chartRows = await this.query<{
       chart_id: number;
       update_seq: number | null;
+      needs_send: number | null;
       file_deleted: number | null;
     }>(
       `
-      SELECT tc.chart_id, e.update_seq, e.file_deleted
+      SELECT tc.chart_id, e.update_seq, e.needs_send, e.file_deleted
       FROM tournament_charts tc
       LEFT JOIN evidences e ON e.tournament_uuid = tc.tournament_uuid AND e.chart_id = tc.chart_id
       WHERE tc.tournament_uuid = ?
@@ -935,12 +937,13 @@ export class AppDatabase {
     }
 
     const toFallbackChart = (
-      row: { chart_id: number; update_seq: number | null; file_deleted: number | null },
+      row: { chart_id: number; update_seq: number | null; needs_send: number | null; file_deleted: number | null },
       resolveIssue: 'MASTER_MISSING' | 'CHART_NOT_FOUND',
     ): TournamentDetailChart => {
       const chartId = Number(row.chart_id);
       const updateSeq = Number(row.update_seq ?? 0);
       const fileDeleted = Number(row.file_deleted ?? 0) === 1;
+      const needsSend = Number(row.needs_send ?? 0) === 1;
       return {
         chartId,
         title: `chart:${chartId}`,
@@ -950,6 +953,7 @@ export class AppDatabase {
         resolveIssue,
         submitted: updateSeq > 0 && !fileDeleted,
         updateSeq,
+        needsSend,
         fileDeleted,
       };
     };
@@ -975,6 +979,7 @@ export class AppDatabase {
       const chartId = Number(row.chart_id);
       const updateSeq = Number(row.update_seq ?? 0);
       const fileDeleted = Number(row.file_deleted ?? 0) === 1;
+      const needsSend = Number(row.needs_send ?? 0) === 1;
       const songMaster = songMasterByChartId.get(chartId);
       if (!songMaster) {
         return toFallbackChart(row, 'CHART_NOT_FOUND');
@@ -988,6 +993,7 @@ export class AppDatabase {
         resolveIssue: null,
         submitted: updateSeq > 0 && !fileDeleted,
         updateSeq,
+        needsSend,
         fileDeleted,
       };
     });
@@ -1022,6 +1028,7 @@ export class AppDatabase {
              width = ?,
              height = ?,
              update_seq = ?,
+             needs_send = 1,
              file_deleted = 0,
              deleted_at = NULL,
              updated_at = ?
@@ -1054,10 +1061,11 @@ export class AppDatabase {
          width,
          height,
          update_seq,
+         needs_send,
          file_deleted,
          created_at,
          updated_at
-       ) VALUES(?, ?, ?, ?, ?, ?, 1, 0, ?, ?)`,
+       ) VALUES(?, ?, ?, ?, ?, ?, 1, 1, 0, ?, ?)`,
       [
         input.tournamentUuid,
         input.chartId,
@@ -1086,11 +1094,12 @@ export class AppDatabase {
       width: number;
       height: number;
       update_seq: number;
+      needs_send: number;
       file_deleted: number;
       created_at: string;
       updated_at: string;
     }>(
-      `SELECT tournament_uuid, chart_id, file_name, sha256, width, height, update_seq, file_deleted, created_at, updated_at
+      `SELECT tournament_uuid, chart_id, file_name, sha256, width, height, update_seq, needs_send, file_deleted, created_at, updated_at
        FROM evidences
        WHERE tournament_uuid = ?
          AND chart_id = ?
@@ -1111,6 +1120,7 @@ export class AppDatabase {
       width: Number(row.width),
       height: Number(row.height),
       updateSeq: Number(row.update_seq),
+      needsSend: Number(row.needs_send) === 1,
       fileDeleted: Number(row.file_deleted) === 1,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -1134,6 +1144,7 @@ export class AppDatabase {
     await this.exec(
       `UPDATE evidences
        SET file_deleted = 1,
+           needs_send = 0,
            deleted_at = ?,
            updated_at = ?
        WHERE tournament_uuid = ?
@@ -1175,6 +1186,7 @@ export class AppDatabase {
         await this.exec(
           `UPDATE evidences
            SET file_deleted = 1,
+               needs_send = 0,
                deleted_at = ?,
                updated_at = ?
            WHERE tournament_uuid = ?
@@ -1318,6 +1330,7 @@ export class AppDatabase {
       await this.exec(
         `UPDATE evidences
          SET file_deleted = 1,
+             needs_send = 0,
              deleted_at = ?,
              updated_at = ?
          WHERE tournament_uuid = ?
@@ -1345,5 +1358,24 @@ export class AppDatabase {
 
     const result = await this.purgeExpiredEvidence(config.days);
     return result.deletedImageCount;
+  }
+
+  async markEvidenceSendCompleted(tournamentUuid: string, chartIds: number[]): Promise<void> {
+    const ids = chartIds
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0);
+    if (ids.length === 0) {
+      return;
+    }
+    const placeholders = ids.map(() => '?').join(', ');
+    await this.exec(
+      `UPDATE evidences
+       SET needs_send = 0
+       WHERE tournament_uuid = ?
+         AND file_deleted = 0
+         AND update_seq > 0
+         AND chart_id IN (${placeholders})`,
+      [tournamentUuid, ...ids],
+    );
   }
 }

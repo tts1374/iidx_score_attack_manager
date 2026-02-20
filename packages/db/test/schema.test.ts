@@ -28,7 +28,7 @@ describe('db schema and mode2 import', () => {
     const db = await createMemoryDb();
     const result = db.exec('PRAGMA user_version;');
     const userVersion = result[0]?.values?.[0]?.[0];
-    expect(userVersion).toBe(1);
+    expect(userVersion).toBe(2);
     db.close();
   });
 
@@ -44,6 +44,15 @@ describe('db schema and mode2 import', () => {
 
     db.exec(`INSERT INTO tournament_charts(tournament_uuid, chart_id) VALUES('t1', 100);`);
     expect(() => db.exec(`INSERT INTO tournament_charts(tournament_uuid, chart_id) VALUES('t1', 100);`)).toThrow();
+    db.close();
+  });
+
+  it('adds needs_send column to evidences', async () => {
+    const db = await createMemoryDb();
+    const result = db.exec(`PRAGMA table_info('evidences');`);
+    const rows = result[0]?.values ?? [];
+    const columnNames = rows.map((row) => String(row[1]));
+    expect(columnNames).toContain('needs_send');
     db.close();
   });
 

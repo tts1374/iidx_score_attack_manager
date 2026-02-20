@@ -948,6 +948,24 @@ label {
   background: #fee2e2;
 }
 
+.chartStatusLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chartSendPendingBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9a3412;
+  background: #ffedd5;
+  white-space: nowrap;
+}
+
 .chartActions {
   display: grid;
   gap: 8px;
@@ -1444,6 +1462,10 @@ label {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  .chartStatusLine {
+    flex-wrap: wrap;
   }
 
   .tournamentDetailHeader {

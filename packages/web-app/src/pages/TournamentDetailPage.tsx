@@ -130,7 +130,7 @@ function resolveChartTaskStatus(chart: TournamentDetailChart): {
     return {
       status: 'error',
       label: 'エラー',
-      actionLabel: chart.submitted ? '差し替え' : '提出',
+      actionLabel: chart.submitted ? '差し替え' : '登録',
       errorText: '曲データが未取得です',
     };
   }
@@ -138,21 +138,21 @@ function resolveChartTaskStatus(chart: TournamentDetailChart): {
     return {
       status: 'error',
       label: 'エラー',
-      actionLabel: chart.submitted ? '差し替え' : '提出',
+      actionLabel: chart.submitted ? '差し替え' : '登録',
       errorText: '譜面情報が一致しません',
     };
   }
   if (!chart.submitted) {
     return {
       status: 'pending',
-      label: '未提出',
-      actionLabel: '提出',
+      label: '未登録',
+      actionLabel: '登録',
       errorText: null,
     };
   }
   return {
     status: 'submitted',
-    label: '提出済',
+    label: '登録済',
     actionLabel: '差し替え',
     errorText: null,
   };
@@ -539,6 +539,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const [submitDialogOpen, setSubmitDialogOpen] = React.useState(false);
   const [submitBusy, setSubmitBusy] = React.useState(false);
   const [submitNotice, setSubmitNotice] = React.useState<ShareNotice | null>(null);
+  const [needsSendOverrides, setNeedsSendOverrides] = React.useState<Record<number, boolean>>({});
 
   const payload = React.useMemo(() => {
     const charts = props.detail.charts.map((chart) => chart.chartId);
@@ -557,8 +558,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const shareUrl = React.useMemo(() => buildImportUrl(payload), [payload]);
   const payloadSizeBytes = React.useMemo(() => new TextEncoder().encode(payload).length, [payload]);
   const normalizedHashtag = React.useMemo(() => normalizeHashtag(props.detail.hashtag), [props.detail.hashtag]);
-  const shareText = React.useMemo(() => `#${normalizedHashtag} ${shareUrl}`, [normalizedHashtag, shareUrl]);
-  const submitMessageText = React.useMemo(() => `#${normalizedHashtag}`, [normalizedHashtag]);
+  const shareText = React.useMemo(() => `#${normalizedHashtag} ${shareUrl} `, [normalizedHashtag, shareUrl]);
+  const submitMessageText = React.useMemo(() => `#${normalizedHashtag} `, [normalizedHashtag]);
   const statusInfo = React.useMemo(
     () => resolveTournamentCardStatus(props.detail.startDate, props.detail.endDate, props.todayDate),
     [props.detail.endDate, props.detail.startDate, props.todayDate],
@@ -573,26 +574,32 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     [props.detail.charts],
   );
   const showChartResolveAlert = hasMasterMissing || hasChartNotFound;
-  const unsubmittedCount = React.useMemo(
-    () => props.detail.charts.filter((chart) => !chart.submitted).length,
-    [props.detail.charts],
+  const resolveNeedsSend = React.useCallback(
+    (chart: TournamentDetailChart): boolean => {
+      if (Object.prototype.hasOwnProperty.call(needsSendOverrides, chart.chartId)) {
+        return needsSendOverrides[chart.chartId] === true;
+      }
+      return chart.needsSend;
+    },
+    [needsSendOverrides],
   );
-  const changedCount = React.useMemo(
-    () => props.detail.charts.filter((chart) => chart.submitted && chart.updateSeq > 1).length,
-    [props.detail.charts],
+  const sendPendingCharts = React.useMemo(
+    () => props.detail.charts.filter((chart) => chart.submitted && resolveNeedsSend(chart)),
+    [props.detail.charts, resolveNeedsSend],
   );
-  const submittedImageCount = React.useMemo(
-    () => props.detail.charts.filter((chart) => chart.submitted).length,
-    [props.detail.charts],
-  );
-  const submitSummaryText =
-    changedCount > 0 ? `変更あり ${changedCount}件` : unsubmittedCount > 0 ? `未提出 ${unsubmittedCount}件` : '全譜面提出済み';
+  const sendPendingChartIds = React.useMemo(() => sendPendingCharts.map((chart) => chart.chartId), [sendPendingCharts]);
+  const sendPendingCount = sendPendingCharts.length;
+  const submitSummaryText = `送信待ち ${sendPendingCount}件`;
   const formattedLastSubmittedAt = React.useMemo(() => formatDateTime(props.detail.lastSubmittedAt), [props.detail.lastSubmittedAt]);
   const isActivePeriod = statusInfo.status.startsWith('active');
-  const canOpenSubmitDialog = isActivePeriod && submittedImageCount > 0;
+  const canOpenSubmitDialog = isActivePeriod && sendPendingCount > 0;
   const remainingTone =
     statusInfo.daysLeft === null ? 'neutral' : statusInfo.daysLeft < 3 ? 'strong' : statusInfo.daysLeft <= 7 ? 'warning' : 'normal';
   const shareUnavailable = shareImageStatus !== 'ready' || !shareImageBlob;
+
+  React.useEffect(() => {
+    setNeedsSendOverrides({});
+  }, [props.detail]);
 
   React.useEffect(() => {
     if (!shareDialogOpen) {
@@ -758,10 +765,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
   const collectSubmissionFiles = React.useCallback(async (): Promise<File[]> => {
     const files: File[] = [];
-    for (const chart of props.detail.charts) {
-      if (!chart.submitted) {
-        continue;
-      }
+    for (const chart of sendPendingCharts) {
       const evidence = await appDb.getEvidenceRecord(props.detail.tournamentUuid, chart.chartId);
       if (!evidence || evidence.fileDeleted) {
         continue;
@@ -772,10 +776,10 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       files.push(new File([toSafeArrayBuffer(bytes)], fileName, { type: 'image/jpeg' }));
     }
     if (files.length === 0) {
-      throw new Error('送信できる提出画像がありません。');
+      throw new Error('送信できる送信待ち画像がありません。');
     }
     return files;
-  }, [appDb, opfs, props.detail.charts, props.detail.tournamentUuid]);
+  }, [appDb, opfs, props.detail.tournamentUuid, sendPendingCharts]);
 
   const downloadFiles = React.useCallback((files: File[]) => {
     files.forEach((file) => {
@@ -876,6 +880,35 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     }
   }, [props, submitMessageText]);
 
+  const markSubmissionAsCompleted = React.useCallback(async () => {
+    if (submitBusy) {
+      return;
+    }
+    if (sendPendingChartIds.length === 0) {
+      setSubmitNotice({ severity: 'info', text: '送信待ちはありません。' });
+      return;
+    }
+    setSubmitBusy(true);
+    try {
+      await appDb.markEvidenceSendCompleted(props.detail.tournamentUuid, sendPendingChartIds);
+      setNeedsSendOverrides((current) => {
+        const next = { ...current };
+        sendPendingChartIds.forEach((chartId) => {
+          next[chartId] = false;
+        });
+        return next;
+      });
+      setSubmitNotice({ severity: 'success', text: `${sendPendingChartIds.length}件を送信完了にしました。` });
+      props.onReportDebugError(null);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '送信完了の更新に失敗しました。';
+      setSubmitNotice({ severity: 'error', text: message });
+      props.onReportDebugError(message);
+    } finally {
+      setSubmitBusy(false);
+    }
+  }, [appDb, props, sendPendingChartIds, submitBusy]);
+
   return (
     <div className="page detailPageWithSubmitBar">
       <section className="detailCard tournamentDetailSummaryCard">
@@ -887,7 +920,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
               {props.detail.startDate}〜{props.detail.endDate}
             </p>
             <div className="progressLine">
-              提出 {props.detail.submittedCount} / {props.detail.chartCount}
+              登録 {props.detail.submittedCount} / {props.detail.chartCount}
             </div>
             <div className="progressBar" aria-hidden>
               <span style={{ width: `${progress}%` }} />
@@ -921,6 +954,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           {props.detail.charts.map((chart) => {
             const levelLabel = resolveLevelLabel(chart.level);
             const chartStatus = resolveChartTaskStatus(chart);
+            const chartNeedsSend = chart.submitted && resolveNeedsSend(chart);
             return (
               <li key={chart.chartId}>
                 <div className={`chartListItem ${chartStatus.status === 'error' ? 'chartListItemError' : ''}`}>
@@ -934,11 +968,14 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                     {chartStatus.errorText ? <p className="chartResolveIssue">{chartStatus.errorText}</p> : null}
                   </div>
                   <div className="chartActions">
-                    <span className={`chartSubmitLabel ${chartStatus.status}`}>{chartStatus.label}</span>
+                    <div className="chartStatusLine">
+                      <span className={`chartSubmitLabel ${chartStatus.status}`}>{chartStatus.label}</span>
+                      {chartNeedsSend ? <span className="chartSendPendingBadge">送信待ち</span> : null}
+                    </div>
                     {isActivePeriod ? (
                       <button
                         type="button"
-                        className={`chartSubmitButton ${chartStatus.status === 'submitted' ? 'submitted' : 'pending'}`}
+                        className={`chartSubmitButton ${chart.submitted ? 'submitted' : 'pending'}`}
                         onClick={() => props.onOpenSubmit(chart.chartId)}
                       >
                         {chartStatus.actionLabel}
@@ -1099,7 +1136,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       </Dialog>
 
       <Dialog open={submitDialogOpen} onClose={() => setSubmitDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>提出する</DialogTitle>
+        <DialogTitle>送信</DialogTitle>
         <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
@@ -1109,13 +1146,13 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
               画像が端末外に共有されます
             </Typography>
             <Typography variant="body2" sx={{ mb: 1.5 }}>
-              送信対象: {submittedImageCount}件
+              送信対象: {sendPendingCount}件
             </Typography>
             <Stack direction="row" spacing={1}>
-              <Button variant="contained" onClick={() => void shareSubmissionImages()} disabled={submitBusy}>
+              <Button variant="contained" onClick={() => void shareSubmissionImages()} disabled={submitBusy || sendPendingCount === 0}>
                 共有
               </Button>
-              <Button variant="outlined" onClick={() => void saveSubmissionImages()} disabled={submitBusy}>
+              <Button variant="outlined" onClick={() => void saveSubmissionImages()} disabled={submitBusy || sendPendingCount === 0}>
                 端末に保存
               </Button>
             </Stack>
@@ -1138,6 +1175,20 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             </Stack>
           </Box>
 
+          <Divider />
+
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
+              送信完了にする
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              共有の成否は自動判定できません。相手に届いたことを確認後に実行してください。
+            </Typography>
+            <Button variant="outlined" onClick={() => void markSubmissionAsCompleted()} disabled={submitBusy || sendPendingCount === 0}>
+              送信完了にする
+            </Button>
+          </Box>
+
           {submitNotice ? <Alert severity={submitNotice.severity}>{submitNotice.text}</Alert> : null}
         </DialogContent>
         <DialogActions>
@@ -1151,7 +1202,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         <div className="detailSubmitBarInner">
           <button
             type="button"
-            className={`detailSubmitPrimaryButton ${unsubmittedCount > 0 && canOpenSubmitDialog ? 'emphasis' : ''}`}
+            className={`detailSubmitPrimaryButton ${sendPendingCount > 0 && canOpenSubmitDialog ? 'emphasis' : ''}`}
             onClick={() => {
               if (!canOpenSubmitDialog) {
                 return;
@@ -1161,7 +1212,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             }}
             disabled={!canOpenSubmitDialog}
           >
-            提出する
+            送信する
           </button>
           <p className="detailSubmitSubInfo">{submitSummaryText}</p>
         </div>

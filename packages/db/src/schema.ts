@@ -1,4 +1,4 @@
-export const APP_DB_USER_VERSION = 1;
+export const APP_DB_USER_VERSION = 2;
 
 export const APP_DB_SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS evidences (
   width INTEGER NOT NULL,
   height INTEGER NOT NULL,
   update_seq INTEGER NOT NULL,
+  needs_send INTEGER NOT NULL DEFAULT 1 CHECK(needs_send IN (0,1)),
   file_deleted INTEGER NOT NULL DEFAULT 0 CHECK(file_deleted IN (0,1)),
   deleted_at TEXT,
   created_at TEXT NOT NULL,
@@ -53,9 +54,25 @@ CREATE INDEX IF NOT EXISTS idx_tournament_charts_tournament_uuid ON tournament_c
 CREATE INDEX IF NOT EXISTS idx_evidences_tournament_uuid ON evidences(tournament_uuid);
 CREATE INDEX IF NOT EXISTS idx_evidences_file_deleted ON evidences(file_deleted);
 
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;
 `;
 
 export async function migrateAppDatabase(executeSql: (sql: string) => Promise<void>): Promise<void> {
   await executeSql(APP_DB_SCHEMA_SQL);
+  try {
+    await executeSql(`
+      ALTER TABLE evidences
+      ADD COLUMN needs_send INTEGER NOT NULL DEFAULT 1 CHECK(needs_send IN (0,1));
+    `);
+  } catch {
+    // Column already exists.
+  }
+  await executeSql(`
+    UPDATE evidences
+    SET needs_send = CASE
+      WHEN file_deleted = 0 AND update_seq > 0 THEN COALESCE(needs_send, 1)
+      ELSE 0
+    END;
+  `);
+  await executeSql(`PRAGMA user_version = ${APP_DB_USER_VERSION};`);
 }
