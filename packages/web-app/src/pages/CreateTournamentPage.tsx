@@ -143,11 +143,25 @@ function resolveStepButtonReason(message: string | null, fallbackMessage: string
   return message ?? fallbackMessage;
 }
 
+function scrollStepTitleIntoView(stepTitle: HTMLHeadingElement): void {
+  const appBar = document.querySelector<HTMLElement>('header.MuiAppBar-root');
+  const appBarHeight = appBar?.getBoundingClientRect().height ?? 0;
+  const topPadding = 8;
+  const targetTop = window.scrollY + stepTitle.getBoundingClientRect().top - appBarHeight - topPadding;
+  window.scrollTo({ top: Math.max(targetTop, 0) });
+}
+
 export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Element {
   const { appDb } = useAppServices();
   const draft = props.draft;
   const rows = draft.rows;
   const [currentStep, setCurrentStep] = React.useState<CreateWizardStep>(0);
+  const stepTitleRefs = React.useRef<Record<CreateWizardStep, HTMLHeadingElement | null>>({
+    0: null,
+    1: null,
+    2: null,
+  });
+  const previousStepRef = React.useRef<CreateWizardStep>(0);
   const validation = React.useMemo(() => resolveCreateTournamentValidation(draft, props.todayDate), [draft, props.todayDate]);
   const canAddRow = rows.length < MAX_CHART_ROWS;
   const startDateValue = React.useMemo(() => parseIsoDate(draft.startDate), [draft.startDate]);
@@ -182,6 +196,23 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
     if (currentStep === 1 && !stepOneReady) {
       setCurrentStep(0);
     }
+  }, [currentStep, stepOneReady, stepTwoReady]);
+
+  React.useEffect(() => {
+    const canShowCurrentStep =
+      currentStep === 0 || (currentStep === 1 ? stepOneReady : stepTwoReady);
+    if (!canShowCurrentStep) {
+      return;
+    }
+    if (previousStepRef.current === currentStep) {
+      return;
+    }
+    const stepTitle = stepTitleRefs.current[currentStep];
+    if (!stepTitle) {
+      return;
+    }
+    scrollStepTitleIntoView(stepTitle);
+    previousStepRef.current = currentStep;
   }, [currentStep, stepOneReady, stepTwoReady]);
 
   const debugDefHash = React.useMemo(() => {
@@ -304,7 +335,14 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
       {currentStep === 0 ? (
         <section className="createSection">
-          <h2 className="createSectionTitle">1) 大会基本情報</h2>
+          <h2
+            className="createSectionTitle"
+            ref={(element) => {
+              stepTitleRefs.current[0] = element;
+            }}
+          >
+            1) 大会基本情報
+          </h2>
           <div className="createFieldStack">
             <label className="createField">
               <span className="fieldChipLabel">大会名 *</span>
@@ -416,7 +454,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       {currentStep === 1 ? (
         <section className="createSection">
           <div className="createSectionHeading">
-            <h2 className="createSectionTitle">
+            <h2
+              className="createSectionTitle"
+              ref={(element) => {
+                stepTitleRefs.current[1] = element;
+              }}
+            >
               2) 対象譜面 ({rows.length} / {MAX_CHART_ROWS})
             </h2>
             <div className="createSectionAction">
@@ -637,7 +680,14 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       {currentStep === 2 ? (
         <>
           <section className="createSection">
-            <h2 className="createSectionTitle">3) 確認</h2>
+            <h2
+              className="createSectionTitle"
+              ref={(element) => {
+                stepTitleRefs.current[2] = element;
+              }}
+            >
+              3) 確認
+            </h2>
             <article className="chartRowCard createConfirmInfoCard">
               <dl className="createConfirmInfoList">
                 <div className="createConfirmInfoItem">

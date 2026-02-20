@@ -268,7 +268,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
   const formattedSubmittedAt = formatSubmittedAt(submittedAt);
   const isProcessing = submitState === SubmitState.PROCESSING;
   const hasImage = previewImage !== null;
-  const primaryLabel = isProcessing ? '提出処理中' : hasSubmittedEvidence ? '更新して提出' : '提出する';
+  const primaryLabel = isProcessing ? '提出処理中' : hasSubmittedEvidence ? '更新する' : '保存する';
   const primaryDisabled = isProcessing || deleteBusy || (!hasSubmittedEvidence && !hasImage);
 
   const statusBadge = (() => {

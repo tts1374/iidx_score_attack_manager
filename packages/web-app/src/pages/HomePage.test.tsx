@@ -45,6 +45,47 @@ describe('HomePage', () => {
     expect(onTabChange).toHaveBeenCalledWith('upcoming');
   });
 
+  it('hides pending badge outside active tab', () => {
+    const commonItem = {
+      tournamentUuid: 't1',
+      sourceTournamentUuid: null,
+      tournamentName: 'テスト大会',
+      owner: 'owner',
+      hashtag: 'tag',
+      startDate: '2026-02-01',
+      endDate: '2026-02-12',
+      isImported: false,
+      chartCount: 4,
+      submittedCount: 2,
+      pendingCount: 2,
+    };
+
+    const { container, rerender } = render(
+      <HomePage
+        todayDate="2026-02-10"
+        tab="upcoming"
+        items={[commonItem]}
+        onTabChange={() => undefined}
+        onOpenDetail={() => undefined}
+      />,
+    );
+    const scoped = within(container);
+
+    expect(scoped.queryByText('未提出あり')).toBeNull();
+
+    rerender(
+      <HomePage
+        todayDate="2026-02-10"
+        tab="ended"
+        items={[commonItem]}
+        onTabChange={() => undefined}
+        onOpenDetail={() => undefined}
+      />,
+    );
+
+    expect(scoped.queryByText('未提出あり')).toBeNull();
+  });
+
   it('sorts active tab by pending state then end date and shows completion check', () => {
     const { container } = render(
       <HomePage

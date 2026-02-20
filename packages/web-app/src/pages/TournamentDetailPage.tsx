@@ -558,10 +558,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const payloadSizeBytes = React.useMemo(() => new TextEncoder().encode(payload).length, [payload]);
   const normalizedHashtag = React.useMemo(() => normalizeHashtag(props.detail.hashtag), [props.detail.hashtag]);
   const shareText = React.useMemo(() => `#${normalizedHashtag} ${shareUrl}`, [normalizedHashtag, shareUrl]);
-  const submitMessageText = React.useMemo(
-    () => `#【${props.detail.tournamentName}.${normalizedHashtag}】`,
-    [normalizedHashtag, props.detail.tournamentName],
-  );
+  const submitMessageText = React.useMemo(() => `#${normalizedHashtag}`, [normalizedHashtag]);
   const statusInfo = React.useMemo(
     () => resolveTournamentCardStatus(props.detail.startDate, props.detail.endDate, props.todayDate),
     [props.detail.endDate, props.detail.startDate, props.todayDate],
@@ -591,6 +588,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const submitSummaryText =
     changedCount > 0 ? `変更あり ${changedCount}件` : unsubmittedCount > 0 ? `未提出 ${unsubmittedCount}件` : '全譜面提出済み';
   const formattedLastSubmittedAt = React.useMemo(() => formatDateTime(props.detail.lastSubmittedAt), [props.detail.lastSubmittedAt]);
+  const isActivePeriod = statusInfo.status.startsWith('active');
+  const canOpenSubmitDialog = isActivePeriod && submittedImageCount > 0;
   const remainingTone =
     statusInfo.daysLeft === null ? 'neutral' : statusInfo.daysLeft < 3 ? 'strong' : statusInfo.daysLeft <= 7 ? 'warning' : 'normal';
   const shareUnavailable = shareImageStatus !== 'ready' || !shareImageBlob;
@@ -895,9 +894,11 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             </div>
             {formattedLastSubmittedAt ? <p className="detailLastUpdated">最終更新: {formattedLastSubmittedAt}</p> : null}
           </div>
-          <button className="detailShareButton" onClick={openShareDialog}>
-            大会を共有
-          </button>
+          {!props.detail.isImported ? (
+            <button className="detailShareButton" onClick={openShareDialog}>
+              大会を共有
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -934,13 +935,15 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                   </div>
                   <div className="chartActions">
                     <span className={`chartSubmitLabel ${chartStatus.status}`}>{chartStatus.label}</span>
-                    <button
-                      type="button"
-                      className={`chartSubmitButton ${chartStatus.status === 'submitted' ? 'submitted' : 'pending'}`}
-                      onClick={() => props.onOpenSubmit(chart.chartId)}
-                    >
-                      {chartStatus.actionLabel}
-                    </button>
+                    {isActivePeriod ? (
+                      <button
+                        type="button"
+                        className={`chartSubmitButton ${chartStatus.status === 'submitted' ? 'submitted' : 'pending'}`}
+                        onClick={() => props.onOpenSubmit(chart.chartId)}
+                      >
+                        {chartStatus.actionLabel}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </li>
@@ -1148,11 +1151,15 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         <div className="detailSubmitBarInner">
           <button
             type="button"
-            className={`detailSubmitPrimaryButton ${unsubmittedCount > 0 ? 'emphasis' : ''}`}
+            className={`detailSubmitPrimaryButton ${unsubmittedCount > 0 && canOpenSubmitDialog ? 'emphasis' : ''}`}
             onClick={() => {
+              if (!canOpenSubmitDialog) {
+                return;
+              }
               setSubmitDialogOpen(true);
               setSubmitNotice(null);
             }}
+            disabled={!canOpenSubmitDialog}
           >
             提出する
           </button>

@@ -115,6 +115,7 @@ export function HomePage(props: HomePageProps): JSX.Element {
             const showRemainingDays = props.tab === 'active' && statusInfo.daysLeft !== null;
             const deadlineTone = statusInfo.daysLeft !== null ? resolveDeadlineTone(statusInfo.daysLeft) : null;
             const allSubmitted = item.pendingCount === 0;
+            const showPendingBadge = props.tab === 'active' && !allSubmitted;
 
             return (
               <li key={item.tournamentUuid}>
@@ -141,9 +142,9 @@ export function HomePage(props: HomePageProps): JSX.Element {
                         <span aria-hidden>✓</span>
                         全提出済
                       </span>
-                    ) : (
+                    ) : showPendingBadge ? (
                       <span className="pendingBadge">未提出あり</span>
-                    )}
+                    ) : null}
                   </div>
                   <div className="progressBar" aria-hidden>
                     <span style={{ width: `${progress}%` }} />
