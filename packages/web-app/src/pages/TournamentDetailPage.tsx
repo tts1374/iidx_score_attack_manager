@@ -33,6 +33,7 @@ interface TournamentDetailPageProps {
   detail: TournamentDetailItem;
   todayDate: string;
   onOpenSubmit: (chartId: number) => void;
+  onUpdated: () => Promise<void> | void;
   onOpenSettings: () => void;
   debugModeEnabled: boolean;
   debugLastError: string | null;
@@ -898,6 +899,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         });
         return next;
       });
+      await Promise.resolve(props.onUpdated());
       setSubmitNotice({ severity: 'success', text: `${sendPendingChartIds.length}件を送信完了にしました。` });
       props.onReportDebugError(null);
     } catch (error: unknown) {

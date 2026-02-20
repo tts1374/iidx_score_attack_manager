@@ -108,6 +108,7 @@ describe('TournamentDetailPage', () => {
         detail={buildDetail()}
         todayDate="2026-02-10"
         onOpenSubmit={() => undefined}
+        onUpdated={() => undefined}
         onOpenSettings={() => undefined}
         debugModeEnabled={false}
         debugLastError={null}
@@ -140,6 +141,7 @@ describe('TournamentDetailPage', () => {
         detail={buildDetail()}
         todayDate="2026-02-10"
         onOpenSubmit={() => undefined}
+        onUpdated={() => undefined}
         onOpenSettings={() => undefined}
         debugModeEnabled={false}
         debugLastError={null}
@@ -165,6 +167,7 @@ describe('TournamentDetailPage', () => {
         detail={buildDetail()}
         todayDate="2026-02-10"
         onOpenSubmit={() => undefined}
+        onUpdated={() => undefined}
         onOpenSettings={() => undefined}
         debugModeEnabled={true}
         debugLastError="sample error"
@@ -185,6 +188,7 @@ describe('TournamentDetailPage', () => {
         detail={buildDetail({ isImported: true })}
         todayDate="2026-02-10"
         onOpenSubmit={() => undefined}
+        onUpdated={() => undefined}
         onOpenSettings={() => undefined}
         debugModeEnabled={false}
         debugLastError={null}
@@ -201,6 +205,7 @@ describe('TournamentDetailPage', () => {
         detail={buildDetail()}
         todayDate="2026-01-31"
         onOpenSubmit={() => undefined}
+        onUpdated={() => undefined}
         onOpenSettings={() => undefined}
         debugModeEnabled={false}
         debugLastError={null}
@@ -218,6 +223,7 @@ describe('TournamentDetailPage', () => {
         detail={buildDetail()}
         todayDate="2026-02-13"
         onOpenSubmit={() => undefined}
+        onUpdated={() => undefined}
         onOpenSettings={() => undefined}
         debugModeEnabled={false}
         debugLastError={null}
@@ -247,6 +253,7 @@ describe('TournamentDetailPage', () => {
         })}
         todayDate="2026-02-10"
         onOpenSubmit={() => undefined}
+        onUpdated={() => undefined}
         onOpenSettings={() => undefined}
         debugModeEnabled={false}
         debugLastError={null}

@@ -1327,6 +1327,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             onOpenSubmit={(chartId) => {
               pushRoute({ name: 'submit', tournamentUuid: detail.tournamentUuid, chartId });
             }}
+            onUpdated={async () => {
+              await reloadDetail(detail.tournamentUuid);
+              await refreshTournamentList();
+            }}
             onOpenSettings={openSettingsPage}
             debugModeEnabled={debugModeEnabled}
             debugLastError={detailTechnicalInfo?.last_error ?? null}
