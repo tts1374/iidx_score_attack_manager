@@ -13,6 +13,7 @@ export interface TournamentListItem {
   isImported: boolean;
   chartCount: number;
   submittedCount: number;
+  sendWaitingCount: number;
   pendingCount: number;
 }
 

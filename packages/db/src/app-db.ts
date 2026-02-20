@@ -697,6 +697,7 @@ export class AppDatabase {
       is_imported: number;
       chart_count: number;
       submitted_count: number;
+      send_waiting_count: number;
     }>(
       `
       SELECT
@@ -709,7 +710,8 @@ export class AppDatabase {
         t.end_date,
         t.is_imported,
         COUNT(DISTINCT tc.chart_id) AS chart_count,
-        COUNT(DISTINCT CASE WHEN e.update_seq > 0 AND e.file_deleted = 0 THEN tc.chart_id END) AS submitted_count
+        COUNT(DISTINCT CASE WHEN e.file_deleted = 0 THEN tc.chart_id END) AS submitted_count,
+        COUNT(DISTINCT CASE WHEN e.file_deleted = 0 AND e.needs_send = 1 THEN tc.chart_id END) AS send_waiting_count
       FROM tournaments t
       INNER JOIN tournament_charts tc ON tc.tournament_uuid = t.tournament_uuid
       LEFT JOIN evidences e
@@ -725,6 +727,7 @@ export class AppDatabase {
     return rows.map((row) => {
       const chartCount = Number(row.chart_count);
       const submittedCount = Number(row.submitted_count);
+      const sendWaitingCount = Number(row.send_waiting_count);
       const startDate = normalizeDbDate(row.start_date, today);
       const endDate = normalizeDbDate(row.end_date, startDate);
       return {
@@ -738,6 +741,7 @@ export class AppDatabase {
         isImported: row.is_imported === 1,
         chartCount,
         submittedCount,
+        sendWaitingCount,
         pendingCount: Math.max(0, chartCount - submittedCount),
       };
     });
@@ -757,6 +761,7 @@ export class AppDatabase {
       is_imported: number;
       chart_count: number;
       submitted_count: number;
+      send_waiting_count: number;
       last_submitted_at: string | null;
     }>(
       `
@@ -771,8 +776,9 @@ export class AppDatabase {
         t.end_date,
         t.is_imported,
         COUNT(DISTINCT tc.chart_id) AS chart_count,
-        COUNT(DISTINCT CASE WHEN e.update_seq > 0 AND e.file_deleted = 0 THEN tc.chart_id END) AS submitted_count,
-        MAX(CASE WHEN e.update_seq > 0 AND e.file_deleted = 0 THEN e.updated_at END) AS last_submitted_at
+        COUNT(DISTINCT CASE WHEN e.file_deleted = 0 THEN tc.chart_id END) AS submitted_count,
+        COUNT(DISTINCT CASE WHEN e.file_deleted = 0 AND e.needs_send = 1 THEN tc.chart_id END) AS send_waiting_count,
+        MAX(CASE WHEN e.file_deleted = 0 THEN e.updated_at END) AS last_submitted_at
       FROM tournaments t
       INNER JOIN tournament_charts tc ON tc.tournament_uuid = t.tournament_uuid
       LEFT JOIN evidences e
@@ -805,6 +811,7 @@ export class AppDatabase {
       isImported: base.is_imported === 1,
       chartCount: Number(base.chart_count),
       submittedCount: Number(base.submitted_count),
+      sendWaitingCount: Number(base.send_waiting_count),
       pendingCount: Math.max(0, Number(base.chart_count) - Number(base.submitted_count)),
       lastSubmittedAt: base.last_submitted_at,
       charts,

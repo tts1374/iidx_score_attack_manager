@@ -25,6 +25,7 @@ describe('HomePage', () => {
             isImported: false,
             chartCount: 4,
             submittedCount: 2,
+            sendWaitingCount: 0,
             pendingCount: 2,
           },
         ]}
@@ -36,16 +37,16 @@ describe('HomePage', () => {
     const firstCard = screen.getAllByRole('listitem')[0]!;
     expect(within(firstCard).getByText('開催中')).toBeTruthy();
     expect(within(firstCard).getByText('残2日')).toBeTruthy();
-    expect(within(firstCard).getByText(/提出 2 \/ 4/)).toBeTruthy();
+    expect(within(firstCard).getByText(/登録 2 \/ 4/)).toBeTruthy();
     expect(within(firstCard).getByText('(50%)')).toBeTruthy();
-    expect(within(firstCard).getByText('未提出あり')).toBeTruthy();
+    expect(within(firstCard).getByText('未登録あり')).toBeTruthy();
     expect(within(firstCard).getByText('詳細を見る')).toBeTruthy();
 
     await userEvent.click(screen.getByRole('tab', { name: '開催前' }));
     expect(onTabChange).toHaveBeenCalledWith('upcoming');
   });
 
-  it('hides pending badge outside active tab', () => {
+  it('shows registration badge outside active tab', () => {
     const commonItem = {
       tournamentUuid: 't1',
       sourceTournamentUuid: null,
@@ -57,6 +58,7 @@ describe('HomePage', () => {
       isImported: false,
       chartCount: 4,
       submittedCount: 2,
+      sendWaitingCount: 0,
       pendingCount: 2,
     };
 
@@ -71,7 +73,7 @@ describe('HomePage', () => {
     );
     const scoped = within(container);
 
-    expect(scoped.queryByText('未提出あり')).toBeNull();
+    expect(scoped.getByText('未登録あり')).toBeTruthy();
 
     rerender(
       <HomePage
@@ -83,10 +85,10 @@ describe('HomePage', () => {
       />,
     );
 
-    expect(scoped.queryByText('未提出あり')).toBeNull();
+    expect(scoped.getByText('未登録あり')).toBeTruthy();
   });
 
-  it('sorts active tab by pending state then end date and shows completion check', () => {
+  it('sorts active tab by send-waiting then unregistered then completed', () => {
     const { container } = render(
       <HomePage
         todayDate="2026-02-08"
@@ -95,7 +97,7 @@ describe('HomePage', () => {
           {
             tournamentUuid: 'done',
             sourceTournamentUuid: null,
-            tournamentName: '提出完了',
+            tournamentName: '登録完了',
             owner: 'owner',
             hashtag: 'tag',
             startDate: '2026-02-01',
@@ -103,12 +105,27 @@ describe('HomePage', () => {
             isImported: false,
             chartCount: 2,
             submittedCount: 2,
+            sendWaitingCount: 0,
+            pendingCount: 0,
+          },
+          {
+            tournamentUuid: 'send-waiting',
+            sourceTournamentUuid: null,
+            tournamentName: '送信待ちあり',
+            owner: 'owner',
+            hashtag: 'tag',
+            startDate: '2026-02-01',
+            endDate: '2026-02-11',
+            isImported: false,
+            chartCount: 3,
+            submittedCount: 3,
+            sendWaitingCount: 2,
             pendingCount: 0,
           },
           {
             tournamentUuid: 'pending-late',
             sourceTournamentUuid: null,
-            tournamentName: '未提出・締切遠',
+            tournamentName: '未登録・締切遠',
             owner: 'owner',
             hashtag: 'tag',
             startDate: '2026-02-01',
@@ -116,12 +133,13 @@ describe('HomePage', () => {
             isImported: false,
             chartCount: 4,
             submittedCount: 2,
+            sendWaitingCount: 0,
             pendingCount: 2,
           },
           {
             tournamentUuid: 'pending-soon',
             sourceTournamentUuid: null,
-            tournamentName: '未提出・締切近',
+            tournamentName: '未登録・締切近',
             owner: 'owner',
             hashtag: 'tag',
             startDate: '2026-02-01',
@@ -129,6 +147,7 @@ describe('HomePage', () => {
             isImported: false,
             chartCount: 3,
             submittedCount: 1,
+            sendWaitingCount: 0,
             pendingCount: 2,
           },
         ]}
@@ -139,14 +158,15 @@ describe('HomePage', () => {
     const scoped = within(container);
 
     expect(scoped.getAllByRole('heading', { level: 3 }).map((node) => node.textContent)).toEqual([
-      '未提出・締切近',
-      '未提出・締切遠',
-      '提出完了',
+      '送信待ちあり',
+      '未登録・締切近',
+      '未登録・締切遠',
+      '登録完了',
     ]);
 
     const listItems = scoped.getAllByRole('listitem');
-    expect(within(listItems[0]!).getByText('未提出あり')).toBeTruthy();
-    expect(within(listItems[2]!).getByText('全提出済')).toBeTruthy();
-    expect(within(listItems[2]!).queryByText('未提出あり')).toBeNull();
+    expect(within(listItems[0]!).getByText('送信待ち 2件')).toBeTruthy();
+    expect(within(listItems[3]!).getByText('全て登録済')).toBeTruthy();
+    expect(within(listItems[3]!).queryByText('未登録あり')).toBeNull();
   });
 });

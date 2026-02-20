@@ -50,6 +50,7 @@ const detail: TournamentDetailItem = {
   isImported: false,
   chartCount: 3,
   submittedCount: 1,
+  sendWaitingCount: 1,
   pendingCount: 2,
   lastSubmittedAt: '2026-02-10T12:00:00.000Z',
   charts: [

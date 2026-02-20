@@ -47,11 +47,45 @@ function resolveDeadlineTone(daysLeft: number): DeadlineTone {
   return 'normal';
 }
 
+type ProgressStateBadge =
+  | { className: 'sendWaitingBadge'; label: string }
+  | { className: 'pendingBadge'; label: '未登録あり' }
+  | { className: 'completedBadge'; label: '全て登録済'; showCheck: true };
+
+function resolveProgressStateBadge(item: TournamentListItem): ProgressStateBadge {
+  if (item.sendWaitingCount > 0) {
+    return {
+      className: 'sendWaitingBadge',
+      label: `送信待ち ${item.sendWaitingCount}件`,
+    };
+  }
+  if (item.submittedCount < item.chartCount) {
+    return {
+      className: 'pendingBadge',
+      label: '未登録あり',
+    };
+  }
+  return {
+    className: 'completedBadge',
+    label: '全て登録済',
+    showCheck: true,
+  };
+}
+
+function resolveActivePriority(item: TournamentListItem): number {
+  if (item.sendWaitingCount > 0) {
+    return 0;
+  }
+  if (item.submittedCount < item.chartCount) {
+    return 1;
+  }
+  return 2;
+}
+
 function sortForActiveTab(a: TournamentListItem, b: TournamentListItem): number {
-  const aHasPending = a.pendingCount > 0;
-  const bHasPending = b.pendingCount > 0;
-  if (aHasPending !== bHasPending) {
-    return aHasPending ? -1 : 1;
+  const groupComparison = resolveActivePriority(a) - resolveActivePriority(b);
+  if (groupComparison !== 0) {
+    return groupComparison;
   }
 
   const endDateComparison = a.endDate.localeCompare(b.endDate);
@@ -114,8 +148,7 @@ export function HomePage(props: HomePageProps): JSX.Element {
             const progress = item.chartCount > 0 ? Math.round((item.submittedCount / item.chartCount) * 100) : 0;
             const showRemainingDays = props.tab === 'active' && statusInfo.daysLeft !== null;
             const deadlineTone = statusInfo.daysLeft !== null ? resolveDeadlineTone(statusInfo.daysLeft) : null;
-            const allSubmitted = item.pendingCount === 0;
-            const showPendingBadge = props.tab === 'active' && !allSubmitted;
+            const progressBadge = resolveProgressStateBadge(item);
 
             return (
               <li key={item.tournamentUuid}>
@@ -134,17 +167,13 @@ export function HomePage(props: HomePageProps): JSX.Element {
                   </div>
                   <div className="progressSummaryRow">
                     <div className="progressLine">
-                      提出 {item.submittedCount} / {item.chartCount}
+                      登録 {item.submittedCount} / {item.chartCount}
                       <span className="progressPercent">({progress}%)</span>
                     </div>
-                    {allSubmitted ? (
-                      <span className="completedBadge" aria-label="全提出済">
-                        <span aria-hidden>✓</span>
-                        全提出済
-                      </span>
-                    ) : showPendingBadge ? (
-                      <span className="pendingBadge">未提出あり</span>
-                    ) : null}
+                    <span className={progressBadge.className}>
+                      {'showCheck' in progressBadge ? <span aria-hidden>✓</span> : null}
+                      {progressBadge.label}
+                    </span>
                   </div>
                   <div className="progressBar" aria-hidden>
                     <span style={{ width: `${progress}%` }} />

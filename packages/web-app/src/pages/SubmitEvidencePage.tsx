@@ -20,7 +20,7 @@ import { reencodeImageToJpeg, toSafeArrayBuffer } from '../utils/image';
 interface SubmitEvidencePageProps {
   detail: TournamentDetailItem;
   chart: TournamentDetailChart;
-  onSaved: () => Promise<void> | void;
+  onSaved: (reason: 'submit' | 'delete') => Promise<void> | void;
 }
 
 enum SubmitState {
@@ -234,7 +234,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
       setPreviewFromBlob(encoded.blob, 'existing');
       setSubmitState(SubmitState.SUCCESS);
 
-      await Promise.resolve(props.onSaved());
+      await Promise.resolve(props.onSaved('submit'));
     } catch (error) {
       setSubmitState(SubmitState.ERROR);
       setErrorReason(resolveFailureReason(error));
@@ -256,7 +256,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
       setSubmitState(SubmitState.NOT_SUBMITTED);
       setDeleteDialogOpen(false);
       closeMenu();
-      await Promise.resolve(props.onSaved());
+      await Promise.resolve(props.onSaved('delete'));
     } catch {
       setSubmitState(SubmitState.ERROR);
       setErrorReason('削除に失敗しました');

@@ -391,6 +391,19 @@ label {
   color: #92400e;
 }
 
+.sendWaitingBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
 .completedBadge {
   display: inline-flex;
   align-items: center;

@@ -1338,9 +1338,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           <SubmitEvidencePage
             detail={detail}
             chart={submitChart}
-            onSaved={async () => {
+            onSaved={async (reason) => {
               await reloadDetail(detail.tournamentUuid);
               await refreshTournamentList();
+              if (reason === 'submit') {
+                popRoute();
+              }
             }}
           />
         )}
