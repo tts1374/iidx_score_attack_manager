@@ -1,10 +1,23 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { acquireSingleTabLock, checkRuntimeCapabilities } from '@iidx/db';
+import type { TournamentPayload } from '@iidx/shared';
 
 import { App, AppFallbackUnsupported } from './App';
 import { createAppServices } from './services/app-services';
 import { AppServicesProvider } from './services/context';
+import { resolveImportPayloadFromLocation } from './utils/import-confirm';
+import {
+  IMPORT_DELEGATION_BROADCAST_ACK_TIMEOUT_MS,
+  IMPORT_DELEGATION_CHANNEL,
+  IMPORT_DELEGATION_STORAGE_ACK_KEY,
+  IMPORT_DELEGATION_STORAGE_ACK_TIMEOUT_MS,
+  IMPORT_DELEGATION_STORAGE_REQUEST_KEY,
+  buildImportRequestMessage,
+  isImportAckMessage,
+  parseImportAckStorageValue,
+} from './utils/import-delegation';
+import { HOME_PATH } from './utils/payload-url';
 import './styles.css';
 
 const TUTORIAL_DONE_KEY = 'tutorial_done';
@@ -22,6 +35,9 @@ type ServiceWorkerSetupResult =
   | { status: 'controller_ready' }
   | { status: 'failed'; reason: ServiceWorkerFailureReason; errorMessage: string | null };
 
+type ImportDelegationState = 'sending' | 'success' | 'failed';
+type ImportDelegationResult = { status: 'ack'; via: 'broadcast' | 'storage' } | { status: 'not_acknowledged' };
+
 interface LocalConsentScreenProps {
   onStart: () => void;
 }
@@ -29,6 +45,154 @@ interface LocalConsentScreenProps {
 interface ServiceWorkerFailureScreenProps {
   reason: ServiceWorkerFailureReason;
   errorMessage: string | null;
+}
+
+interface ImportDelegationScreenProps {
+  rawPayloadParam: string;
+  payloadPreview: TournamentPayload;
+}
+
+interface InvalidImportLinkScreenProps {
+  code: string;
+  message: string;
+}
+
+function safeSetLocalStorage(key: string, value: string): boolean {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function navigateToHome(): void {
+  window.location.replace(HOME_PATH);
+}
+
+function tryCloseTab(): void {
+  try {
+    window.close();
+  } catch {
+    // ignore close failures
+  }
+}
+
+async function sendImportRequestViaBroadcast(
+  requestMessage: ReturnType<typeof buildImportRequestMessage>,
+): Promise<boolean> {
+  if (typeof BroadcastChannel !== 'function') {
+    return false;
+  }
+
+  return await new Promise<boolean>((resolve) => {
+    const channel = new BroadcastChannel(IMPORT_DELEGATION_CHANNEL);
+    let settled = false;
+
+    const finish = (acked: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      window.clearTimeout(timeoutId);
+      channel.removeEventListener('message', onMessage);
+      channel.close();
+      resolve(acked);
+    };
+
+    const onMessage = (event: MessageEvent<unknown>) => {
+      if (!isImportAckMessage(event.data)) {
+        return;
+      }
+      if (event.data.requestId !== requestMessage.requestId) {
+        return;
+      }
+      finish(true);
+    };
+
+    channel.addEventListener('message', onMessage);
+
+    const timeoutId = window.setTimeout(() => finish(false), IMPORT_DELEGATION_BROADCAST_ACK_TIMEOUT_MS);
+    try {
+      channel.postMessage(requestMessage);
+    } catch {
+      finish(false);
+    }
+  });
+}
+
+async function sendImportRequestViaStorage(
+  requestMessage: ReturnType<typeof buildImportRequestMessage>,
+): Promise<boolean> {
+  return await new Promise<boolean>((resolve) => {
+    let settled = false;
+    const localStorageRef = (() => {
+      try {
+        return window.localStorage;
+      } catch {
+        return null;
+      }
+    })();
+    if (!localStorageRef) {
+      resolve(false);
+      return;
+    }
+
+    const finish = (acked: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      window.clearTimeout(timeoutId);
+      window.removeEventListener('storage', onStorage);
+      resolve(acked);
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== localStorageRef || event.key !== IMPORT_DELEGATION_STORAGE_ACK_KEY) {
+        return;
+      }
+      const ack = parseImportAckStorageValue(event.newValue);
+      if (!ack || ack.requestId !== requestMessage.requestId) {
+        return;
+      }
+      finish(true);
+    };
+
+    window.addEventListener('storage', onStorage);
+    const timeoutId = window.setTimeout(() => finish(false), IMPORT_DELEGATION_STORAGE_ACK_TIMEOUT_MS);
+
+    const wrote = safeSetLocalStorage(IMPORT_DELEGATION_STORAGE_REQUEST_KEY, JSON.stringify(requestMessage));
+    if (!wrote) {
+      finish(false);
+    }
+  });
+}
+
+async function delegateImportToExistingTab(rawPayloadParam: string, senderTabId: string): Promise<ImportDelegationResult> {
+  const requestMessage = buildImportRequestMessage({
+    requestId: crypto.randomUUID(),
+    senderTabId,
+    rawPayloadParam,
+  });
+
+  const broadcastAcked = await sendImportRequestViaBroadcast(requestMessage);
+  if (broadcastAcked) {
+    return {
+      status: 'ack',
+      via: 'broadcast',
+    };
+  }
+
+  const storageAcked = await sendImportRequestViaStorage(requestMessage);
+  if (storageAcked) {
+    return {
+      status: 'ack',
+      via: 'storage',
+    };
+  }
+
+  return { status: 'not_acknowledged' };
 }
 
 function readLocalStorage(key: string): string | null {
@@ -238,6 +402,122 @@ function ServiceWorkerFailureScreen(props: ServiceWorkerFailureScreenProps): JSX
   );
 }
 
+function InvalidImportLinkScreen(props: InvalidImportLinkScreenProps): JSX.Element {
+  return (
+    <main className="page startupShell">
+      <section className="warningBox startupCard">
+        <h1>取り込みリンクを処理できません</h1>
+        <p className="importConfirmErrorCode">{props.code}</p>
+        <p>{props.message}</p>
+        <div className="actions startupActionRow">
+          <button type="button" className="primaryActionButton" onClick={navigateToHome}>
+            アプリを開く
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element {
+  const senderTabIdRef = React.useRef<string>(crypto.randomUUID());
+  const [state, setState] = React.useState<ImportDelegationState>('sending');
+  const [attemptCount, setAttemptCount] = React.useState(0);
+  const [statusHint, setStatusHint] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setState('sending');
+    setStatusHint(null);
+
+    void delegateImportToExistingTab(props.rawPayloadParam, senderTabIdRef.current).then((result) => {
+      if (cancelled) {
+        return;
+      }
+      if (result.status === 'ack') {
+        setState('success');
+        setStatusHint(
+          result.via === 'broadcast'
+            ? '既存タブから受領応答を確認しました。'
+            : '既存タブから受領応答を確認しました（storageフォールバック）。',
+        );
+        window.setTimeout(() => {
+          tryCloseTab();
+        }, 60);
+        return;
+      }
+      setState('failed');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attemptCount, props.rawPayloadParam]);
+
+  if (state === 'sending') {
+    return (
+      <main className="page startupShell">
+        <section className="unsupported startupCard">
+          <h1>既存タブに送信中...</h1>
+          <p>取り込み要求を送信しています。しばらくお待ちください。</p>
+          <div className="startupLoading" role="status" aria-live="polite" aria-label="送信中">
+            <span className="startupLoadingSpinner" aria-hidden="true" />
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (state === 'success') {
+    return (
+      <main className="page startupShell">
+        <section className="unsupported startupCard">
+          <h1>既存タブに送信しました</h1>
+          <p>既存タブに送信しました。そちらをご確認ください。</p>
+          {statusHint ? <p className="hintText">{statusHint}</p> : null}
+          <div className="actions startupActionRow">
+            <button type="button" className="primaryActionButton" onClick={tryCloseTab}>
+              このタブを閉じる
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="page startupShell">
+      <section className="warningBox startupCard">
+        <h1>既存タブが見つかりませんでした</h1>
+        <p>既存タブが起動していないか、この環境ではタブ間通信が利用できませんでした。</p>
+        <section className="detailCard">
+          <h2>取り込み内容プレビュー</h2>
+          <p>大会名: {props.payloadPreview.name}</p>
+          <p>開催者: {props.payloadPreview.owner}</p>
+          <p>
+            期間: {props.payloadPreview.start} 〜 {props.payloadPreview.end}
+          </p>
+          <p>譜面数: {props.payloadPreview.charts.length}</p>
+          <p className="hintText">このタブでは確定保存できません。既存タブへの送信またはアプリ本体での取り込みが必要です。</p>
+        </section>
+        <div className="actions startupActionRow">
+          <button type="button" className="primaryActionButton" onClick={navigateToHome}>
+            アプリを開く
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAttemptCount((current) => current + 1);
+            }}
+          >
+            もう一度送信を試す
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 async function waitForLocalConsent(root: ReturnType<typeof ReactDOM.createRoot>): Promise<void> {
   if (readLocalStorage(TUTORIAL_DONE_KEY) === '1') {
     return;
@@ -269,6 +549,10 @@ async function bootstrap(): Promise<void> {
   }
 
   const root = ReactDOM.createRoot(rootElement);
+  const importPayloadResult = resolveImportPayloadFromLocation({
+    pathname: window.location.pathname,
+    search: window.location.search,
+  });
   const swUrl = `${import.meta.env.BASE_URL}sw.js`;
   const swWarmupAttempt =
     !import.meta.env.DEV && 'serviceWorker' in navigator ? createServiceWorkerRegistrationAttempt(swUrl) : null;
@@ -346,6 +630,25 @@ async function bootstrap(): Promise<void> {
   try {
     releaseLock = await acquireSingleTabLock('iidx-score-attack-web-lock');
   } catch {
+    if (importPayloadResult.status === 'invalid') {
+      root.render(
+        <React.StrictMode>
+          <InvalidImportLinkScreen code={importPayloadResult.error.code} message={importPayloadResult.error.message} />
+        </React.StrictMode>,
+      );
+      return;
+    }
+    if (importPayloadResult.status === 'ready') {
+      root.render(
+        <React.StrictMode>
+          <ImportDelegationScreen
+            rawPayloadParam={importPayloadResult.rawPayloadParam}
+            payloadPreview={importPayloadResult.payload}
+          />
+        </React.StrictMode>,
+      );
+      return;
+    }
     root.render(
       <React.StrictMode>
         <AppFallbackUnsupported reasons={['別タブで既に起動中です。']} />

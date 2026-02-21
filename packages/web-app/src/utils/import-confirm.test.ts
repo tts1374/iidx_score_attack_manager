@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { PAYLOAD_VERSION, PayloadValidationError, encodeTournamentPayload } from '@iidx/shared';
+import { IMPORT_CONFIRM_PATH } from './payload-url';
 
-import { classifyImportDecodeError, decodeImportPayload, extractRawQueryParam } from './import-confirm';
+import {
+  classifyImportDecodeError,
+  decodeImportPayload,
+  extractRawQueryParam,
+  resolveImportPayloadFromLocation,
+} from './import-confirm';
 
 const validPayload = {
   v: PAYLOAD_VERSION,
@@ -49,5 +55,38 @@ describe('import confirm utility', () => {
       classifiedCode = classifyImportDecodeError(error).code;
     }
     expect(classifiedCode).toBe('DECODE_ERROR');
+  });
+
+  it('resolves import payload from location', () => {
+    const encoded = encodeTournamentPayload(validPayload);
+    const rawParam = encodeURIComponent(encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''));
+    const resolved = resolveImportPayloadFromLocation({
+      pathname: IMPORT_CONFIRM_PATH,
+      search: `?p=${rawParam}`,
+    });
+    expect(resolved.status).toBe('ready');
+    if (resolved.status === 'ready') {
+      expect(resolved.rawPayloadParam).toBe(rawParam);
+      expect(resolved.payload.uuid).toBe(validPayload.uuid);
+    }
+  });
+
+  it('returns invalid result for missing payload parameter', () => {
+    const resolved = resolveImportPayloadFromLocation({
+      pathname: IMPORT_CONFIRM_PATH,
+      search: '?x=1',
+    });
+    expect(resolved.status).toBe('invalid');
+    if (resolved.status === 'invalid') {
+      expect(resolved.error.code).toBe('INVALID_PARAM');
+    }
+  });
+
+  it('returns none for non import-confirm path', () => {
+    const resolved = resolveImportPayloadFromLocation({
+      pathname: '/',
+      search: '?p=abc',
+    });
+    expect(resolved.status).toBe('none');
   });
 });

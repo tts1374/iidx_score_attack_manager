@@ -5,10 +5,9 @@ import type { ImportTargetTournament, SongMasterChartDetail } from '@iidx/db';
 import { useAppServices } from '../services/context';
 import { IMPORT_CONFIRM_PATH } from '../utils/payload-url';
 import {
-  classifyImportDecodeError,
-  decodeImportPayload,
-  extractRawQueryParam,
+  resolveImportPayloadFromLocation,
   type ImportConfirmError,
+  type ImportLocationPayloadResult,
 } from '../utils/import-confirm';
 import { difficultyColor } from '../utils/iidx';
 
@@ -120,7 +119,12 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
   const [validationState, setValidationState] = React.useState<ImportConfirmState>({ status: 'loading' });
   const [applying, setApplying] = React.useState(false);
 
-  const [capturedPayloadParam] = React.useState<string | null>(() => extractRawQueryParam(window.location.search, 'p'));
+  const [locationPayload] = React.useState<ImportLocationPayloadResult>(() =>
+    resolveImportPayloadFromLocation({
+      pathname: window.location.pathname,
+      search: window.location.search,
+    }),
+  );
 
   React.useEffect(() => {
     window.history.replaceState(window.history.state, '', IMPORT_CONFIRM_PATH);
@@ -144,21 +148,18 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
     };
 
     const validate = async () => {
-      if (!capturedPayloadParam || capturedPayloadParam.trim().length === 0) {
+      if (locationPayload.status === 'none') {
         fail({
           code: 'INVALID_PARAM',
-          message: 'URLパラメータ p が見つからないか空です。',
+          message: 'URLインポートリンクを認識できませんでした。',
         });
         return;
       }
-
-      let payload: TournamentPayload;
-      try {
-        payload = decodeImportPayload(capturedPayloadParam).payload;
-      } catch (error) {
-        fail(classifyImportDecodeError(error));
+      if (locationPayload.status === 'invalid') {
+        fail(locationPayload.error);
         return;
       }
+      const payload: TournamentPayload = locationPayload.payload;
 
       const statusInfo = resolveStatus(payload.start, payload.end, props.todayDate);
       const emptyPreview: ImportPreview = {
@@ -254,7 +255,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [appDb, capturedPayloadParam, props.todayDate]);
+  }, [appDb, locationPayload, props.todayDate]);
 
   const showOpenSettingsAction =
     validationState.status === 'error' &&

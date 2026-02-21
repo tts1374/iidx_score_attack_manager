@@ -1,6 +1,6 @@
 import React from 'react';
 import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
-import { PAYLOAD_VERSION, encodeTournamentPayload, type TournamentPayload } from '@iidx/shared';
+import { PAYLOAD_VERSION, encodeTournamentPayload, getTournamentStatus, type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import {
   AppBar,
@@ -42,6 +42,15 @@ import {
 } from './pages/create-tournament-draft';
 import { useAppServices } from './services/context';
 import { extractQrTextFromImage } from './utils/image';
+import { classifyImportDecodeError, decodeImportPayload } from './utils/import-confirm';
+import {
+  IMPORT_DELEGATION_CHANNEL,
+  IMPORT_DELEGATION_STORAGE_ACK_KEY,
+  IMPORT_DELEGATION_STORAGE_REQUEST_KEY,
+  buildImportAckMessage,
+  isImportRequestMessage,
+  parseImportRequestStorageValue,
+} from './utils/import-delegation';
 import {
   CREATE_TOURNAMENT_PATH,
   HOME_PATH,
@@ -345,6 +354,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [debugModeEnabled, setDebugModeEnabled] = React.useState(() => readDebugMode());
   const [detailTechnicalDialogOpen, setDetailTechnicalDialogOpen] = React.useState(false);
   const [detailDebugLastError, setDetailDebugLastError] = React.useState<string | null>(null);
+  const appTabIdRef = React.useRef<string>(crypto.randomUUID());
+  const handledDelegationRequestIdsRef = React.useRef<Set<string>>(new Set());
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
@@ -919,6 +930,156 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     },
     [appDb, pushToast, refreshTournamentList, reloadDetail, replaceRoute, resetRoute],
   );
+
+  const processDelegatedImport = React.useCallback(
+    async (requestId: string, rawPayloadParam: string, via: 'broadcast' | 'storage') => {
+      let payload: TournamentPayload;
+      try {
+        payload = decodeImportPayload(rawPayloadParam).payload;
+      } catch (error) {
+        const decodedError = classifyImportDecodeError(error);
+        pushToast(decodedError.message);
+        appendRuntimeLog({
+          level: 'error',
+          category: 'import-delegation',
+          message: '別タブからの取り込み要求のデコードに失敗しました。',
+          detail: `${decodedError.code}: ${decodedError.message}`,
+        });
+        return;
+      }
+
+      try {
+        if (getTournamentStatus(payload.start, payload.end, todayDate) === 'ended') {
+          pushToast('終了済みの大会は取り込みできません。');
+          return;
+        }
+
+        const hasSongMaster = await appDb.hasSongMaster();
+        if (!hasSongMaster) {
+          pushToast('曲マスタが未取得のため、取り込みできません。');
+          return;
+        }
+
+        const chartDetails = await appDb.listSongMasterChartsByIds(payload.charts);
+        const chartDetailSet = new Set(chartDetails.map((detail) => detail.chartId));
+        const missingChartIds = payload.charts.filter((chartId) => !chartDetailSet.has(chartId));
+        if (missingChartIds.length > 0) {
+          pushToast(`曲マスタに存在しない譜面があるため取り込みできません: ${missingChartIds.join(', ')}`);
+          return;
+        }
+
+        await confirmImport(payload);
+        appendRuntimeLog({
+          level: 'info',
+          category: 'import-delegation',
+          message: '別タブからの取り込み要求を処理しました。',
+          detail: `requestId=${requestId}, via=${via}`,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        pushToast(message);
+        appendRuntimeLog({
+          level: 'error',
+          category: 'import-delegation',
+          message: '別タブからの取り込み要求の処理に失敗しました。',
+          detail: message,
+        });
+      }
+    },
+    [appDb, appendRuntimeLog, confirmImport, pushToast, todayDate],
+  );
+
+  React.useEffect(() => {
+    if (!webLockAcquired) {
+      return;
+    }
+
+    const tabId = appTabIdRef.current;
+    const handledRequestIds = handledDelegationRequestIdsRef.current;
+    const localStorageRef = (() => {
+      try {
+        return window.localStorage;
+      } catch {
+        return null;
+      }
+    })();
+
+    const sendStorageAck = (requestId: string): void => {
+      if (!localStorageRef) {
+        return;
+      }
+      try {
+        const ack = buildImportAckMessage({
+          requestId,
+          receiverTabId: tabId,
+          via: 'storage',
+        });
+        localStorageRef.setItem(IMPORT_DELEGATION_STORAGE_ACK_KEY, JSON.stringify(ack));
+      } catch {
+        // ignore storage failures
+      }
+    };
+
+    const processRequest = (requestId: string, rawPayloadParam: string, via: 'broadcast' | 'storage'): void => {
+      if (handledRequestIds.has(requestId)) {
+        return;
+      }
+      handledRequestIds.add(requestId);
+      void processDelegatedImport(requestId, rawPayloadParam, via);
+    };
+
+    const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(IMPORT_DELEGATION_CHANNEL) : null;
+    const onChannelMessage = (event: MessageEvent<unknown>) => {
+      if (!isImportRequestMessage(event.data)) {
+        return;
+      }
+      if (event.data.senderTabId === tabId) {
+        return;
+      }
+
+      const requestId = event.data.requestId;
+      try {
+        channel?.postMessage(
+          buildImportAckMessage({
+            requestId,
+            receiverTabId: tabId,
+            via: 'broadcast',
+          }),
+        );
+      } catch {
+        // ignore broadcast failures
+      }
+
+      processRequest(requestId, event.data.rawPayloadParam, 'broadcast');
+    };
+
+    channel?.addEventListener('message', onChannelMessage);
+
+    const onStorage = (event: StorageEvent) => {
+      if (
+        event.storageArea !== localStorageRef ||
+        event.key !== IMPORT_DELEGATION_STORAGE_REQUEST_KEY ||
+        !event.newValue
+      ) {
+        return;
+      }
+      const request = parseImportRequestStorageValue(event.newValue);
+      if (!request || request.senderTabId === tabId) {
+        return;
+      }
+
+      sendStorageAck(request.requestId);
+      processRequest(request.requestId, request.rawPayloadParam, 'storage');
+    };
+
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      channel?.removeEventListener('message', onChannelMessage);
+      channel?.close();
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [processDelegatedImport, webLockAcquired]);
 
   const updateCreateDraft = React.useCallback(
     (updater: (draft: CreateTournamentDraft) => CreateTournamentDraft) => {

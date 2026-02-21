@@ -7,7 +7,7 @@ import {
   PayloadValidationError,
   type DecodeTournamentPayloadResult,
 } from '@iidx/shared';
-import { extractRawQueryParam } from './payload-url';
+import { IMPORT_CONFIRM_PATH, extractRawQueryParam } from './payload-url';
 
 export type ImportConfirmErrorCode =
   | 'INVALID_PARAM'
@@ -24,6 +24,22 @@ export type ImportConfirmErrorCode =
 export interface ImportConfirmError {
   code: ImportConfirmErrorCode;
   message: string;
+}
+
+export type ImportLocationPayloadResult =
+  | { status: 'none' }
+  | { status: 'invalid'; error: ImportConfirmError }
+  | { status: 'ready'; rawPayloadParam: string; payload: DecodeTournamentPayloadResult['payload'] };
+
+function normalizePathname(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
+export function isImportConfirmPath(pathname: string): boolean {
+  return normalizePathname(pathname) === IMPORT_CONFIRM_PATH;
 }
 
 function normalizeBase64Input(value: string): string {
@@ -46,6 +62,39 @@ export function decodeImportPayload(rawParam: string): DecodeTournamentPayloadRe
   const urlDecoded = decodeURIComponent(rawParam);
   const normalizedBase64 = normalizeBase64Input(urlDecoded);
   return decodeTournamentPayload(normalizedBase64);
+}
+
+export function resolveImportPayloadFromLocation(locationLike: {
+  pathname: string;
+  search: string;
+}): ImportLocationPayloadResult {
+  if (!isImportConfirmPath(locationLike.pathname)) {
+    return { status: 'none' };
+  }
+  const rawPayloadParam = extractRawQueryParam(locationLike.search, 'p');
+  if (!rawPayloadParam || rawPayloadParam.trim().length === 0) {
+    return {
+      status: 'invalid',
+      error: {
+        code: 'INVALID_PARAM',
+        message: 'URLパラメータ p が見つからないか空です。',
+      },
+    };
+  }
+
+  try {
+    const decoded = decodeImportPayload(rawPayloadParam);
+    return {
+      status: 'ready',
+      rawPayloadParam,
+      payload: decoded.payload,
+    };
+  } catch (error) {
+    return {
+      status: 'invalid',
+      error: classifyImportDecodeError(error),
+    };
+  }
 }
 
 export function classifyImportDecodeError(error: unknown): ImportConfirmError {
