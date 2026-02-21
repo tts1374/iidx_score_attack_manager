@@ -1,6 +1,6 @@
 import React from 'react';
 import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
-import { PAYLOAD_VERSION, encodeTournamentPayload, getTournamentStatus, type TournamentPayload } from '@iidx/shared';
+import { PAYLOAD_VERSION, encodeTournamentPayload, type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import {
   AppBar,
@@ -42,7 +42,6 @@ import {
 } from './pages/create-tournament-draft';
 import { useAppServices } from './services/context';
 import { extractQrTextFromImage } from './utils/image';
-import { classifyImportDecodeError, decodeImportPayload } from './utils/import-confirm';
 import {
   IMPORT_DELEGATION_CHANNEL,
   IMPORT_DELEGATION_STORAGE_ACK_KEY,
@@ -933,60 +932,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
   const processDelegatedImport = React.useCallback(
     async (requestId: string, rawPayloadParam: string, via: 'broadcast' | 'storage') => {
-      let payload: TournamentPayload;
-      try {
-        payload = decodeImportPayload(rawPayloadParam).payload;
-      } catch (error) {
-        const decodedError = classifyImportDecodeError(error);
-        pushToast(decodedError.message);
-        appendRuntimeLog({
-          level: 'error',
-          category: 'import-delegation',
-          message: '別タブからの取り込み要求のデコードに失敗しました。',
-          detail: `${decodedError.code}: ${decodedError.message}`,
-        });
-        return;
-      }
-
-      try {
-        if (getTournamentStatus(payload.start, payload.end, todayDate) === 'ended') {
-          pushToast('終了済みの大会は取り込みできません。');
-          return;
-        }
-
-        const hasSongMaster = await appDb.hasSongMaster();
-        if (!hasSongMaster) {
-          pushToast('曲マスタが未取得のため、取り込みできません。');
-          return;
-        }
-
-        const chartDetails = await appDb.listSongMasterChartsByIds(payload.charts);
-        const chartDetailSet = new Set(chartDetails.map((detail) => detail.chartId));
-        const missingChartIds = payload.charts.filter((chartId) => !chartDetailSet.has(chartId));
-        if (missingChartIds.length > 0) {
-          pushToast(`曲マスタに存在しない譜面があるため取り込みできません: ${missingChartIds.join(', ')}`);
-          return;
-        }
-
-        await confirmImport(payload);
-        appendRuntimeLog({
-          level: 'info',
-          category: 'import-delegation',
-          message: '別タブからの取り込み要求を処理しました。',
-          detail: `requestId=${requestId}, via=${via}`,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        pushToast(message);
-        appendRuntimeLog({
-          level: 'error',
-          category: 'import-delegation',
-          message: '別タブからの取り込み要求の処理に失敗しました。',
-          detail: message,
-        });
-      }
+      openImportConfirm(rawPayloadParam);
+      pushToast('別タブから取り込み要求を受信しました。確認画面を開きました。');
+      appendRuntimeLog({
+        level: 'info',
+        category: 'import-delegation',
+        message: '別タブからの取り込み要求を確認画面へ委譲しました。',
+        detail: `requestId=${requestId}, via=${via}`,
+      });
     },
-    [appDb, appendRuntimeLog, confirmImport, pushToast, todayDate],
+    [appendRuntimeLog, openImportConfirm, pushToast],
   );
 
   React.useEffect(() => {
