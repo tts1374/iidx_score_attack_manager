@@ -36,9 +36,10 @@ node scripts/mock-song-master-server.mjs --sqlite ./song_master.sqlite --schema 
 ## GitHub Pages デプロイ
 - 公開先は Project Pages を想定: `https://<user>.github.io/iidx_score_attack_manager/`
 - Vite の `base` は `packages/web-app/vite.config.ts` で `'/iidx_score_attack_manager/'` に設定済み
-- 継続デプロイは `.github/workflows/deploy-pages.yml` で実施
-  - `main` への push で自動実行
-  - `workflow_dispatch` で手動実行
+- デプロイ運用:
+  - `build-song-master.yml`: 毎日 `19:00 UTC`（`04:00 JST`）に起動。最新タグのコードを checkout して曲マスタ資産のみ更新し、PROD に反映
+  - `deploy-stg.yml`: `main` への push（マージ）時に STG へ反映
+  - `deploy-prod.yml`: tag push 時に PROD へ反映
 - GitHub 側設定:
   - `Settings -> Pages -> Source` を `GitHub Actions` に設定
 

@@ -1,8 +1,8 @@
-name: Deploy to GitHub Pages
+name: Build Song Master (Prod by latest tag)
 
 on:
-  push:
-    branches: ["main"]
+  schedule:
+    - cron: "0 19 * * *"
   workflow_dispatch:
 
 permissions:
@@ -11,14 +11,29 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  group: deploy-prod-pages
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout latest tag
+        shell: bash
+        run: |
+          git fetch --force --tags origin
+          LATEST_TAG="$(git for-each-ref refs/tags --sort=-creatordate --format='%(refname:strip=2)' | head -n 1)"
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found."
+            exit 1
+          fi
+          git checkout --force "$LATEST_TAG"
+          echo "Using tag: $LATEST_TAG"
+          git rev-parse HEAD
 
       - uses: pnpm/action-setup@v4
         with:

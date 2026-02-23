@@ -1,0 +1,72 @@
+name: Deploy STG (to separate Pages repo)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-stg
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.0.0"
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/sync-song-master-assets.mjs
+      - run: pnpm --filter @iidx/web-app build
+
+      - name: Write build info
+        shell: bash
+        run: |
+          cat > packages/web-app/dist/build-info.json <<EOF
+          {
+            "env": "staging",
+            "repo": "${{ github.repository }}",
+            "sha": "${{ github.sha }}",
+            "ref": "${{ github.ref }}",
+            "run_id": "${{ github.run_id }}",
+            "built_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+
+      - name: Setup SSH key
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.STG_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Push dist to STG repo
+        shell: bash
+        run: |
+          rm -rf out
+          mkdir out
+          cp -R packages/web-app/dist/. out/
+          cd out
+          git init
+          git branch -M main
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy STG: ${{ github.sha }}"
+          git remote add origin git@github.com:tts1374/iidx_score_attack_manager-stg.git
+          git push --force origin main
