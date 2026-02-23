@@ -40,6 +40,7 @@ node scripts/mock-song-master-server.mjs --sqlite ./song_master.sqlite --schema 
   - `build-song-master.yml`: 毎日 `19:00 UTC`（`04:00 JST`）に起動。最新タグのコードを checkout して曲マスタ資産のみ更新し、PROD に反映
   - `deploy-stg.yml`: `main` への push（マージ）時に STG へ反映
   - `deploy-prod.yml`: tag push 時に PROD へ反映
+  - `VITE_BASE_PATH` で配布先の base path を切り替え（prod: `/iidx_score_attack_manager/`, stg: `/iidx_score_attack_manager-stg/`）
 - GitHub 側設定:
   - `Settings -> Pages -> Source` を `GitHub Actions` に設定
 

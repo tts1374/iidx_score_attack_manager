@@ -7,12 +7,28 @@ const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.met
 };
 const appVersion = typeof packageJson.version === 'string' ? packageJson.version : '0.0.0';
 const buildTime = new Date().toISOString();
+const DEFAULT_BASE_PATH = '/iidx_score_attack_manager/';
+
+function resolveBasePath(): string {
+  const raw = process.env.VITE_BASE_PATH;
+  if (!raw || raw.trim().length === 0) {
+    return DEFAULT_BASE_PATH;
+  }
+
+  let normalized = raw.trim();
+  if (!normalized.startsWith('/')) {
+    normalized = `/${normalized}`;
+  }
+  if (!normalized.endsWith('/')) {
+    normalized = `${normalized}/`;
+  }
+  return normalized;
+}
 
 export default defineConfig({
   plugins: [react()],
-  // Project Pages (https://<user>.github.io/<repo>/) の場合:
-  base: '/iidx_score_attack_manager/',
-  // User Pages (https://<user>.github.io/) の場合は base: '/' に戻す
+  // e.g. /iidx_score_attack_manager/ (prod), /iidx_score_attack_manager-stg/ (stg)
+  base: resolveBasePath(),
   optimizeDeps: {
     exclude: [
       '@sqlite.org/sqlite-wasm',
