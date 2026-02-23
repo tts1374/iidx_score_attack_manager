@@ -76,6 +76,18 @@ function normalizeDbText(value: unknown): string | null {
   return text.length > 0 ? text : null;
 }
 
+function toSongDisplayTitle(title: unknown, titleQualifier: unknown): string | null {
+  const normalizedTitle = normalizeDbText(title);
+  if (!normalizedTitle) {
+    return null;
+  }
+  const normalizedQualifier = normalizeDbText(titleQualifier);
+  if (!normalizedQualifier || normalizedQualifier === '(AC)') {
+    return normalizedTitle;
+  }
+  return `${normalizedTitle}${normalizedQualifier}`;
+}
+
 function isSongSearchDebugEnabled(): boolean {
   const g = globalThis as { __IIDX_DEBUG_SONG_SEARCH__?: unknown; localStorage?: Storage };
   if (g.__IIDX_DEBUG_SONG_SEARCH__ === true) {
@@ -128,6 +140,7 @@ function pickMetaValue(...values: Array<string | null | undefined>): string | nu
 interface SongSearchRow {
   music_id?: unknown;
   title?: unknown;
+  title_qualifier?: unknown;
   version_code?: unknown;
   [key: string]: unknown;
 }
@@ -501,16 +514,21 @@ export class AppDatabase {
     const placeholders = normalizedChartIds.map(() => '?').join(', ');
     const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
     try {
+      const hasTitleQualifierColumn = await this.hasMusicTitleQualifierColumn(dbId);
+      const titleQualifierSelectSql = hasTitleQualifierColumn
+        ? `COALESCE(m.title_qualifier, '') AS title_qualifier`
+        : `'' AS title_qualifier`;
       const rows = await this.client.query<{
         chart_id: number;
         title: unknown;
+        title_qualifier: unknown;
         play_style: unknown;
         difficulty: unknown;
         level: unknown;
       }>({
         dbId,
         sql: `
-          SELECT c.chart_id, m.title, c.play_style, c.difficulty, c.level
+          SELECT c.chart_id, m.title, ${titleQualifierSelectSql}, c.play_style, c.difficulty, c.level
           FROM chart c
           LEFT JOIN music m ON m.music_id = c.music_id
           WHERE c.chart_id IN (${placeholders})
@@ -521,7 +539,7 @@ export class AppDatabase {
 
       return rows.map((row) => {
         const chartId = Number(row.chart_id);
-        const title = normalizeDbText(row.title);
+        const title = toSongDisplayTitle(row.title, row.title_qualifier);
         const playStyle = normalizeDbText(row.play_style);
         const difficulty = normalizeDbText(row.difficulty);
         const level = normalizeDbText(row.level);
@@ -823,6 +841,14 @@ export class AppDatabase {
     return meta.song_master_file_name ?? null;
   }
 
+  private async hasMusicTitleQualifierColumn(dbId: SqliteDbId): Promise<boolean> {
+    const rows = await this.client.query<{ name?: unknown }>({
+      dbId,
+      sql: `PRAGMA table_info('music')`,
+    });
+    return rows.some((row) => normalizeDbText(row.name) === 'title_qualifier');
+  }
+
   async searchSongsByPrefix(prefix: string, limit = 30): Promise<SongSummary[]> {
     const fileName = await this.getSongMasterDbFileName();
     debugSongSearch('search request', { prefix, limit, fileName });
@@ -836,10 +862,14 @@ export class AppDatabase {
     const dbId = await this.client.open({ filename: `file:${SONG_MASTER_DIR}/${fileName}?vfs=opfs&immutable=1` });
     try {
       const likePattern = normalizedPrefix.length > 0 ? `%${normalizedPrefix}%` : '%';
+      const hasTitleQualifierColumn = await this.hasMusicTitleQualifierColumn(dbId);
+      const titleQualifierSelectSql = hasTitleQualifierColumn
+        ? `COALESCE(title_qualifier, '') AS title_qualifier`
+        : `'' AS title_qualifier`;
       const rows = await this.client.query<SongSearchRow>({
         dbId,
         sql: `
-          SELECT music_id, title, COALESCE(version, '') AS version_code
+          SELECT music_id, title, ${titleQualifierSelectSql}, COALESCE(version, '') AS version_code
           FROM music
           WHERE (is_ac_active = 1 OR is_inf_active = 1)
             AND (? = '' OR title_search_key LIKE ?)
@@ -858,10 +888,10 @@ export class AppDatabase {
       const mapped: SongSummary[] = [];
       for (const row of rows) {
         const musicId = Number(row.music_id);
-        const title = typeof row.title === 'string' ? row.title.trim() : String(row.title ?? '').trim();
+        const title = toSongDisplayTitle(row.title, row.title_qualifier);
         const version = row.version_code === null || row.version_code === undefined ? '' : String(row.version_code).trim();
 
-        if (!Number.isFinite(musicId) || musicId <= 0 || title.length === 0) {
+        if (!Number.isFinite(musicId) || musicId <= 0 || !title) {
           debugSongSearch('drop invalid song row', { row });
           continue;
         }
