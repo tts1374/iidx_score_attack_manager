@@ -1,5 +1,5 @@
 import React from 'react';
-import { getTournamentStatus, type TournamentPayload } from '@iidx/shared';
+import { formatHashtagForDisplay, getTournamentStatus, type TournamentPayload } from '@iidx/shared';
 import type { ImportTargetTournament, SongMasterChartDetail } from '@iidx/db';
 
 import { useAppServices } from '../services/context';
@@ -314,7 +314,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
               <p>
                 {preview.payload.start} 〜 {preview.payload.end}
               </p>
-              <p>#{preview.payload.hashtag}</p>
+              <p>{formatHashtagForDisplay(preview.payload.hashtag) || '-'}</p>
             </div>
           </section>
 

@@ -1,4 +1,5 @@
 import type { ChartSummary, CreateTournamentInput, SongSummary } from '@iidx/db';
+import { formatHashtagForDisplay, normalizeHashtag } from '@iidx/shared';
 
 export type CreateTournamentPlayStyle = 'SP' | 'DP';
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -141,7 +142,7 @@ export function resolveCreateTournamentValidation(
 
   const nameError = draft.name.trim().length === 0 ? '大会名を入力してください。' : null;
   const ownerError = draft.owner.trim().length === 0 ? '開催者を入力してください。' : null;
-  const hashtagError = draft.hashtag.trim().length === 0 ? 'ハッシュタグを入力してください。' : null;
+  const hashtagError = normalizeHashtag(draft.hashtag).length === 0 ? 'ハッシュタグを入力してください。' : null;
   const startDateRequiredError = draft.startDate.trim().length === 0 ? '開始日を選択してください。' : null;
   const endDateRequiredError = draft.endDate.trim().length === 0 ? '終了日を選択してください。' : null;
   const startDateError = startDateRequiredError;
@@ -206,7 +207,7 @@ export function buildCreateTournamentInput(draft: CreateTournamentDraft, selecte
     tournamentUuid: draft.tournamentUuid,
     tournamentName: draft.name.trim(),
     owner: draft.owner.trim(),
-    hashtag: draft.hashtag.trim(),
+    hashtag: normalizeHashtag(draft.hashtag),
     startDate: draft.startDate,
     endDate: draft.endDate,
     chartIds: selectedChartIds,
@@ -214,11 +215,7 @@ export function buildCreateTournamentInput(draft: CreateTournamentDraft, selecte
 }
 
 export function normalizeHashtagForDisplay(value: string): string {
-  const normalized = value.trim().replace(/^#+/, '');
-  if (!normalized) {
-    return '';
-  }
-  return `#${normalized}`;
+  return formatHashtagForDisplay(value);
 }
 
 export function resolveSelectedChartOption(row: CreateTournamentChartDraft): ChartSummary | null {

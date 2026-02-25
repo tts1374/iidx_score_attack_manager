@@ -546,6 +546,42 @@ label {
   gap: 8px;
 }
 
+.hashtagInputGroup {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid #d0d8e8;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.hashtagInputGroup:focus-within {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+}
+
+.hashtagInputPrefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 100%;
+  padding: 0 10px;
+  border-right: 1px solid #d0d8e8;
+  background: #f8fafc;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.hashtagInputGroup input {
+  border: 0;
+  border-radius: 0;
+}
+
+.hashtagInputGroup input:focus {
+  outline: none;
+}
+
 .fieldChipLabel {
   justify-self: start;
   padding: 5px 12px;

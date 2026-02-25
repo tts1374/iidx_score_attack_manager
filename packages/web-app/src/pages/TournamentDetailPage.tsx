@@ -1,5 +1,5 @@
 import React from 'react';
-import { PAYLOAD_VERSION, encodeTournamentPayload } from '@iidx/shared';
+import { PAYLOAD_VERSION, encodeTournamentPayload, formatHashtagForDisplay, normalizeHashtag } from '@iidx/shared';
 import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
 import QRCode from 'qrcode';
 import CloseIcon from '@mui/icons-material/Close';
@@ -59,14 +59,14 @@ type SharePosterChart = {
 
 type ChartTaskStatus = 'pending' | 'submitted' | 'error';
 
-function normalizeHashtag(value: string): string {
-  const trimmed = value.trim().replace(/^#+/, '');
-  return trimmed.length > 0 ? trimmed : 'IIDX';
+function optionalHashtag(value: string): string | null {
+  const formatted = formatHashtagForDisplay(value);
+  return formatted.length > 0 ? formatted : null;
 }
 
-function optionalHashtag(value: string): string | null {
-  const trimmed = value.trim().replace(/^#+/, '');
-  return trimmed.length > 0 ? `#${trimmed}` : null;
+function resolveShareHashtag(value: string): string {
+  const normalized = normalizeHashtag(value);
+  return normalized.length > 0 ? normalized : 'IIDX';
 }
 
 function safeFileName(value: string): string {
@@ -543,13 +543,14 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const [needsSendOverrides, setNeedsSendOverrides] = React.useState<Record<number, boolean>>({});
 
   const payload = React.useMemo(() => {
+    const normalizedPayloadHashtag = normalizeHashtag(props.detail.hashtag) || 'IIDX';
     const charts = props.detail.charts.map((chart) => chart.chartId);
     return encodeTournamentPayload({
       v: PAYLOAD_VERSION,
       uuid: props.detail.sourceTournamentUuid ?? props.detail.tournamentUuid,
       name: props.detail.tournamentName,
       owner: props.detail.owner,
-      hashtag: props.detail.hashtag,
+      hashtag: normalizedPayloadHashtag,
       start: props.detail.startDate,
       end: props.detail.endDate,
       charts,
@@ -558,9 +559,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
   const shareUrl = React.useMemo(() => buildImportUrl(payload), [payload]);
   const payloadSizeBytes = React.useMemo(() => new TextEncoder().encode(payload).length, [payload]);
-  const normalizedHashtag = React.useMemo(() => normalizeHashtag(props.detail.hashtag), [props.detail.hashtag]);
-  const shareText = React.useMemo(() => `#${normalizedHashtag} ${shareUrl} `, [normalizedHashtag, shareUrl]);
-  const submitMessageText = React.useMemo(() => `#${normalizedHashtag} `, [normalizedHashtag]);
+  const shareHashtag = React.useMemo(() => resolveShareHashtag(props.detail.hashtag), [props.detail.hashtag]);
+  const shareText = React.useMemo(() => `#${shareHashtag} ${shareUrl} `, [shareHashtag, shareUrl]);
+  const submitMessageText = React.useMemo(() => `#${shareHashtag} `, [shareHashtag]);
   const statusInfo = React.useMemo(
     () => resolveTournamentCardStatus(props.detail.startDate, props.detail.endDate, props.todayDate),
     [props.detail.endDate, props.detail.startDate, props.todayDate],

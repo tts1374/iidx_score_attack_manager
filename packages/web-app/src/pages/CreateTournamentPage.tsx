@@ -1,7 +1,7 @@
 import React from 'react';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { ChartSummary, SongSummary } from '@iidx/db';
-import { PAYLOAD_VERSION, buildTournamentDefHash, normalizeSearchText } from '@iidx/shared';
+import { PAYLOAD_VERSION, buildTournamentDefHash, normalizeHashtag, normalizeSearchText } from '@iidx/shared';
 import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -225,7 +225,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         uuid: draft.tournamentUuid,
         name: draft.name.trim(),
         owner: draft.owner.trim(),
-        hashtag: draft.hashtag.trim(),
+        hashtag: normalizeHashtag(draft.hashtag),
         start: draft.startDate,
         end: draft.endDate,
         charts: validation.selectedChartIds,
@@ -349,6 +349,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               <input
                 maxLength={50}
                 value={draft.name}
+                placeholder="例）スコアタ2026"
                 onChange={(event) => {
                   const value = event.target.value;
                   props.onDraftChange((current) => ({ ...current, name: value }));
@@ -362,6 +363,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               <input
                 maxLength={50}
                 value={draft.owner}
+                placeholder="例）IIDX部"
                 onChange={(event) => {
                   const value = event.target.value;
                   props.onDraftChange((current) => ({ ...current, owner: value }));
@@ -372,14 +374,20 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
             <label className="createField">
               <span className="fieldChipLabel">ハッシュタグ *</span>
-              <input
-                maxLength={50}
-                value={draft.hashtag}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  props.onDraftChange((current) => ({ ...current, hashtag: value }));
-                }}
-              />
+              <div className="hashtagInputGroup">
+                <span className="hashtagInputPrefix" aria-hidden="true">
+                  #
+                </span>
+                <input
+                  maxLength={50}
+                  value={draft.hashtag}
+                  placeholder="例）スコアタ2026"
+                  onChange={(event) => {
+                    const value = event.target.value.replace(/^[#＃]+/u, '');
+                    props.onDraftChange((current) => ({ ...current, hashtag: value }));
+                  }}
+                />
+              </div>
               {validation.hashtagError ? <p className="errorText createInlineError">{validation.hashtagError}</p> : null}
             </label>
 

@@ -135,6 +135,25 @@ describe('TournamentDetailPage', () => {
     expect(screen.getByRole('button', { name: '送信完了にする' })).toBeTruthy();
   });
 
+  it('normalizes japanese hashtag for submit message', async () => {
+    render(
+      <TournamentDetailPage
+        detail={buildDetail({ hashtag: '  ＃スコア タ  ' })}
+        todayDate="2026-02-10"
+        onOpenSubmit={() => undefined}
+        onUpdated={() => undefined}
+        onOpenSettings={() => undefined}
+        debugModeEnabled={false}
+        debugLastError={null}
+        onReportDebugError={() => undefined}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: '送信する' }));
+    const submitMessageInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
+    expect(submitMessageInput.value).toBe('#スコアタ ');
+  });
+
   it('clears send pending only after explicit completion action', async () => {
     render(
       <TournamentDetailPage

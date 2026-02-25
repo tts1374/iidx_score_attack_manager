@@ -82,6 +82,16 @@ describe('create tournament draft helpers', () => {
     expect(invalid.duplicateChartIds.has(1001)).toBe(true);
   });
 
+  it('treats hash-only hashtag as empty', () => {
+    const draft = {
+      ...buildValidDraft(),
+      hashtag: '  ###  ',
+    };
+    const validation = resolveCreateTournamentValidation(draft, '2026-02-15');
+    expect(validation.hashtagError).toBe('ハッシュタグを入力してください。');
+    expect(validation.canProceed).toBe(false);
+  });
+
   it('builds db input with trimmed text values', () => {
     const draft = buildValidDraft();
     const validation = resolveCreateTournamentValidation(draft, '2026-02-15');
@@ -101,11 +111,24 @@ describe('create tournament draft helpers', () => {
     expect(normalizeHashtagForDisplay('abc')).toBe('#abc');
     expect(normalizeHashtagForDisplay('#abc')).toBe('#abc');
     expect(normalizeHashtagForDisplay('###abc')).toBe('#abc');
+    expect(normalizeHashtagForDisplay('＃スコアタ')).toBe('#スコアタ');
+    expect(normalizeHashtagForDisplay('###大会 2026')).toBe('#大会2026');
+    expect(normalizeHashtagForDisplay('  全角 スペース  ')).toBe('#全角スペース');
     expect(normalizeHashtagForDisplay('')).toBe('');
 
     const row = buildValidDraft().rows[0]!;
     const selected = resolveSelectedChartOption(row);
     expect(selected?.chartId).toBe(1001);
+  });
+
+  it('normalizes hashtag before building db input', () => {
+    const draft = {
+      ...buildValidDraft(),
+      hashtag: '  ###　大会 2026  ',
+    };
+    const validation = resolveCreateTournamentValidation(draft, '2026-02-15');
+    const input = buildCreateTournamentInput(draft, validation.selectedChartIds);
+    expect(input.hashtag).toBe('大会2026');
   });
 
   it('rejects period when end date is before today', () => {

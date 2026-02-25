@@ -11,6 +11,10 @@ import {
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LEADING_HASHTAG_RE = /^[#＃]+/u;
+const EDGE_SPACE_RE = /^[\s\u3000]+|[\s\u3000]+$/gu;
+const ALL_SPACE_RE = /[\s\u3000]+/gu;
+const CONTROL_CHAR_RE = /[\u0000-\u001F\u007F]/gu;
 
 function normalizeText(input: unknown, field: string): string {
   if (typeof input !== 'string') {
@@ -22,6 +26,39 @@ function normalizeText(input: unknown, field: string): string {
   }
   if (normalized.length > TOURNAMENT_TEXT_MAX) {
     throw new PayloadValidationError(`${field} exceeds max length`);
+  }
+  return normalized;
+}
+
+export function normalizeHashtag(value: string): string {
+  let normalized = value;
+  normalized = normalized.replace(LEADING_HASHTAG_RE, '');
+  normalized = normalized.normalize('NFKC');
+  normalized = normalized.replace(EDGE_SPACE_RE, '');
+  normalized = normalized.replace(ALL_SPACE_RE, '');
+  normalized = normalized.replace(CONTROL_CHAR_RE, '');
+  normalized = normalized.replace(LEADING_HASHTAG_RE, '');
+  if (normalized.length > TOURNAMENT_TEXT_MAX) {
+    normalized = normalized.slice(0, TOURNAMENT_TEXT_MAX);
+  }
+  return normalized;
+}
+
+export function formatHashtagForDisplay(value: string): string {
+  const normalized = normalizeHashtag(value);
+  if (normalized.length === 0) {
+    return '';
+  }
+  return `#${normalized}`;
+}
+
+function normalizeHashtagField(input: unknown, field: string): string {
+  if (typeof input !== 'string') {
+    throw new PayloadValidationError(`${field} must be string`);
+  }
+  const normalized = normalizeHashtag(input);
+  if (normalized.length === 0) {
+    throw new PayloadValidationError(`${field} is required`);
   }
   return normalized;
 }
@@ -93,7 +130,7 @@ export function normalizeTournamentPayload(
     uuid: normalizeUuid(raw.uuid),
     name: normalizeText(raw.name, 'name'),
     owner: normalizeText(raw.owner, 'owner'),
-    hashtag: normalizeText(raw.hashtag, 'hashtag'),
+    hashtag: normalizeHashtagField(raw.hashtag, 'hashtag'),
     start,
     end,
     charts: normalizeCharts(raw.charts),

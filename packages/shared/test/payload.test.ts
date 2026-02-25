@@ -27,6 +27,26 @@ describe('payload encode/decode', () => {
     expect(normalized.charts).toEqual([200, 100]);
   });
 
+  it('normalizes hashtag with hash prefixes and spaces', () => {
+    const normalized = normalizeTournamentPayload({
+      ...validPayload,
+      hashtag: '  ###　大会 2026  ',
+    });
+    expect(normalized.hashtag).toBe('大会2026');
+  });
+
+  it('clamps long hashtag length', () => {
+    const normalized = normalizeTournamentPayload({
+      ...validPayload,
+      hashtag: `#${'a'.repeat(80)}`,
+    });
+    expect(normalized.hashtag).toHaveLength(50);
+  });
+
+  it('rejects hashtag that becomes empty after normalization', () => {
+    expect(() => normalizeTournamentPayload({ ...validPayload, hashtag: '###' })).toThrowError(PayloadValidationError);
+  });
+
   it('encodes then decodes while preserving chart order', () => {
     const encoded = encodeTournamentPayload(validPayload);
     const decoded = decodeTournamentPayload(encoded);

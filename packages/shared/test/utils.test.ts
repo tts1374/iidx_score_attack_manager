@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   getSubmissionState,
   buildEvidenceFileName,
+  formatHashtagForDisplay,
   normalizeSearchText,
+  normalizeHashtag,
   sha256Text,
   validateTournamentInput,
 } from '../src/index.js';
@@ -36,6 +38,29 @@ describe('misc utilities', () => {
       '2026-01-01',
     );
     expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('normalizes hashtag with japanese input', () => {
+    expect(normalizeHashtag('#IIDX')).toBe('IIDX');
+    expect(normalizeHashtag('＃スコアタ')).toBe('スコアタ');
+    expect(normalizeHashtag('###大会2026')).toBe('大会2026');
+    expect(normalizeHashtag('  全角 スペース  ')).toBe('全角スペース');
+    expect(formatHashtagForDisplay('###大会 2026')).toBe('#大会2026');
+  });
+
+  it('requires non-empty hashtag after normalization', () => {
+    const errors = validateTournamentInput(
+      {
+        tournamentName: '大会',
+        owner: '開催者',
+        hashtag: '  ###  ',
+        startDate: '2026-02-01',
+        endDate: '2026-02-02',
+        chartIds: [1],
+      },
+      '2026-01-01',
+    );
+    expect(errors).toContain('ハッシュタグを入力してください。');
   });
 
   it('normalizes search text with replacement table', () => {

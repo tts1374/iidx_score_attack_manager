@@ -1,4 +1,5 @@
 import { TOURNAMENT_MAX_CHARTS, TOURNAMENT_TEXT_MAX } from './types.js';
+import { normalizeHashtag } from './normalize.js';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -13,6 +14,7 @@ export interface TournamentInput {
 
 export function validateTournamentInput(input: TournamentInput, todayDate: string): string[] {
   const errors: string[] = [];
+  const normalizedHashtag = normalizeHashtag(input.hashtag);
 
   if (!input.tournamentName.trim()) {
     errors.push('大会名を入力してください。');
@@ -26,10 +28,8 @@ export function validateTournamentInput(input: TournamentInput, todayDate: strin
     errors.push('開催者は50文字以内で入力してください。');
   }
 
-  if (!input.hashtag.trim()) {
+  if (!normalizedHashtag) {
     errors.push('ハッシュタグを入力してください。');
-  } else if (input.hashtag.trim().length > TOURNAMENT_TEXT_MAX) {
-    errors.push('ハッシュタグは50文字以内で入力してください。');
   }
 
   if (!ISO_DATE_RE.test(input.startDate)) {

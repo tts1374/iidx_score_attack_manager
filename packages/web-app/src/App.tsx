@@ -1,6 +1,6 @@
 import React from 'react';
 import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
-import { PAYLOAD_VERSION, encodeTournamentPayload, type TournamentPayload } from '@iidx/shared';
+import { PAYLOAD_VERSION, encodeTournamentPayload, normalizeHashtag, type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import {
   AppBar,
@@ -57,6 +57,9 @@ import {
   buildImportConfirmPath,
   resolveRawImportPayloadParam,
 } from './utils/payload-url';
+import { consumeWhatsNewVisibility } from './utils/whats-new';
+import { CURRENT_VERSION } from './version';
+import { WHATS_NEW_LINES, WHATS_NEW_MODAL_DESCRIPTION, WHATS_NEW_MODAL_TITLE } from './whats-new-content';
 
 function todayJst(): string {
   const now = new Date();
@@ -130,8 +133,6 @@ const INITIAL_SONG_MASTER_META: Record<string, string | null> = {
   last_song_master_downloaded_at: null,
 };
 
-const APP_VERSION =
-  typeof __APP_VERSION__ === 'string' && __APP_VERSION__.trim().length > 0 ? __APP_VERSION__ : '-';
 const BUILD_TIME =
   typeof __BUILD_TIME__ === 'string' && __BUILD_TIME__.trim().length > 0 ? __BUILD_TIME__ : '-';
 const SW_VERSION_REQUEST_TIMEOUT_MS = 1500;
@@ -353,6 +354,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [debugModeEnabled, setDebugModeEnabled] = React.useState(() => readDebugMode());
   const [detailTechnicalDialogOpen, setDetailTechnicalDialogOpen] = React.useState(false);
   const [detailDebugLastError, setDetailDebugLastError] = React.useState<string | null>(null);
+  const [whatsNewDialogOpen, setWhatsNewDialogOpen] = React.useState(false);
   const appTabIdRef = React.useRef<string>(crypto.randomUUID());
   const handledDelegationRequestIdsRef = React.useRef<Set<string>>(new Set());
 
@@ -365,7 +367,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const swStatus = resolveServiceWorkerStatus(pwaUpdate, hasSwController);
   const appInfoSnapshot = React.useMemo<AppInfoCardData>(
     () => ({
-      appVersion: APP_VERSION,
+      appVersion: CURRENT_VERSION,
       buildTime: BUILD_TIME,
       swStatus,
       swVersion: appInfoDetails.swVersion,
@@ -392,17 +394,21 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     if (!detail) {
       return 0;
     }
-    const payload = encodeTournamentPayload({
-      v: PAYLOAD_VERSION,
-      uuid: detail.sourceTournamentUuid ?? detail.tournamentUuid,
-      name: detail.tournamentName,
-      owner: detail.owner,
-      hashtag: detail.hashtag,
-      start: detail.startDate,
-      end: detail.endDate,
-      charts: detail.charts.map((chart) => chart.chartId),
-    });
-    return new TextEncoder().encode(payload).length;
+    try {
+      const payload = encodeTournamentPayload({
+        v: PAYLOAD_VERSION,
+        uuid: detail.sourceTournamentUuid ?? detail.tournamentUuid,
+        name: detail.tournamentName,
+        owner: detail.owner,
+        hashtag: normalizeHashtag(detail.hashtag) || 'IIDX',
+        start: detail.startDate,
+        end: detail.endDate,
+        charts: detail.charts.map((chart) => chart.chartId),
+      });
+      return new TextEncoder().encode(payload).length;
+    } catch {
+      return 0;
+    }
   }, [detail]);
   const detailTechnicalInfo = React.useMemo(() => {
     if (!detail) {
@@ -493,6 +499,19 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const closeCreateFabTooltip = React.useCallback(() => {
     setShowCreateFabTooltip(false);
   }, []);
+  const closeWhatsNewDialog = React.useCallback(() => {
+    setWhatsNewDialogOpen(false);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isHomeRoute) {
+      return;
+    }
+    if (!consumeWhatsNewVisibility(CURRENT_VERSION)) {
+      return;
+    }
+    setWhatsNewDialogOpen(true);
+  }, [isHomeRoute]);
 
   React.useEffect(() => {
     if (!isHomeRoute) {
@@ -1542,6 +1561,27 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           onDetected={handleDetectedImportQr}
           onOpenTextImport={openTextImportFromQrError}
         />
+
+        <Dialog open={whatsNewDialogOpen} onClose={closeWhatsNewDialog} fullWidth maxWidth="sm">
+          <DialogTitle>{WHATS_NEW_MODAL_TITLE}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              {WHATS_NEW_MODAL_DESCRIPTION}
+            </Typography>
+            <Box component="ul" sx={{ margin: 0, paddingLeft: 3, display: 'grid', gap: 1 }}>
+              {WHATS_NEW_LINES.map((line) => (
+                <Typography key={line} component="li" variant="body2">
+                  {line}
+                </Typography>
+              ))}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button variant="contained" onClick={closeWhatsNewDialog}>
+              閉じる
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Dialog
           open={Boolean(debugModeEnabled && detailTechnicalDialogOpen && detailTechnicalInfo)}
