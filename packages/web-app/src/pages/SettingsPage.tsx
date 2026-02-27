@@ -785,7 +785,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         <Accordion disableGutters elevation={0} sx={accordionSx}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="body2" fontWeight={700}>
-              詳細
+              {t('common.detail')}
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ pt: 0, display: 'grid', gap: 2 }}>
@@ -900,13 +900,16 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         <Accordion disableGutters elevation={0} sx={accordionSx}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="body2" fontWeight={700}>
-              詳細
+              {t('common.detail')}
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ pt: 0 }}>
             <List dense disablePadding>
               {row('直近実行日時', fmtDate(props.lastCleanupResult?.executedAt ?? null))}
-              {row('削除画像枚数', props.lastCleanupResult ? `${props.lastCleanupResult.deletedImageCount} 枚` : '-')}
+              {row(
+                '削除画像枚数',
+                props.lastCleanupResult ? t('common.images_with_count', { count: props.lastCleanupResult.deletedImageCount }) : '-',
+              )}
               {row('解放容量', props.lastCleanupResult ? fmtBytes(props.lastCleanupResult.releasedBytes) : '-')}
             </List>
           </AccordionDetails>
@@ -977,7 +980,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="subtitle2">直近エラーログ</Typography>
                 <Button variant="outlined" size="small" startIcon={<ContentCopyIcon />} onClick={() => void copyLogs()}>
-                  copy
+                  {t('common.copy')}
                 </Button>
               </Stack>
               <Stack spacing={0.5}>
@@ -1041,7 +1044,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeResetGuideDialog} disabled={resetRunning}>
-            キャンセル
+            {t('common.cancel')}
           </Button>
           <Button color="error" variant="outlined" onClick={proceedResetConfirmation} disabled={resetRunning}>
             次へ
@@ -1072,7 +1075,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeResetFinalDialog} disabled={resetRunning}>
-            キャンセル
+            {t('common.cancel')}
           </Button>
           <Button
             color="error"
@@ -1093,7 +1096,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRefetchConfirmOpen(false)}>キャンセル</Button>
+          <Button onClick={() => setRefetchConfirmOpen(false)}>{t('common.cancel')}</Button>
           <Button color="error" variant="contained" onClick={() => void runRefetch()}>
             実行
           </Button>
@@ -1119,7 +1122,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           ) : null}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRefetchProgressOpen(false)}>閉じる</Button>
+          <Button onClick={() => setRefetchProgressOpen(false)}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
 
@@ -1144,7 +1147,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCleanupDialogOpen(false)} disabled={cleanupRunning}>
-            閉じる
+            {t('common.close')}
           </Button>
           <Button
             color="error"
@@ -1164,7 +1167,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCleanupConfirmOpen(false)} disabled={cleanupRunning}>
-            キャンセル
+            {t('common.cancel')}
           </Button>
           <Button color="error" variant="contained" onClick={() => void runCleanup()} disabled={cleanupRunning}>
             最終確認して実行

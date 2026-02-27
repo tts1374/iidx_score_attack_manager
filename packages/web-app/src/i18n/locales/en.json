@@ -1,29 +1,30 @@
 {
-  "common": {
-    "detail": "Details",
-    "close": "Close",
-    "copy": "Copy",
-    "share": "Share",
-    "cancel": "Cancel",
-    "next": "Next",
-    "execute": "Run",
-    "not_available": "-",
-    "unknown": "Unknown"
-  },
-  "settings": {
-    "title": "Settings",
-    "language": {
-      "title": "Language",
-      "label": "Display language",
-      "option": {
-        "ja": "Japanese",
-        "en": "English",
-        "ko": "Korean"
-      },
-      "toast": {
-        "changed": "Display language changed to {{language}}.",
-        "change_failed": "Failed to change display language."
-      }
-    }
-  }
+    "common":  {
+                   "detail":  "Details",
+                   "close":  "Close",
+                   "copy":  "Copy",
+                   "share":  "Share",
+                   "cancel":  "Cancel",
+                   "next":  "Next",
+                   "execute":  "Run",
+                   "not_available":  "-",
+                   "unknown":  "Unknown",
+                   "images_with_count":  "{{count}} images"
+               },
+    "settings":  {
+                     "title":  "Settings",
+                     "language":  {
+                                      "title":  "Language",
+                                      "label":  "Display language",
+                                      "option":  {
+                                                     "ja":  "Japanese",
+                                                     "en":  "English",
+                                                     "ko":  "Korean"
+                                                 },
+                                      "toast":  {
+                                                    "changed":  "Display language changed to {{language}}.",
+                                                    "change_failed":  "Failed to change display language."
+                                                }
+                                  }
+                 }
 }
