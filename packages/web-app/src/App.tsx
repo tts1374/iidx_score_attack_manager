@@ -1936,6 +1936,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   color={homeHasNonDefaultQuery ? 'primary' : 'inherit'}
                   aria-label="home-filter"
                   onClick={() => openHomeFilterSheet()}
+                  sx={{ mr: 1 }}
                 >
                   <Badge color="primary" variant="dot" invisible={!homeHasNonDefaultQuery}>
                     <FilterListIcon />
