@@ -167,6 +167,11 @@ function writeDebugMode(enabled: boolean): void {
   }
 }
 const HOME_CREATE_FAB_TOOLTIP_KEY = 'iidx.home.create-fab-tooltip-seen';
+const HOME_STATE_SETTING_KEY = 'home.state';
+const HOME_SEARCH_TEXT_SETTING_KEY = 'home.searchText';
+const HOME_FILTER_CATEGORY_SETTING_KEY = 'home.filter.category';
+const HOME_FILTER_ATTRS_SETTING_KEY = 'home.filter.attrs';
+const HOME_SORT_SETTING_KEY = 'home.sort';
 
 type HomeFilterCategory = 'none' | 'pending' | 'completed';
 type HomeFilterAttr = 'send-waiting' | 'imported' | 'created';
@@ -666,6 +671,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [homeSearchMode, setHomeSearchMode] = React.useState(false);
   const [homeFilterSheetOpen, setHomeFilterSheetOpen] = React.useState(false);
   const [homeFilterFocusSection, setHomeFilterFocusSection] = React.useState<HomeFilterSheetFocusSection>(null);
+  const [homeQueryReady, setHomeQueryReady] = React.useState(false);
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [songMasterReady, setSongMasterReady] = React.useState(false);
@@ -932,6 +938,19 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [homeFilterFocusSection, homeFilterSheetOpen]);
 
+  React.useEffect(() => {
+    if (!homeQueryReady) {
+      return;
+    }
+    void Promise.all([
+      appDb.setSetting(HOME_STATE_SETTING_KEY, homeQuery.state),
+      appDb.setSetting(HOME_SEARCH_TEXT_SETTING_KEY, homeQuery.searchText),
+      appDb.setSetting(HOME_FILTER_CATEGORY_SETTING_KEY, homeQuery.category),
+      appDb.setSetting(HOME_FILTER_ATTRS_SETTING_KEY, JSON.stringify(normalizeHomeAttrs(homeQuery.attrs))),
+      appDb.setSetting(HOME_SORT_SETTING_KEY, homeQuery.sort),
+    ]).catch(() => undefined);
+  }, [appDb, homeQuery, homeQueryReady]);
+
   const pushRoute = React.useCallback((next: RouteState) => {
     setRouteStack((previous) => [...previous, next]);
   }, []);
@@ -1051,6 +1070,23 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     },
     [],
   );
+
+  const loadHomeQueryState = React.useCallback(async (): Promise<HomeQueryState> => {
+    const [stateValue, searchValue, categoryValue, attrsValue, sortValue] = await Promise.all([
+      appDb.getSetting(HOME_STATE_SETTING_KEY),
+      appDb.getSetting(HOME_SEARCH_TEXT_SETTING_KEY),
+      appDb.getSetting(HOME_FILTER_CATEGORY_SETTING_KEY),
+      appDb.getSetting(HOME_FILTER_ATTRS_SETTING_KEY),
+      appDb.getSetting(HOME_SORT_SETTING_KEY),
+    ]);
+
+    const state = stateValue && isTournamentTab(stateValue) ? stateValue : HOME_DEFAULT_QUERY_STATE.state;
+    const searchText = searchValue ? normalizeHomeSearchText(searchValue) : HOME_DEFAULT_QUERY_STATE.searchText;
+    const category = categoryValue && isHomeFilterCategory(categoryValue) ? categoryValue : HOME_DEFAULT_QUERY_STATE.category;
+    const attrs = normalizeHomeAttrs(parseHomeFilterAttrs(attrsValue));
+    const sort = sortValue && isHomeSort(sortValue) ? sortValue : HOME_DEFAULT_QUERY_STATE.sort;
+    return { state, searchText, category, attrs, sort };
+  }, [appDb]);
 
   const refreshTournamentList = React.useCallback(async () => {
     const [active, upcoming, ended] = await Promise.all([
@@ -1249,11 +1285,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           });
         }
         await refreshSettingsSnapshot();
+        const restoredHomeQuery = await loadHomeQueryState();
         await refreshTournamentList();
         if (mounted) {
-          const initialHomeQuery = createDefaultHomeQueryState();
-          setHomeQuery(initialHomeQuery);
-          setHomeFilterDraft(initialHomeQuery);
+          setHomeQuery(restoredHomeQuery);
+          setHomeFilterDraft(restoredHomeQuery);
+          setHomeQueryReady(true);
         }
 
         if (import.meta.env.DEV) {
@@ -1297,7 +1334,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     return () => {
       mounted = false;
     };
-  }, [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, refreshTournamentList]);
+  }, [appDb, appendRuntimeLog, loadHomeQueryState, pushToast, refreshSettingsSnapshot, refreshTournamentList]);
 
   React.useEffect(() => {
     if (route.name !== 'settings') {
