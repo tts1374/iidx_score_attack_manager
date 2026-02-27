@@ -4,12 +4,18 @@ import { PAYLOAD_VERSION, encodeTournamentPayload, normalizeHashtag, type Tourna
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import {
   AppBar,
+  Badge,
   Box,
   Button,
+  Checkbox,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Drawer,
+  FormControlLabel,
+  FormGroup,
   IconButton,
   InputBase,
   Menu,
@@ -17,6 +23,8 @@ import {
   SpeedDial,
   SpeedDialAction,
   Toolbar,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -24,6 +32,7 @@ import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import SearchIcon from '@mui/icons-material/Search';
@@ -31,7 +40,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { ImportQrScannerDialog } from './components/ImportQrScannerDialog';
 import { UnsupportedScreen } from './components/UnsupportedScreen';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
-import { HomePage } from './pages/HomePage';
+import { HomePage, sortForActiveTab } from './pages/HomePage';
 import { ImportConfirmPage } from './pages/ImportConfirmPage';
 import { ImportTournamentPage } from './pages/ImportTournamentPage';
 import { SettingsPage, type AppInfoCardData, type AppSwStatus } from './pages/SettingsPage';
@@ -158,6 +167,51 @@ function writeDebugMode(enabled: boolean): void {
 }
 const HOME_CREATE_FAB_TOOLTIP_KEY = 'iidx.home.create-fab-tooltip-seen';
 
+type HomeFilterCategory = 'none' | 'pending' | 'completed';
+type HomeFilterAttr = 'send-waiting' | 'imported' | 'created';
+type HomeSort = 'default' | 'deadline' | 'progress-low' | 'send-waiting-high' | 'name';
+type HomeFilterSheetFocusSection = 'state' | 'category' | 'attrs' | 'sort' | null;
+
+interface HomeQueryState {
+  state: TournamentTab;
+  searchText: string;
+  category: HomeFilterCategory;
+  attrs: HomeFilterAttr[];
+  sort: HomeSort;
+}
+
+interface HomeTournamentBuckets {
+  active: TournamentListItem[];
+  upcoming: TournamentListItem[];
+  ended: TournamentListItem[];
+}
+
+const HOME_DEFAULT_QUERY_STATE: HomeQueryState = {
+  state: 'active',
+  searchText: '',
+  category: 'none',
+  attrs: [],
+  sort: 'default',
+};
+
+function createDefaultHomeQueryState(): HomeQueryState {
+  return {
+    state: HOME_DEFAULT_QUERY_STATE.state,
+    searchText: HOME_DEFAULT_QUERY_STATE.searchText,
+    category: HOME_DEFAULT_QUERY_STATE.category,
+    attrs: [],
+    sort: HOME_DEFAULT_QUERY_STATE.sort,
+  };
+}
+
+const EMPTY_HOME_TOURNAMENT_BUCKETS: HomeTournamentBuckets = {
+  active: [],
+  upcoming: [],
+  ended: [],
+};
+
+const HOME_FILTER_ATTR_VALUES: readonly HomeFilterAttr[] = ['send-waiting', 'imported', 'created'];
+
 function normalizeAsciiLowercase(value: string): string {
   return value.replace(/[A-Z]/g, (char) => char.toLowerCase());
 }
@@ -194,6 +248,254 @@ function hasAllSearchTokens(item: TournamentListItem, tokens: readonly string[])
     normalizeHomeSearchField(item.hashtag),
   ];
   return tokens.every((token) => fields.some((field) => field.includes(token)));
+}
+
+function hasCategory(item: TournamentListItem, category: HomeFilterCategory): boolean {
+  if (category === 'pending') {
+    return item.submittedCount < item.chartCount;
+  }
+  if (category === 'completed') {
+    return item.submittedCount === item.chartCount;
+  }
+  return true;
+}
+
+function hasAttr(item: TournamentListItem, attr: HomeFilterAttr): boolean {
+  if (attr === 'send-waiting') {
+    return item.sendWaitingCount > 0;
+  }
+  if (attr === 'imported') {
+    return item.isImported;
+  }
+  return !item.isImported;
+}
+
+function compareNameAndIdentity(a: TournamentListItem, b: TournamentListItem): number {
+  const nameComparison = a.tournamentName.localeCompare(b.tournamentName, 'ja');
+  if (nameComparison !== 0) {
+    return nameComparison;
+  }
+  return a.tournamentUuid.localeCompare(b.tournamentUuid);
+}
+
+function compareEndThenStartAscending(a: TournamentListItem, b: TournamentListItem): number {
+  const endDateComparison = a.endDate.localeCompare(b.endDate);
+  if (endDateComparison !== 0) {
+    return endDateComparison;
+  }
+  const startDateComparison = a.startDate.localeCompare(b.startDate);
+  if (startDateComparison !== 0) {
+    return startDateComparison;
+  }
+  return compareNameAndIdentity(a, b);
+}
+
+function compareStartThenEndAscending(a: TournamentListItem, b: TournamentListItem): number {
+  const startDateComparison = a.startDate.localeCompare(b.startDate);
+  if (startDateComparison !== 0) {
+    return startDateComparison;
+  }
+  const endDateComparison = a.endDate.localeCompare(b.endDate);
+  if (endDateComparison !== 0) {
+    return endDateComparison;
+  }
+  return compareNameAndIdentity(a, b);
+}
+
+function compareEndThenStartDescending(a: TournamentListItem, b: TournamentListItem): number {
+  const endDateComparison = b.endDate.localeCompare(a.endDate);
+  if (endDateComparison !== 0) {
+    return endDateComparison;
+  }
+  const startDateComparison = b.startDate.localeCompare(a.startDate);
+  if (startDateComparison !== 0) {
+    return startDateComparison;
+  }
+  return compareNameAndIdentity(a, b);
+}
+
+function progressRatio(item: TournamentListItem): number {
+  if (item.chartCount <= 0) {
+    return 1;
+  }
+  return item.submittedCount / item.chartCount;
+}
+
+function sortHomeItems(items: TournamentListItem[], query: HomeQueryState): TournamentListItem[] {
+  if (items.length <= 1) {
+    return items;
+  }
+
+  if (query.sort === 'default' && query.state !== 'active') {
+    return items;
+  }
+
+  const sorted = [...items];
+  switch (query.sort) {
+    case 'default':
+      sorted.sort(sortForActiveTab);
+      return sorted;
+    case 'deadline':
+      if (query.state === 'upcoming') {
+        sorted.sort(compareStartThenEndAscending);
+        return sorted;
+      }
+      if (query.state === 'ended') {
+        sorted.sort(compareEndThenStartDescending);
+        return sorted;
+      }
+      sorted.sort(compareEndThenStartAscending);
+      return sorted;
+    case 'progress-low':
+      sorted.sort((a, b) => {
+        const progressComparison = progressRatio(a) - progressRatio(b);
+        if (progressComparison !== 0) {
+          return progressComparison;
+        }
+        return compareEndThenStartAscending(a, b);
+      });
+      return sorted;
+    case 'send-waiting-high':
+      sorted.sort((a, b) => {
+        const waitingComparison = b.sendWaitingCount - a.sendWaitingCount;
+        if (waitingComparison !== 0) {
+          return waitingComparison;
+        }
+        return compareEndThenStartAscending(a, b);
+      });
+      return sorted;
+    case 'name':
+      sorted.sort((a, b) => {
+        const nameComparison = compareNameAndIdentity(a, b);
+        if (nameComparison !== 0) {
+          return nameComparison;
+        }
+        return compareEndThenStartAscending(a, b);
+      });
+      return sorted;
+    default:
+      return sorted;
+  }
+}
+
+function applyHomeQueryState(
+  buckets: HomeTournamentBuckets,
+  query: HomeQueryState,
+): TournamentListItem[] {
+  const baseItems = buckets[query.state];
+  const tokens = homeSearchTokens(query.searchText);
+  const filtered = baseItems.filter((item) => {
+    if (!hasAllSearchTokens(item, tokens)) {
+      return false;
+    }
+    if (!hasCategory(item, query.category)) {
+      return false;
+    }
+    for (const attr of query.attrs) {
+      if (!hasAttr(item, attr)) {
+        return false;
+      }
+    }
+    return true;
+  });
+  return sortHomeItems(filtered, query);
+}
+
+function isTournamentTab(value: string): value is TournamentTab {
+  return value === 'active' || value === 'upcoming' || value === 'ended';
+}
+
+function isHomeSort(value: string): value is HomeSort {
+  return value === 'default' || value === 'deadline' || value === 'progress-low' || value === 'send-waiting-high' || value === 'name';
+}
+
+function isHomeFilterCategory(value: string): value is HomeFilterCategory {
+  return value === 'none' || value === 'pending' || value === 'completed';
+}
+
+function parseHomeFilterAttrs(raw: string | null): HomeFilterAttr[] {
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    const deduped = new Set<HomeFilterAttr>();
+    for (const value of parsed) {
+      if (typeof value !== 'string') {
+        continue;
+      }
+      if (HOME_FILTER_ATTR_VALUES.includes(value as HomeFilterAttr)) {
+        deduped.add(value as HomeFilterAttr);
+      }
+    }
+    return [...deduped];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeHomeAttrs(attrs: readonly HomeFilterAttr[]): HomeFilterAttr[] {
+  const deduped = new Set<HomeFilterAttr>();
+  for (const attr of attrs) {
+    deduped.add(attr);
+  }
+  return [...HOME_FILTER_ATTR_VALUES.filter((value) => deduped.has(value))];
+}
+
+function homeStateLabel(state: TournamentTab): string {
+  if (state === 'upcoming') {
+    return '開催前';
+  }
+  if (state === 'ended') {
+    return '終了';
+  }
+  return '開催中';
+}
+
+function homeCategoryLabel(category: HomeFilterCategory): string {
+  if (category === 'pending') {
+    return '未登録あり';
+  }
+  return '全登録済み';
+}
+
+function homeAttrLabel(attr: HomeFilterAttr): string {
+  if (attr === 'send-waiting') {
+    return '送信待ちあり';
+  }
+  if (attr === 'imported') {
+    return 'インポート大会';
+  }
+  return '自作大会';
+}
+
+function homeSortLabel(sort: HomeSort): string {
+  if (sort === 'deadline') {
+    return '期日が近い順';
+  }
+  if (sort === 'progress-low') {
+    return '進捗が低い順';
+  }
+  if (sort === 'send-waiting-high') {
+    return '送信待ちが多い順';
+  }
+  if (sort === 'name') {
+    return '名前順';
+  }
+  return 'デフォルト';
+}
+
+function isHomeQueryDefault(query: HomeQueryState): boolean {
+  return (
+    query.state === HOME_DEFAULT_QUERY_STATE.state &&
+    normalizeHomeSearchForFilter(query.searchText) === HOME_DEFAULT_QUERY_STATE.searchText &&
+    query.category === HOME_DEFAULT_QUERY_STATE.category &&
+    query.attrs.length === 0 &&
+    query.sort === HOME_DEFAULT_QUERY_STATE.sort
+  );
 }
 
 interface AppProps {
@@ -349,9 +651,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const { appDb, songMasterService } = useAppServices();
 
   const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
-  const [homeSearchText, setHomeSearchTextState] = React.useState('');
+  const [homeQuery, setHomeQuery] = React.useState<HomeQueryState>(() => createDefaultHomeQueryState());
+  const [homeFilterDraft, setHomeFilterDraft] = React.useState<HomeQueryState>(() => createDefaultHomeQueryState());
+  const [homeTournamentBuckets, setHomeTournamentBuckets] = React.useState<HomeTournamentBuckets>(EMPTY_HOME_TOURNAMENT_BUCKETS);
   const [homeSearchMode, setHomeSearchMode] = React.useState(false);
-  const [tournaments, setTournaments] = React.useState<Awaited<ReturnType<typeof appDb.listTournaments>>>([]);
+  const [homeFilterSheetOpen, setHomeFilterSheetOpen] = React.useState(false);
+  const [homeFilterFocusSection, setHomeFilterFocusSection] = React.useState<HomeFilterSheetFocusSection>(null);
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [songMasterReady, setSongMasterReady] = React.useState(false);
@@ -400,6 +705,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const appTabIdRef = React.useRef<string>(crypto.randomUUID());
   const handledDelegationRequestIdsRef = React.useRef<Set<string>>(new Set());
   const homeSearchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const homeStateSectionRef = React.useRef<HTMLDivElement | null>(null);
+  const homeCategorySectionRef = React.useRef<HTMLDivElement | null>(null);
+  const homeAttrsSectionRef = React.useRef<HTMLDivElement | null>(null);
+  const homeSortSectionRef = React.useRef<HTMLDivElement | null>(null);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
@@ -407,7 +716,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const isSettingsRoute = route.name === 'settings';
   const canUseQrImport = window.isSecureContext === true && typeof navigator.mediaDevices?.getUserMedia === 'function';
   const todayDate = todayJst();
-  const homeState: TournamentTab = 'active';
   const swStatus = resolveServiceWorkerStatus(pwaUpdate, hasSwController);
   const appInfoSnapshot = React.useMemo<AppInfoCardData>(
     () => ({
@@ -485,19 +793,62 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       2,
     );
   }, [detailTechnicalInfo, runtimeLogs]);
-  const homeVisibleItems = React.useMemo(() => {
-    const tokens = homeSearchTokens(homeSearchText);
-    return tournaments.filter((item) => hasAllSearchTokens(item, tokens));
-  }, [homeSearchText, tournaments]);
-  const normalizedHomeSearch = normalizeHomeSearchForFilter(homeSearchText);
-  const hasHomeSearchText = normalizedHomeSearch.length > 0;
+  const homeVisibleItems = React.useMemo(
+    () => applyHomeQueryState(homeTournamentBuckets, homeQuery),
+    [homeQuery, homeTournamentBuckets],
+  );
+  const homeDraftResultCount = React.useMemo(
+    () => applyHomeQueryState(homeTournamentBuckets, homeFilterDraft).length,
+    [homeFilterDraft, homeTournamentBuckets],
+  );
+  const homeHasNonDefaultQuery = !isHomeQueryDefault(homeQuery);
+  const homeNormalizedSearch = normalizeHomeSearchForFilter(homeQuery.searchText);
+  const homeHasSearchQuery = homeNormalizedSearch.length > 0;
+
+  const openHomeFilterSheet = React.useCallback(
+    (focusSection: HomeFilterSheetFocusSection = null) => {
+      setHomeFilterDraft({
+        ...homeQuery,
+        attrs: [...homeQuery.attrs],
+      });
+      setHomeFilterFocusSection(focusSection);
+      setHomeFilterSheetOpen(true);
+      setHomeSearchMode(false);
+    },
+    [homeQuery],
+  );
+
+  const closeHomeFilterSheet = React.useCallback(() => {
+    setHomeFilterSheetOpen(false);
+    setHomeFilterFocusSection(null);
+  }, []);
+
+  const applyHomeFilterSheet = React.useCallback(() => {
+    setHomeQuery({
+      ...homeFilterDraft,
+      attrs: normalizeHomeAttrs(homeFilterDraft.attrs),
+    });
+    setHomeFilterSheetOpen(false);
+    setHomeFilterFocusSection(null);
+  }, [homeFilterDraft]);
+
+  const resetHomeFilterSheet = React.useCallback(() => {
+    setHomeFilterDraft(createDefaultHomeQueryState());
+  }, []);
 
   const setHomeSearchText = React.useCallback((value: string) => {
-    setHomeSearchTextState(normalizeHomeSearchText(value));
+    const normalized = normalizeHomeSearchText(value);
+    setHomeQuery((previous) => ({
+      ...previous,
+      searchText: normalized,
+    }));
   }, []);
 
   const clearHomeSearchText = React.useCallback(() => {
-    setHomeSearchTextState('');
+    setHomeQuery((previous) => ({
+      ...previous,
+      searchText: '',
+    }));
   }, []);
 
   React.useEffect(() => {
@@ -514,18 +865,35 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [homeSearchMode]);
 
   React.useEffect(() => {
-    if (isHomeRoute) {
-      return;
-    }
-    setHomeSearchMode(false);
-  }, [isHomeRoute]);
-
-  React.useEffect(() => {
     if (!homeSearchMode) {
       return;
     }
     setHomeMenuAnchorEl(null);
   }, [homeSearchMode]);
+
+  React.useEffect(() => {
+    if (isHomeRoute) {
+      return;
+    }
+    setHomeSearchMode(false);
+    setHomeFilterSheetOpen(false);
+    setHomeFilterFocusSection(null);
+  }, [isHomeRoute]);
+
+  React.useEffect(() => {
+    if (!homeFilterSheetOpen || !homeFilterFocusSection) {
+      return;
+    }
+    const sectionRef =
+      homeFilterFocusSection === 'state'
+        ? homeStateSectionRef
+        : homeFilterFocusSection === 'category'
+          ? homeCategorySectionRef
+          : homeFilterFocusSection === 'attrs'
+            ? homeAttrsSectionRef
+            : homeSortSectionRef;
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [homeFilterFocusSection, homeFilterSheetOpen]);
 
   const pushRoute = React.useCallback((next: RouteState) => {
     setRouteStack((previous) => [...previous, next]);
@@ -648,9 +1016,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   );
 
   const refreshTournamentList = React.useCallback(async () => {
-    const rows = await appDb.listTournaments(homeState);
-    setTournaments(rows);
-  }, [appDb, homeState]);
+    const [active, upcoming, ended] = await Promise.all([
+      appDb.listTournaments('active'),
+      appDb.listTournaments('upcoming'),
+      appDb.listTournaments('ended'),
+    ]);
+    setHomeTournamentBuckets({ active, upcoming, ended });
+  }, [appDb]);
 
   const refreshSettingsSnapshot = React.useCallback(async () => {
     const songMeta = await appDb.getSongMasterMeta();
@@ -840,7 +1212,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           });
         }
         await refreshSettingsSnapshot();
-        setTournaments(await appDb.listTournaments(homeState));
+        await refreshTournamentList();
+        if (mounted) {
+          const initialHomeQuery = createDefaultHomeQueryState();
+          setHomeQuery(initialHomeQuery);
+          setHomeFilterDraft(initialHomeQuery);
+        }
 
         if (import.meta.env.DEV) {
           if ('serviceWorker' in navigator) {
@@ -883,11 +1260,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     return () => {
       mounted = false;
     };
-  }, [appDb, appendRuntimeLog, homeState, pushToast, refreshSettingsSnapshot]);
-
-  React.useEffect(() => {
-    void refreshTournamentList();
-  }, [refreshTournamentList]);
+  }, [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, refreshTournamentList]);
 
   React.useEffect(() => {
     if (route.name !== 'settings') {
@@ -1362,10 +1735,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       setCreateDraft(null);
       setCreateSaving(false);
       setCreateSaveError(null);
-      setHomeSearchTextState('');
+      setHomeQuery(createDefaultHomeQueryState());
+      setHomeFilterDraft(createDefaultHomeQueryState());
       setHomeSearchMode(false);
+      setHomeFilterSheetOpen(false);
+      setHomeFilterFocusSection(null);
       resetRoute({ name: 'home' });
-      setTournaments(await appDb.listTournaments(homeState));
+      await refreshTournamentList();
       await refreshSettingsSnapshot();
       pushToast('ローカル初期化を実行しました。');
     } catch (error) {
@@ -1373,7 +1749,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     } finally {
       setBusy(false);
     }
-  }, [appDb, busy, homeState, pushToast, refreshSettingsSnapshot, resetRoute]);
+  }, [appDb, busy, pushToast, refreshSettingsSnapshot, refreshTournamentList, resetRoute]);
 
   const homeMenuOpen = homeMenuAnchorEl !== null;
   const detailMenuOpen = detailMenuAnchorEl !== null;
@@ -1425,7 +1801,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 >
                   <InputBase
                     inputRef={homeSearchInputRef}
-                    value={homeSearchText}
+                    value={homeQuery.searchText}
                     placeholder="大会名 / 開催者 / ハッシュタグ"
                     onChange={(event) => setHomeSearchText(event.target.value)}
                     onKeyDown={(event) => {
@@ -1436,7 +1812,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     }}
                     sx={{ flex: 1, fontSize: 15 }}
                   />
-                  {hasHomeSearchText ? (
+                  {homeQuery.searchText.length > 0 ? (
                     <IconButton
                       size="small"
                       aria-label="search-clear"
@@ -1455,6 +1831,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 </Typography>
                 <IconButton edge="end" color="inherit" aria-label="home-search" onClick={() => setHomeSearchMode(true)}>
                   <SearchIcon />
+                </IconButton>
+                <IconButton
+                  edge="end"
+                  color={homeHasNonDefaultQuery ? 'primary' : 'inherit'}
+                  aria-label="home-filter"
+                  onClick={() => openHomeFilterSheet()}
+                >
+                  <Badge color="primary" variant="dot" invisible={!homeHasNonDefaultQuery}>
+                    <FilterListIcon />
+                  </Badge>
                 </IconButton>
                 <IconButton edge="end" color="inherit" aria-label="global-settings-menu" onClick={openHomeMenu}>
                   <MoreVertIcon />
@@ -1540,7 +1926,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         {route.name === 'home' && (
           <HomePage
             todayDate={todayDate}
-            state={homeState}
+            state={homeQuery.state}
             items={homeVisibleItems}
             onOpenDetail={async (tournamentUuid) => {
               const loaded = await reloadDetail(tournamentUuid);
@@ -1639,6 +2025,171 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             onResetLocalData={resetLocalData}
           />
         )}
+
+        <Drawer
+          anchor="bottom"
+          open={isHomeRoute && homeFilterSheetOpen}
+          onClose={closeHomeFilterSheet}
+          ModalProps={{ keepMounted: true }}
+          PaperProps={{
+            sx: {
+              width: '100%',
+              maxWidth: 980,
+              margin: '0 auto',
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              maxHeight: '70dvh',
+            },
+          }}
+        >
+          <Box className="homeFilterSheet">
+            <span className="homeFilterSheetHandle" aria-hidden />
+            <Box className="homeFilterSheetBody">
+              <div className="homeFilterSection" ref={homeStateSectionRef}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  状態
+                </Typography>
+                <ToggleButtonGroup
+                  value={homeFilterDraft.state}
+                  exclusive
+                  size="small"
+                  fullWidth
+                  onChange={(_event, value: TournamentTab | null) => {
+                    if (!value) {
+                      return;
+                    }
+                    setHomeFilterDraft((previous) => ({
+                      ...previous,
+                      state: value,
+                    }));
+                  }}
+                >
+                  <ToggleButton value="active">開催中</ToggleButton>
+                  <ToggleButton value="upcoming">開催前</ToggleButton>
+                  <ToggleButton value="ended">終了</ToggleButton>
+                </ToggleButtonGroup>
+              </div>
+              <Divider />
+              <div className="homeFilterSection" ref={homeCategorySectionRef}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  カテゴリ
+                </Typography>
+                <ToggleButtonGroup
+                  value={homeFilterDraft.category}
+                  exclusive
+                  size="small"
+                  fullWidth
+                  onChange={(_event, value: HomeFilterCategory | null) => {
+                    setHomeFilterDraft((previous) => ({
+                      ...previous,
+                      category: value ?? 'none',
+                    }));
+                  }}
+                >
+                  <ToggleButton value="none">未指定</ToggleButton>
+                  <ToggleButton value="pending">未登録あり</ToggleButton>
+                  <ToggleButton value="completed">全登録済み</ToggleButton>
+                </ToggleButtonGroup>
+              </div>
+              <Divider />
+              <div className="homeFilterSection" ref={homeAttrsSectionRef}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  属性
+                </Typography>
+                <FormGroup>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={homeFilterDraft.attrs.includes('send-waiting')}
+                        onChange={(event) => {
+                          setHomeFilterDraft((previous) => ({
+                            ...previous,
+                            attrs: event.target.checked
+                              ? normalizeHomeAttrs([...previous.attrs, 'send-waiting'])
+                              : previous.attrs.filter((value) => value !== 'send-waiting'),
+                          }));
+                        }}
+                      />
+                    }
+                    label="送信待ちあり"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={homeFilterDraft.attrs.includes('imported')}
+                        onChange={(event) => {
+                          setHomeFilterDraft((previous) => ({
+                            ...previous,
+                            attrs: event.target.checked
+                              ? normalizeHomeAttrs([...previous.attrs, 'imported'])
+                              : previous.attrs.filter((value) => value !== 'imported'),
+                          }));
+                        }}
+                      />
+                    }
+                    label="インポート大会"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={homeFilterDraft.attrs.includes('created')}
+                        onChange={(event) => {
+                          setHomeFilterDraft((previous) => ({
+                            ...previous,
+                            attrs: event.target.checked
+                              ? normalizeHomeAttrs([...previous.attrs, 'created'])
+                              : previous.attrs.filter((value) => value !== 'created'),
+                          }));
+                        }}
+                      />
+                    }
+                    label="自作大会"
+                  />
+                </FormGroup>
+              </div>
+              <Divider />
+              <div className="homeFilterSection" ref={homeSortSectionRef}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  ソート
+                </Typography>
+                <ToggleButtonGroup
+                  value={homeFilterDraft.sort}
+                  exclusive
+                  size="small"
+                  orientation="vertical"
+                  fullWidth
+                  onChange={(_event, value: HomeSort | null) => {
+                    if (!value) {
+                      return;
+                    }
+                    setHomeFilterDraft((previous) => ({
+                      ...previous,
+                      sort: value,
+                    }));
+                  }}
+                >
+                  <ToggleButton value="default">デフォルト</ToggleButton>
+                  <ToggleButton value="deadline">期日が近い順</ToggleButton>
+                  <ToggleButton value="progress-low">進捗が低い順</ToggleButton>
+                  <ToggleButton value="send-waiting-high">送信待ちが多い順</ToggleButton>
+                  <ToggleButton value="name">名前順</ToggleButton>
+                </ToggleButtonGroup>
+              </div>
+              <Divider />
+              <Typography variant="body2" className="homeFilterResultCount">
+                現在の結果: {homeDraftResultCount}件
+              </Typography>
+            </Box>
+            <Box className="homeFilterSheetActions">
+              <Button variant="text" onClick={resetHomeFilterSheet}>
+                リセット
+              </Button>
+              <Button variant="contained" onClick={applyHomeFilterSheet}>
+                適用
+              </Button>
+            </Box>
+          </Box>
+        </Drawer>
 
         {isHomeRoute ? (
           <Tooltip
