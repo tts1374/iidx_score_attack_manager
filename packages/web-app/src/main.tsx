@@ -4,6 +4,7 @@ import { acquireSingleTabLock, checkRuntimeCapabilities } from '@iidx/db';
 import type { TournamentPayload } from '@iidx/shared';
 
 import { App, AppFallbackUnsupported } from './App';
+import './i18n';
 import { createAppServices } from './services/app-services';
 import { AppServicesProvider } from './services/context';
 import { resolveImportPayloadFromLocation } from './utils/import-confirm';
