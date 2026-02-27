@@ -15,14 +15,14 @@ type DeadlineTone = 'normal' | 'warning' | 'urgent';
 
 interface TournamentStateBadge {
   label: '開催中' | '開催前' | '終了';
-  className: 'statusBadge-active' | 'statusBadge-upcoming' | 'statusBadge-ended';
+  className: 'statusBadge-ended';
 }
 
 function resolveTournamentStateBadge(tab: TournamentTab): TournamentStateBadge {
   if (tab === 'upcoming') {
     return {
       label: '開催前',
-      className: 'statusBadge-upcoming',
+      className: 'statusBadge-ended',
     };
   }
   if (tab === 'ended') {
@@ -33,7 +33,7 @@ function resolveTournamentStateBadge(tab: TournamentTab): TournamentStateBadge {
   }
   return {
     label: '開催中',
-    className: 'statusBadge-active',
+    className: 'statusBadge-ended',
   };
 }
 
