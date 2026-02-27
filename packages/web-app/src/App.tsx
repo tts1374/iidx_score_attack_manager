@@ -176,7 +176,7 @@ const HOME_SORT_SETTING_KEY = 'home.sort';
 type HomeFilterCategory = 'none' | 'pending' | 'completed';
 type HomeFilterAttr = 'send-waiting' | 'imported' | 'created';
 type HomeSort = 'default' | 'deadline' | 'progress-low' | 'send-waiting-high' | 'name';
-type HomeFilterSheetFocusSection = 'state' | 'category' | 'attrs' | 'sort' | null;
+type HomeFilterSheetFocusSection = 'state' | 'category' | 'type' | 'attrs' | 'sort' | null;
 
 interface HomeQueryState {
   state: TournamentTab;
@@ -478,6 +478,16 @@ function homeAttrLabel(attr: HomeFilterAttr): string {
   return '作成';
 }
 
+function resolveHomeTypeAttr(attrs: readonly HomeFilterAttr[]): 'imported' | 'created' | null {
+  if (attrs.includes('imported')) {
+    return 'imported';
+  }
+  if (attrs.includes('created')) {
+    return 'created';
+  }
+  return null;
+}
+
 function homeSortLabel(sort: HomeSort): string {
   if (sort === 'deadline') {
     return '期日が近い順';
@@ -722,6 +732,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeSearchInputRef = React.useRef<HTMLInputElement | null>(null);
   const homeStateSectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeCategorySectionRef = React.useRef<HTMLDivElement | null>(null);
+  const homeTypeSectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeAttrsSectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeSortSectionRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -820,6 +831,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeNormalizedSearch = normalizeHomeSearchForFilter(homeQuery.searchText);
   const homeHasSearchQuery = homeNormalizedSearch.length > 0;
   const homeSearchChip = homeHasSearchQuery ? truncateSearchChipText(homeNormalizedSearch) : '';
+  const homeTypeAttr = resolveHomeTypeAttr(homeQuery.attrs);
+  const homeNonMajorChipCount =
+    (homeQuery.attrs.includes('send-waiting') ? 1 : 0) + (homeQuery.sort === 'default' ? 0 : 1);
 
   const openHomeFilterSheet = React.useCallback(
     (focusSection: HomeFilterSheetFocusSection = null) => {
@@ -885,6 +899,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     }));
   }, []);
 
+  const clearHomeTypeAttr = React.useCallback(() => {
+    setHomeQuery((previous) => ({
+      ...previous,
+      attrs: previous.attrs.filter((value) => value !== 'imported' && value !== 'created'),
+    }));
+  }, []);
+
   const clearHomeSort = React.useCallback(() => {
     setHomeQuery((previous) => ({
       ...previous,
@@ -937,6 +958,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         ? homeStateSectionRef
         : homeFilterFocusSection === 'category'
           ? homeCategorySectionRef
+          : homeFilterFocusSection === 'type'
+            ? homeTypeSectionRef
           : homeFilterFocusSection === 'attrs'
             ? homeAttrsSectionRef
             : homeSortSectionRef;
@@ -1908,9 +1931,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 <Typography variant="h6" component="h1" sx={{ flexGrow: 1, fontWeight: 700 }}>
                   {pageTitle}
                 </Typography>
-                <IconButton edge="end" color="inherit" aria-label="home-search" onClick={() => setHomeSearchMode(true)}>
-                  <SearchIcon />
-                </IconButton>
                 <IconButton
                   edge="end"
                   color={homeHasNonDefaultQuery ? 'primary' : 'inherit'}
@@ -2005,51 +2025,64 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         {route.name === 'home' && (
           <>
             <section className="homeAppliedChipsRow" aria-label="home-applied-filters">
-              <div className="homeAppliedChipsScroll">
-                <Chip
-                  size="small"
-                  clickable
-                  color={homeQuery.state === 'active' ? 'success' : 'default'}
-                  label={homeStateLabel(homeQuery.state)}
-                  onClick={() => openHomeFilterSheet('state')}
-                />
-                {homeQuery.category !== 'none' ? (
+              <IconButton
+                size="small"
+                color="inherit"
+                aria-label="home-search-entry"
+                className="homeAppliedChipsSearchButton"
+                onClick={() => setHomeSearchMode(true)}
+              >
+                <SearchIcon fontSize="small" />
+              </IconButton>
+              <div className="homeAppliedChipsViewport">
+                <div className="homeAppliedChipsScroll">
                   <Chip
                     size="small"
                     clickable
-                    label={homeCategoryLabel(homeQuery.category)}
-                    onClick={() => openHomeFilterSheet('category')}
-                    onDelete={clearHomeCategory}
+                    color="default"
+                    label={homeStateLabel(homeQuery.state)}
+                    onClick={() => openHomeFilterSheet('state')}
                   />
-                ) : null}
-                {homeQuery.attrs.map((attr) => (
-                  <Chip
-                    key={attr}
-                    size="small"
-                    clickable
-                    label={homeAttrLabel(attr)}
-                    onClick={() => openHomeFilterSheet('attrs')}
-                    onDelete={() => clearHomeAttr(attr)}
-                  />
-                ))}
-                {homeQuery.sort !== 'default' ? (
-                  <Chip
-                    size="small"
-                    clickable
-                    label={`並び: ${homeSortLabel(homeQuery.sort)}`}
-                    onClick={() => openHomeFilterSheet('sort')}
-                    onDelete={clearHomeSort}
-                  />
-                ) : null}
-                {homeHasSearchQuery ? (
-                  <Chip
-                    size="small"
-                    clickable
-                    label={`検索: "${homeSearchChip}"`}
-                    onClick={() => setHomeSearchMode(true)}
-                    onDelete={clearHomeSearchText}
-                  />
-                ) : null}
+                  {homeQuery.category !== 'none' ? (
+                    <Chip
+                      size="small"
+                      clickable
+                      color="primary"
+                      label={homeCategoryLabel(homeQuery.category)}
+                      onClick={() => openHomeFilterSheet('category')}
+                      onDelete={clearHomeCategory}
+                    />
+                  ) : null}
+                  {homeTypeAttr ? (
+                    <Chip
+                      size="small"
+                      clickable
+                      color="primary"
+                      label={homeAttrLabel(homeTypeAttr)}
+                      onClick={() => openHomeFilterSheet('type')}
+                      onDelete={clearHomeTypeAttr}
+                    />
+                  ) : null}
+                  {homeHasSearchQuery ? (
+                    <Chip
+                      size="small"
+                      clickable
+                      color="primary"
+                      label={`検索: "${homeSearchChip}"`}
+                      onClick={() => setHomeSearchMode(true)}
+                      onDelete={clearHomeSearchText}
+                    />
+                  ) : null}
+                  {homeNonMajorChipCount > 0 ? (
+                    <Chip
+                      size="small"
+                      clickable
+                      color="primary"
+                      label={`+${homeNonMajorChipCount}`}
+                      onClick={() => openHomeFilterSheet()}
+                    />
+                  ) : null}
+                </div>
               </div>
               <Button
                 type="button"
@@ -2231,7 +2264,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 </ToggleButtonGroup>
               </div>
               <Divider />
-              <div className="homeFilterSection">
+              <div className="homeFilterSection" ref={homeTypeSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                   種別
                 </Typography>

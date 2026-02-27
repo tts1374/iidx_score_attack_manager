@@ -208,11 +208,19 @@ label {
 
 .homeAppliedChipsRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-height: 38px;
   margin-bottom: 12px;
+}
+
+.homeAppliedChipsSearchButton {
+  flex-shrink: 0;
+}
+
+.homeAppliedChipsViewport {
+  min-width: 0;
 }
 
 .homeAppliedChipsScroll {
