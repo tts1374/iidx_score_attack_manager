@@ -2219,7 +2219,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         >
           <Box className="homeFilterSheet">
             <span className="homeFilterSheetHandle" aria-hidden />
-            <Box className="homeFilterSheetBody">
+            <div className="homeFilterSheetFixed">
               <div className="homeFilterSection" ref={homeStateSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                   状態
@@ -2245,6 +2245,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 </ToggleButtonGroup>
               </div>
               <Divider />
+            </div>
+            <Box className="homeFilterSheetBody">
               <div className="homeFilterSection" ref={homeCategorySectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                   カテゴリ
