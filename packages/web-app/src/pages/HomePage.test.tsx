@@ -83,19 +83,18 @@ describe('HomePage', () => {
     expect(scoped.getByText('未登録あり')).toBeTruthy();
   });
 
-  it('shows clear-all action on empty state when enabled', async () => {
-    const onClearAllFilters = vi.fn();
+  it('shows open-filter action on empty state', async () => {
+    const onOpenFilterInEmpty = vi.fn();
     render(
       <HomePage
         todayDate="2026-02-08"
         state="active"
         items={[]}
-        showClearAllInEmpty
-        onClearAllFilters={onClearAllFilters}
+        onOpenFilterInEmpty={onOpenFilterInEmpty}
         onOpenDetail={() => undefined}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'すべて解除' }));
-    expect(onClearAllFilters).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole('button', { name: 'フィルタを開く' }));
+    expect(onOpenFilterInEmpty).toHaveBeenCalledTimes(1);
   });
 });

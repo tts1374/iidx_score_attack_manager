@@ -8,8 +8,7 @@ interface HomePageProps {
   state: TournamentTab;
   items: TournamentListItem[];
   onOpenDetail: (tournamentUuid: string) => void;
-  showClearAllInEmpty?: boolean;
-  onClearAllFilters?: () => void;
+  onOpenFilterInEmpty?: () => void;
 }
 
 type DeadlineTone = 'normal' | 'warning' | 'urgent';
@@ -114,9 +113,9 @@ export function HomePage(props: HomePageProps): JSX.Element {
       {props.items.length === 0 ? (
         <div className="emptyState">
           <p className="emptyText">表示できる大会がありません。</p>
-          {props.showClearAllInEmpty && props.onClearAllFilters ? (
-            <button type="button" className="emptyResetButton" onClick={props.onClearAllFilters}>
-              すべて解除
+          {props.onOpenFilterInEmpty ? (
+            <button type="button" className="emptyResetButton" onClick={props.onOpenFilterInEmpty}>
+              フィルタを開く
             </button>
           ) : null}
         </div>

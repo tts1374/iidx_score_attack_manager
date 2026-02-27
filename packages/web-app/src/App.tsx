@@ -2061,8 +2061,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               todayDate={todayDate}
               state={homeQuery.state}
               items={homeVisibleItems}
-              showClearAllInEmpty={homeHasNonDefaultQuery}
-              onClearAllFilters={clearAllHomeQuery}
+              onOpenFilterInEmpty={() => openHomeFilterSheet()}
               onOpenDetail={async (tournamentUuid) => {
                 const loaded = await reloadDetail(tournamentUuid);
                 if (!loaded) {
