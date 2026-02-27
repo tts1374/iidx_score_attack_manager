@@ -2083,6 +2083,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     />
                   ) : null}
                 </div>
+                <span className="homeAppliedChipsFade homeAppliedChipsFade-left" aria-hidden />
+                <span className="homeAppliedChipsFade homeAppliedChipsFade-right" aria-hidden />
               </div>
               <Button
                 type="button"
