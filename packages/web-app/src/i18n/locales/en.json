@@ -25,6 +25,28 @@
                                                     "changed":  "Display language changed to {{language}}.",
                                                     "change_failed":  "Failed to change display language."
                                                 }
-                                  }
+                                  },
+                     "song_data":  {
+                                       "technical":  {
+                                                         "title":  "Technical info"
+                                                     },
+                                       "title":  "Song data"
+                                   },
+                     "storage":  {
+                                     "title":  "Storage"
+                                 },
+                     "app":  {
+                                 "technical":  {
+                                                   "title":  "Technical info"
+                                               },
+                                 "title":  "App"
+                             },
+                     "danger":  {
+                                    "title":  "Danger zone"
+                                },
+                     "technical":  {
+                                       "common_info":  "Common info",
+                                       "title":  "Technical info"
+                                   }
                  }
 }

@@ -754,7 +754,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       <Card variant="outlined" sx={cardSx}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
           <Typography variant="h6" component="h2" fontWeight={700}>
-            曲データ
+            {t('settings.song_data.title')}
           </Typography>
           <Chip label={fmtSongStatus(songStatus)} color={songStatusColor(songStatus)} size="small" />
         </Box>
@@ -820,7 +820,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           <Accordion disableGutters elevation={0} sx={accordionSx}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="body2" fontWeight={700}>
-                技術情報
+                {t('settings.song_data.technical.title')}
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0, display: 'grid', gap: 2 }}>
@@ -854,7 +854,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
 
       <Card variant="outlined" sx={cardSx}>
         <Typography variant="h6" component="h2" fontWeight={700}>
-          容量
+          {t('settings.storage.title')}
         </Typography>
         <List dense disablePadding>
           {row(
@@ -918,7 +918,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
 
       <Card variant="outlined" sx={cardSx}>
         <Typography variant="h6" component="h2" fontWeight={700}>
-          アプリ
+          {t('settings.app.title')}
         </Typography>
         <List dense disablePadding>
           {row('アプリ版本体', props.appInfo.appVersion || '-', false, handleVersionTap)}
@@ -935,7 +935,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           <Accordion disableGutters elevation={0} sx={accordionSx}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="body2" fontWeight={700}>
-                技術情報
+                {t('settings.app.technical.title')}
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
@@ -954,12 +954,12 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       {props.debugModeEnabled ? (
         <Card variant="outlined" sx={cardSx}>
           <Typography variant="h6" component="h2" fontWeight={700}>
-            技術情報
+            {t('settings.technical.title')}
           </Typography>
           <Accordion disableGutters elevation={0} sx={accordionSx}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="body2" fontWeight={700}>
-                共通情報
+                {t('settings.technical.common_info')}
               </Typography>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0, display: 'grid', gap: 2 }}>
@@ -1009,7 +1009,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         }}
       >
         <Typography variant="h6" component="h2" fontWeight={700} color="error.main">
-          危険操作
+          {t('settings.danger.title')}
         </Typography>
         <Stack spacing={0.5}>
           <Typography variant="body2">ローカル初期化を実行すると以下を削除します。</Typography>

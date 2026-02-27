@@ -25,6 +25,28 @@
                                                     "changed":  "표시 언어를 {{language}}(으)로 변경했습니다.",
                                                     "change_failed":  "표시 언어를 변경하지 못했습니다."
                                                 }
-                                  }
+                                  },
+                     "song_data":  {
+                                       "technical":  {
+                                                         "title":  "기술 정보"
+                                                     },
+                                       "title":  "곡 데이터"
+                                   },
+                     "storage":  {
+                                     "title":  "저장 공간"
+                                 },
+                     "app":  {
+                                 "technical":  {
+                                                   "title":  "기술 정보"
+                                               },
+                                 "title":  "앱"
+                             },
+                     "danger":  {
+                                    "title":  "위험 작업"
+                                },
+                     "technical":  {
+                                       "common_info":  "공통 정보",
+                                       "title":  "기술 정보"
+                                   }
                  }
 }

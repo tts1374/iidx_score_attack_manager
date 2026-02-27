@@ -25,6 +25,28 @@
                                                     "changed":  "表示言語を{{language}}に変更しました。",
                                                     "change_failed":  "表示言語の変更に失敗しました。"
                                                 }
-                                  }
+                                  },
+                     "song_data":  {
+                                       "technical":  {
+                                                         "title":  "技術情報"
+                                                     },
+                                       "title":  "曲データ"
+                                   },
+                     "storage":  {
+                                     "title":  "容量"
+                                 },
+                     "app":  {
+                                 "technical":  {
+                                                   "title":  "技術情報"
+                                               },
+                                 "title":  "アプリ"
+                             },
+                     "danger":  {
+                                    "title":  "危険操作"
+                                },
+                     "technical":  {
+                                       "common_info":  "共通情報",
+                                       "title":  "技術情報"
+                                   }
                  }
 }
