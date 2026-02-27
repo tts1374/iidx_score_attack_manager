@@ -25,15 +25,19 @@ takes precedence for execution rules.
 
 ## 2. 作業環境の分離
 
-### 2.1 worktree強制
+### 2.1 worktree強制（MANDATORY）
 
--   すべての作業は git worktree で物理分離する。
--   既存作業ディレクトリを使い回さない。
--   同一worktree内で複数目的の変更を行わない。
+- すべての作業は git worktree で物理分離する。
+- 既存作業ディレクトリを流用しない。
+- 1 worktree = 1 branch = 1 purpose（1PR1目的と一致させる）。
+- 作業開始時に worktree パスと BASE_SHA を宣言する。
 
-例:
+### 2.2 worktree再利用ポリシー
 
-git worktree add ../repo-feature-x `<base_sha>`{=html}
+- 同一PR内のレビュー指摘対応のみ、既存worktreeを再利用してよい。
+- 目的が変わる場合は必ず新規worktreeを作成する。
+- PRがmergeされた後は、worktreeを再利用しない。
+- 別タスクを同一branchに積み増さない。
 
 ------------------------------------------------------------------------
 
