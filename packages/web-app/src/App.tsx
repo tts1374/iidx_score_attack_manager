@@ -1,5 +1,5 @@
 import React from 'react';
-import type { TournamentDetailItem, TournamentTab } from '@iidx/db';
+import type { TournamentDetailItem, TournamentListItem, TournamentTab } from '@iidx/db';
 import { PAYLOAD_VERSION, encodeTournamentPayload, normalizeHashtag, type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import {
@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  InputBase,
   Menu,
   MenuItem,
   SpeedDial,
@@ -21,9 +22,11 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CloseIcon from '@mui/icons-material/Close';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PostAddIcon from '@mui/icons-material/PostAdd';
+import SearchIcon from '@mui/icons-material/Search';
 
 import { ImportQrScannerDialog } from './components/ImportQrScannerDialog';
 import { UnsupportedScreen } from './components/UnsupportedScreen';
@@ -154,6 +157,44 @@ function writeDebugMode(enabled: boolean): void {
   }
 }
 const HOME_CREATE_FAB_TOOLTIP_KEY = 'iidx.home.create-fab-tooltip-seen';
+
+function normalizeAsciiLowercase(value: string): string {
+  return value.replace(/[A-Z]/g, (char) => char.toLowerCase());
+}
+
+function normalizeHomeSearchText(value: string): string {
+  const withoutHash = value.replace(/#/g, '');
+  const normalizedCase = normalizeAsciiLowercase(withoutHash);
+  return normalizedCase.replace(/\s+/g, ' ');
+}
+
+function normalizeHomeSearchForFilter(value: string): string {
+  return normalizeHomeSearchText(value).trim();
+}
+
+function homeSearchTokens(searchText: string): string[] {
+  const normalized = normalizeHomeSearchForFilter(searchText);
+  if (normalized.length === 0) {
+    return [];
+  }
+  return normalized.split(' ');
+}
+
+function normalizeHomeSearchField(value: string): string {
+  return normalizeAsciiLowercase(value.replace(/#/g, ''));
+}
+
+function hasAllSearchTokens(item: TournamentListItem, tokens: readonly string[]): boolean {
+  if (tokens.length === 0) {
+    return true;
+  }
+  const fields = [
+    normalizeHomeSearchField(item.tournamentName),
+    normalizeHomeSearchField(item.owner),
+    normalizeHomeSearchField(item.hashtag),
+  ];
+  return tokens.every((token) => fields.some((field) => field.includes(token)));
+}
 
 interface AppProps {
   webLockAcquired?: boolean;
@@ -308,6 +349,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const { appDb, songMasterService } = useAppServices();
 
   const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
+  const [homeSearchText, setHomeSearchTextState] = React.useState('');
+  const [homeSearchMode, setHomeSearchMode] = React.useState(false);
   const [tournaments, setTournaments] = React.useState<Awaited<ReturnType<typeof appDb.listTournaments>>>([]);
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -356,6 +399,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [whatsNewDialogOpen, setWhatsNewDialogOpen] = React.useState(false);
   const appTabIdRef = React.useRef<string>(crypto.randomUUID());
   const handledDelegationRequestIdsRef = React.useRef<Set<string>>(new Set());
+  const homeSearchInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
@@ -441,6 +485,47 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       2,
     );
   }, [detailTechnicalInfo, runtimeLogs]);
+  const homeVisibleItems = React.useMemo(() => {
+    const tokens = homeSearchTokens(homeSearchText);
+    return tournaments.filter((item) => hasAllSearchTokens(item, tokens));
+  }, [homeSearchText, tournaments]);
+  const normalizedHomeSearch = normalizeHomeSearchForFilter(homeSearchText);
+  const hasHomeSearchText = normalizedHomeSearch.length > 0;
+
+  const setHomeSearchText = React.useCallback((value: string) => {
+    setHomeSearchTextState(normalizeHomeSearchText(value));
+  }, []);
+
+  const clearHomeSearchText = React.useCallback(() => {
+    setHomeSearchTextState('');
+  }, []);
+
+  React.useEffect(() => {
+    if (!homeSearchMode) {
+      return;
+    }
+    const timerId = window.setTimeout(() => {
+      homeSearchInputRef.current?.focus();
+      homeSearchInputRef.current?.select();
+    }, 0);
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [homeSearchMode]);
+
+  React.useEffect(() => {
+    if (isHomeRoute) {
+      return;
+    }
+    setHomeSearchMode(false);
+  }, [isHomeRoute]);
+
+  React.useEffect(() => {
+    if (!homeSearchMode) {
+      return;
+    }
+    setHomeMenuAnchorEl(null);
+  }, [homeSearchMode]);
 
   const pushRoute = React.useCallback((next: RouteState) => {
     setRouteStack((previous) => [...previous, next]);
@@ -1277,6 +1362,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       setCreateDraft(null);
       setCreateSaving(false);
       setCreateSaveError(null);
+      setHomeSearchTextState('');
+      setHomeSearchMode(false);
       resetRoute({ name: 'home' });
       setTournaments(await appDb.listTournaments(homeState));
       await refreshSettingsSnapshot();
@@ -1318,24 +1405,72 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       <AppBar position="sticky" color="inherit" elevation={1}>
         <Toolbar sx={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
           {isHomeRoute ? (
-            <>
-              <Typography variant="h6" component="h1" sx={{ flexGrow: 1, fontWeight: 700 }}>
-                {pageTitle}
-              </Typography>
-              <IconButton edge="end" color="inherit" aria-label="global-settings-menu" onClick={openHomeMenu}>
-                <MoreVertIcon />
-              </IconButton>
-              <Menu anchorEl={homeMenuAnchorEl} open={homeMenuOpen} onClose={closeHomeMenu}>
-                <MenuItem
-                  onClick={() => {
-                    closeHomeMenu();
-                    openSettingsPage();
+            homeSearchMode ? (
+              <Box sx={{ width: '100%', display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 1 }}>
+                <IconButton edge="start" color="inherit" aria-label="search-close" onClick={() => setHomeSearchMode(false)}>
+                  <ArrowBackIcon />
+                </IconButton>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    border: '1px solid #d0d8e8',
+                    borderRadius: 99,
+                    pl: 1.5,
+                    pr: 0.5,
+                    py: 0.25,
+                    minHeight: 40,
+                    backgroundColor: '#ffffff',
                   }}
                 >
-                  設定
-                </MenuItem>
-              </Menu>
-            </>
+                  <InputBase
+                    inputRef={homeSearchInputRef}
+                    value={homeSearchText}
+                    placeholder="大会名 / 開催者 / ハッシュタグ"
+                    onChange={(event) => setHomeSearchText(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        setHomeSearchMode(false);
+                      }
+                    }}
+                    sx={{ flex: 1, fontSize: 15 }}
+                  />
+                  {hasHomeSearchText ? (
+                    <IconButton
+                      size="small"
+                      aria-label="search-clear"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={clearHomeSearchText}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  ) : null}
+                </Box>
+              </Box>
+            ) : (
+              <>
+                <Typography variant="h6" component="h1" sx={{ flexGrow: 1, fontWeight: 700 }}>
+                  {pageTitle}
+                </Typography>
+                <IconButton edge="end" color="inherit" aria-label="home-search" onClick={() => setHomeSearchMode(true)}>
+                  <SearchIcon />
+                </IconButton>
+                <IconButton edge="end" color="inherit" aria-label="global-settings-menu" onClick={openHomeMenu}>
+                  <MoreVertIcon />
+                </IconButton>
+                <Menu anchorEl={homeMenuAnchorEl} open={homeMenuOpen} onClose={closeHomeMenu}>
+                  <MenuItem
+                    onClick={() => {
+                      closeHomeMenu();
+                      openSettingsPage();
+                    }}
+                  >
+                    設定
+                  </MenuItem>
+                </Menu>
+              </>
+            )
           ) : (
             <>
               {isSettingsRoute ? (
@@ -1406,7 +1541,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           <HomePage
             todayDate={todayDate}
             state={homeState}
-            items={tournaments}
+            items={homeVisibleItems}
             onOpenDetail={async (tournamentUuid) => {
               const loaded = await reloadDetail(tournamentUuid);
               if (!loaded) {
