@@ -9,5 +9,21 @@
     "execute": "実行",
     "not_available": "-",
     "unknown": "不明"
+  },
+  "settings": {
+    "title": "設定",
+    "language": {
+      "title": "言語",
+      "label": "表示言語",
+      "option": {
+        "ja": "日本語",
+        "en": "English",
+        "ko": "한국어"
+      },
+      "toast": {
+        "changed": "表示言語を{{language}}に変更しました。",
+        "change_failed": "表示言語の変更に失敗しました。"
+      }
+    }
   }
 }

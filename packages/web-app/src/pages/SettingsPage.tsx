@@ -16,6 +16,7 @@ import {
   FormControlLabel,
   List,
   ListItem,
+  MenuItem,
   Stack,
   Switch,
   TextField,
@@ -26,6 +27,9 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import { useTranslation } from 'react-i18next';
+
+import type { AppLanguage } from '../i18n';
 import { resolveSongMasterRuntimeConfig } from '../services/song-master-config';
 
 export type AppSwStatus = 'update_available' | 'enabled' | 'unregistered';
@@ -87,6 +91,7 @@ export interface StorageCleanupResult {
 interface SettingsPageProps {
   appInfo: AppInfoCardData;
   songMasterMeta: Record<string, string | null>;
+  language: AppLanguage;
   autoDeleteEnabled: boolean;
   autoDeleteDays: number;
   debugModeEnabled: boolean;
@@ -97,6 +102,7 @@ interface SettingsPageProps {
   onAutoDeleteConfigChange: (enabled: boolean, days: number) => Promise<void>;
   onEstimateStorageCleanup: (days: number) => Promise<StorageCleanupEstimate>;
   onRunStorageCleanup: (days: number) => Promise<StorageCleanupResult>;
+  onLanguageChange: (language: AppLanguage) => Promise<void>;
   onToggleDebugMode: () => void;
   onApplyAppUpdate: () => void;
   onResetLocalData: () => Promise<void>;
@@ -393,6 +399,8 @@ function row(label: string, value: string, mono = false, onValueTap?: () => void
 }
 
 export function SettingsPage(props: SettingsPageProps): JSX.Element {
+  const { t } = useTranslation();
+
   const [enabled, setEnabled] = React.useState(props.autoDeleteEnabled);
   const [days, setDays] = React.useState(clampDays(props.autoDeleteDays || 30));
   const [savingAutoDelete, setSavingAutoDelete] = React.useState(false);
@@ -422,6 +430,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
   const [resetConfirmText, setResetConfirmText] = React.useState('');
   const [resetRunning, setResetRunning] = React.useState(false);
   const [resetError, setResetError] = React.useState<string | null>(null);
+  const [languageChanging, setLanguageChanging] = React.useState(false);
 
   const [copyResult, setCopyResult] = React.useState<string | null>(null);
   const debugTapCountRef = React.useRef(0);
@@ -495,6 +504,21 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       }
     },
     [props],
+  );
+
+  const changeLanguage = React.useCallback(
+    async (nextLanguage: AppLanguage) => {
+      if (languageChanging || nextLanguage === props.language) {
+        return;
+      }
+      setLanguageChanging(true);
+      try {
+        await props.onLanguageChange(nextLanguage);
+      } finally {
+        setLanguageChanging(false);
+      }
+    },
+    [languageChanging, props],
   );
 
   const handleCheckLatest = React.useCallback(async () => {
@@ -708,6 +732,24 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           </Stack>
         </Card>
       ) : null}
+
+      <Card variant="outlined" sx={cardSx}>
+        <Typography variant="h6" component="h2" fontWeight={700}>
+          {t('settings.language.title')}
+        </Typography>
+        <TextField
+          select
+          size="small"
+          label={t('settings.language.label')}
+          value={props.language}
+          onChange={(event) => void changeLanguage(event.target.value as AppLanguage)}
+          disabled={languageChanging}
+        >
+          <MenuItem value="ja">{t('settings.language.option.ja')}</MenuItem>
+          <MenuItem value="en">{t('settings.language.option.en')}</MenuItem>
+          <MenuItem value="ko">{t('settings.language.option.ko')}</MenuItem>
+        </TextField>
+      </Card>
 
       <Card variant="outlined" sx={cardSx}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
