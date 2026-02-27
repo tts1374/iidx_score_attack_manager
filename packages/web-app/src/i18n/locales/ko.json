@@ -1,0 +1,13 @@
+{
+  "common": {
+    "detail": "상세",
+    "close": "닫기",
+    "copy": "복사",
+    "share": "공유",
+    "cancel": "취소",
+    "next": "다음",
+    "execute": "실행",
+    "not_available": "-",
+    "unknown": "알 수 없음"
+  }
+}

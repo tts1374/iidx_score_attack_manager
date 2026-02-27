@@ -1,0 +1,13 @@
+{
+  "common": {
+    "detail": "詳細",
+    "close": "閉じる",
+    "copy": "コピー",
+    "share": "共有",
+    "cancel": "キャンセル",
+    "next": "次へ",
+    "execute": "実行",
+    "not_available": "-",
+    "unknown": "不明"
+  }
+}

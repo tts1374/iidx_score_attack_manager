@@ -1,0 +1,13 @@
+{
+  "common": {
+    "detail": "Details",
+    "close": "Close",
+    "copy": "Copy",
+    "share": "Share",
+    "cancel": "Cancel",
+    "next": "Next",
+    "execute": "Run",
+    "not_available": "-",
+    "unknown": "Unknown"
+  }
+}
