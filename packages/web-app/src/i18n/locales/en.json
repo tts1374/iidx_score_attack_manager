@@ -1,52 +1,268 @@
 {
-    "common":  {
-                   "detail":  "Details",
-                   "close":  "Close",
-                   "copy":  "Copy",
-                   "share":  "Share",
-                   "cancel":  "Cancel",
-                   "next":  "Next",
-                   "execute":  "Run",
-                   "not_available":  "-",
-                   "unknown":  "Unknown",
-                   "images_with_count":  "{{count}} images"
-               },
-    "settings":  {
-                     "title":  "Settings",
-                     "language":  {
-                                      "title":  "Language",
-                                      "label":  "Display language",
-                                      "option":  {
-                                                     "ja":  "Japanese",
-                                                     "en":  "English",
-                                                     "ko":  "Korean"
-                                                 },
-                                      "toast":  {
-                                                    "changed":  "Display language changed to {{language}}.",
-                                                    "change_failed":  "Failed to change display language."
-                                                }
-                                  },
-                     "song_data":  {
-                                       "technical":  {
-                                                         "title":  "Technical info"
-                                                     },
-                                       "title":  "Song data"
-                                   },
-                     "storage":  {
-                                     "title":  "Storage"
-                                 },
-                     "app":  {
-                                 "technical":  {
-                                                   "title":  "Technical info"
-                                               },
-                                 "title":  "App"
-                             },
-                     "danger":  {
-                                    "title":  "Danger zone"
-                                },
-                     "technical":  {
-                                       "common_info":  "Common info",
-                                       "title":  "Technical info"
-                                   }
-                 }
+  "common": {
+    "detail": "Details",
+    "close": "Close",
+    "copy": "Copy",
+    "share": "Share",
+    "cancel": "Cancel",
+    "next": "Next",
+    "execute": "Run",
+    "not_available": "-",
+    "unknown": "Unknown"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": {
+      "title": "Language",
+      "description": "Select the UI display language.",
+      "label": "Display language",
+      "option": {
+        "ja": "Japanese",
+        "en": "English",
+        "ko": "Korean"
+      },
+      "toast": {
+        "changed": "Display language changed to {{language}}.",
+        "change_failed": "Failed to change display language."
+      }
+    },
+    "health": {
+      "summary": "Health summary: {{level}}",
+      "level": {
+        "normal": "Normal",
+        "caution": "Caution",
+        "abnormal": "Abnormal"
+      },
+      "action": {
+        "restart": "Close other tabs and restart",
+        "fetch_song": "Fetch song data",
+        "cleanup": "Clean up storage",
+        "default": "Run action"
+      },
+      "reason": {
+        "web_locks_failed": "Web Locks: acquisition failed",
+        "song_unavailable": "Song data: unavailable",
+        "opfs_error": "OPFS: access failed",
+        "db_integrity_error": "DB integrity: error",
+        "capacity_critical": "Storage: critical risk"
+      }
+    },
+    "song_data": {
+      "title": "Song data",
+      "status": {
+        "label": "Status",
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "update_failed_cache": "Update failed (using cache)",
+        "check_not_run": "Latest check not run"
+      },
+      "size": "Size",
+      "last_fetched_at": "Last fetched",
+      "last_checked_at": "Last checked",
+      "update_available": "An update is available. Run \"Check updates\" if needed.",
+      "check_not_run_info": "Latest check not run (informational). Run \"Check updates\" if needed.",
+      "update_failed_cache_info": "Failed to check updates. Existing data is still in use.",
+      "action": {
+        "check_updates": "Check updates",
+        "checking": "Checking...",
+        "refetch": "Refetch (discard cache)"
+      },
+      "detail": {
+        "fetched_at": "Fetched at",
+        "generated_at": "Generated at",
+        "download_source": "Download source",
+        "download_source_value": "GitHub Releases",
+        "latest_result": "Latest update result",
+        "latest_judgement_note": "Latest status is determined by running \"Check updates\".",
+        "failed_cache_note": "On failure, existing data is used (unavailable on first run)."
+      },
+      "technical": {
+        "title": "Technical info",
+        "schema_version": "schema_version",
+        "sha256": "sha256",
+        "latest_checked_at": "latest.json checked at",
+        "latest_status_code": "latest.json status code",
+        "download_url": "Download URL",
+        "verification": "Verification",
+        "action": {
+          "copy_logs": "Copy logs"
+        },
+        "latest_error": "latest.json error: {{message}}"
+      },
+      "result": {
+        "none": "-",
+        "failed": "Failed: {{message}}",
+        "up_to_date": "Success: Up to date",
+        "updated_success": "Success: Update applied",
+        "local_cache_failed": "Failed (using cache): {{message}}",
+        "success": "Success"
+      },
+      "verification": {
+        "match": "Match",
+        "diff": "Different",
+        "failed": "Check failed",
+        "none": "-"
+      },
+      "error": {
+        "refetch_default": "Refetch (discard cache) failed.",
+        "latest_fetch_failed": "latest.json fetch failed: {{status}}",
+        "latest_invalid": "latest.json format is invalid.",
+        "latest_missing": "latest.json is missing required fields.",
+        "unexpected": "Unexpected error: {{message}}"
+      },
+      "refetch_confirm": {
+        "title": "Run refetch (discard cache)?",
+        "description": "After discarding cache, the app downloads, verifies, and replaces data again. Existing data is kept if it fails."
+      },
+      "refetch_progress": {
+        "title": "Refetch progress (discard cache)",
+        "step": {
+          "download": "Download",
+          "verify": "Verify",
+          "save": "Save",
+          "complete": "Complete"
+        }
+      }
+    },
+    "storage": {
+      "title": "Storage",
+      "usage": "Usage (estimate)",
+      "usage_unknown": "Estimated / unknown",
+      "usage_value": "{{used}} / {{quota}}",
+      "risk": "Risk",
+      "risk_value": {
+        "safe": "Safe",
+        "warning": "Warning",
+        "critical": "Critical"
+      },
+      "action": {
+        "cleanup": "Clean up storage"
+      },
+      "auto_delete": {
+        "enable": "Enable automatic image deletion",
+        "days_label": "Delete images N days after end",
+        "helper": "Tournament data remains; only images are deleted (not restorable)."
+      },
+      "detail": {
+        "last_run_at": "Last run",
+        "deleted_image_count": "Deleted images",
+        "deleted_image_count_value": "{{value}} images",
+        "released": "Released size"
+      },
+      "cleanup_dialog": {
+        "title": "Clean up storage",
+        "loading": "Loading estimate...",
+        "target_tournament_count": "Target tournaments to delete: {{value}}",
+        "target_image_count": "Target images to delete: {{value}}",
+        "estimated_release": "Estimated release size: {{size}}",
+        "not_restorable": "Not restorable",
+        "action": {
+          "proceed": "Proceed to deletion"
+        }
+      },
+      "cleanup_confirm": {
+        "title": "Final confirmation",
+        "description": "Images will be deleted and cannot be restored. Continue?",
+        "action": {
+          "execute": "Confirm and run"
+        }
+      }
+    },
+    "app": {
+      "title": "App",
+      "version": "App version",
+      "build_time": "Build time",
+      "offline": "Offline feature",
+      "update": "Update",
+      "action": {
+        "apply_update": "Reload and update"
+      },
+      "sw": {
+        "enabled": "Enabled",
+        "unregistered": "Disabled"
+      },
+      "update_status": {
+        "available": "Available",
+        "none": "None"
+      },
+      "technical": {
+        "title": "Technical info",
+        "sw_state": "SW state",
+        "sw_scope": "SW scope",
+        "version_build": "version/build id",
+        "clients_claim": "clientsClaim",
+        "skip_waiting": "skipWaiting",
+        "clients_claim_status": {
+          "unknown": "Unknown",
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "skip_waiting_status": {
+          "unknown": "Unknown",
+          "waiting": "Waiting",
+          "none": "No waiting"
+        }
+      }
+    },
+    "technical": {
+      "title": "Technical info",
+      "common_info": "Common info",
+      "web_locks": "Web Locks",
+      "web_locks_value": "{{status}}",
+      "web_locks_with_reason": "{{status}} ({{reason}})",
+      "web_locks_reason": {
+        "unsupported": "Your browser does not support the Web Locks API.",
+        "not_acquired": "Another tab may already be running."
+      },
+      "opfs": "OPFS",
+      "opfs_value": "{{status}} / Usage {{usage}} / Estimated free {{free}}",
+      "db_integrity": "DB integrity_check",
+      "db_file_size": "DB file size",
+      "db_user_version": "DB user_version",
+      "latest_error_logs": "Recent error logs",
+      "log_line": "[{{timestamp}}] [{{level}}] {{message}}",
+      "no_logs": "No logs.",
+      "locks_status": {
+        "acquired": "Acquired",
+        "unsupported": "Failed (unsupported)",
+        "not_acquired": "Failed"
+      },
+      "opfs_status": {
+        "available": "Available",
+        "unsupported": "Unsupported",
+        "error": "Error"
+      }
+    },
+    "danger": {
+      "title": "Danger zone",
+      "description": "Running local reset deletes the following items.",
+      "items": {
+        "tournament": "Tournament data",
+        "images": "Submitted images",
+        "song_data": "Song data"
+      },
+      "not_restorable": "Cannot be restored.",
+      "action": {
+        "reset_local": "Local reset",
+        "execute_reset": "Run reset"
+      },
+      "guide": {
+        "title": "Run local reset?",
+        "description": "The following items will be deleted (not restorable).",
+        "next_hint": "Proceeding requires entering a confirmation token."
+      },
+      "final": {
+        "title": "Final confirmation",
+        "description": "Enter the confirmation token to run. After running, the app returns to initial state."
+      },
+      "confirm_label": "Confirmation token",
+      "confirm_placeholder": "DELETE",
+      "confirm_helper": "Enter \"{{token}}\" to enable execution.",
+      "reset_confirm_token": "DELETE"
+    },
+    "logs": {
+      "copied": "Logs copied.",
+      "copy_failed": "Failed to copy logs."
+    }
+  }
 }

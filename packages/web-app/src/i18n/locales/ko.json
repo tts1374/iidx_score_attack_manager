@@ -1,52 +1,268 @@
 {
-    "common":  {
-                   "detail":  "상세",
-                   "close":  "닫기",
-                   "copy":  "복사",
-                   "share":  "공유",
-                   "cancel":  "취소",
-                   "next":  "다음",
-                   "execute":  "실행",
-                   "not_available":  "-",
-                   "unknown":  "알 수 없음",
-                   "images_with_count":  "{{count}}장"
-               },
-    "settings":  {
-                     "title":  "설정",
-                     "language":  {
-                                      "title":  "언어",
-                                      "label":  "표시 언어",
-                                      "option":  {
-                                                     "ja":  "일본어",
-                                                     "en":  "영어",
-                                                     "ko":  "한국어"
-                                                 },
-                                      "toast":  {
-                                                    "changed":  "표시 언어를 {{language}}(으)로 변경했습니다.",
-                                                    "change_failed":  "표시 언어를 변경하지 못했습니다."
-                                                }
-                                  },
-                     "song_data":  {
-                                       "technical":  {
-                                                         "title":  "기술 정보"
-                                                     },
-                                       "title":  "곡 데이터"
-                                   },
-                     "storage":  {
-                                     "title":  "저장 공간"
-                                 },
-                     "app":  {
-                                 "technical":  {
-                                                   "title":  "기술 정보"
-                                               },
-                                 "title":  "앱"
-                             },
-                     "danger":  {
-                                    "title":  "위험 작업"
-                                },
-                     "technical":  {
-                                       "common_info":  "공통 정보",
-                                       "title":  "기술 정보"
-                                   }
-                 }
+  "common": {
+    "detail": "상세",
+    "close": "닫기",
+    "copy": "복사",
+    "share": "공유",
+    "cancel": "취소",
+    "next": "다음",
+    "execute": "실행",
+    "not_available": "-",
+    "unknown": "알 수 없음"
+  },
+  "settings": {
+    "title": "설정",
+    "language": {
+      "title": "언어",
+      "description": "UI 표시 언어를 선택합니다.",
+      "label": "표시 언어",
+      "option": {
+        "ja": "일본어",
+        "en": "영어",
+        "ko": "한국어"
+      },
+      "toast": {
+        "changed": "표시 언어를 {{language}}(으)로 변경했습니다.",
+        "change_failed": "표시 언어를 변경하지 못했습니다."
+      }
+    },
+    "health": {
+      "summary": "상태 요약: {{level}}",
+      "level": {
+        "normal": "정상",
+        "caution": "주의",
+        "abnormal": "이상"
+      },
+      "action": {
+        "restart": "다른 탭을 닫고 다시 시작합니다",
+        "fetch_song": "곡 데이터를 가져옵니다",
+        "cleanup": "저장 공간을 정리합니다",
+        "default": "조치를 실행합니다"
+      },
+      "reason": {
+        "web_locks_failed": "Web Locks: 획득 실패",
+        "song_unavailable": "곡 데이터: 사용 불가",
+        "opfs_error": "OPFS: 접근 실패",
+        "db_integrity_error": "DB 무결성: 오류",
+        "capacity_critical": "저장 공간: 부족 위험"
+      }
+    },
+    "song_data": {
+      "title": "곡 데이터",
+      "status": {
+        "label": "상태",
+        "available": "사용 가능",
+        "unavailable": "사용 불가",
+        "update_failed_cache": "업데이트 실패(캐시 사용)",
+        "check_not_run": "최신 확인 미실행"
+      },
+      "size": "크기",
+      "last_fetched_at": "마지막 가져오기",
+      "last_checked_at": "마지막 확인 시각",
+      "update_available": "업데이트가 있습니다. 필요하면 \"업데이트 확인\"을 실행합니다.",
+      "check_not_run_info": "최신 확인을 아직 실행하지 않았습니다(정보 표시). 필요하면 \"업데이트 확인\"을 실행합니다.",
+      "update_failed_cache_info": "업데이트 확인에 실패했습니다. 기존 데이터를 계속 사용합니다.",
+      "action": {
+        "check_updates": "업데이트 확인",
+        "checking": "확인 중...",
+        "refetch": "다시 가져오기(캐시 폐기)"
+      },
+      "detail": {
+        "fetched_at": "가져온 시각",
+        "generated_at": "생성일",
+        "download_source": "다운로드 출처",
+        "download_source_value": "GitHub Releases",
+        "latest_result": "최근 업데이트 결과",
+        "latest_judgement_note": "\"업데이트 확인\" 실행으로 최신 여부를 판단합니다.",
+        "failed_cache_note": "실패하면 기존 데이터를 사용합니다(초기 실행 시에는 사용 불가입니다)."
+      },
+      "technical": {
+        "title": "기술 정보",
+        "schema_version": "schema_version",
+        "sha256": "sha256",
+        "latest_checked_at": "latest.json 확인 시각",
+        "latest_status_code": "latest.json 상태 코드",
+        "download_url": "다운로드 URL",
+        "verification": "검증 결과",
+        "action": {
+          "copy_logs": "로그 복사"
+        },
+        "latest_error": "latest.json 오류: {{message}}"
+      },
+      "result": {
+        "none": "-",
+        "failed": "실패: {{message}}",
+        "up_to_date": "성공: 최신 상태입니다",
+        "updated_success": "성공: 업데이트를 적용했습니다",
+        "local_cache_failed": "실패(캐시 사용): {{message}}",
+        "success": "성공"
+      },
+      "verification": {
+        "match": "일치",
+        "diff": "차이 있음",
+        "failed": "확인 실패",
+        "none": "-"
+      },
+      "error": {
+        "refetch_default": "다시 가져오기(캐시 폐기)에 실패했습니다.",
+        "latest_fetch_failed": "latest.json 가져오기에 실패했습니다: {{status}}",
+        "latest_invalid": "latest.json 형식이 올바르지 않습니다.",
+        "latest_missing": "latest.json 필수 항목이 부족합니다.",
+        "unexpected": "예기치 않은 오류: {{message}}"
+      },
+      "refetch_confirm": {
+        "title": "다시 가져오기(캐시 폐기)를 실행할까요?",
+        "description": "캐시를 폐기한 뒤 다시 다운로드, 검증, 교체를 수행합니다. 실패하면 기존 데이터를 유지합니다."
+      },
+      "refetch_progress": {
+        "title": "다시 가져오기 진행 상황(캐시 폐기)",
+        "step": {
+          "download": "가져오기",
+          "verify": "검증",
+          "save": "저장",
+          "complete": "완료"
+        }
+      }
+    },
+    "storage": {
+      "title": "저장 공간",
+      "usage": "사용량(추정)",
+      "usage_unknown": "추정/알 수 없음",
+      "usage_value": "{{used}} / {{quota}}",
+      "risk": "위험도",
+      "risk_value": {
+        "safe": "여유",
+        "warning": "주의",
+        "critical": "부족"
+      },
+      "action": {
+        "cleanup": "저장 공간 정리"
+      },
+      "auto_delete": {
+        "enable": "이미지 자동 삭제를 활성화합니다",
+        "days_label": "종료 후 N일 뒤 이미지 삭제",
+        "helper": "대회 데이터는 유지되고 이미지만 삭제됩니다(복원 불가)."
+      },
+      "detail": {
+        "last_run_at": "최근 실행 시각",
+        "deleted_image_count": "삭제된 이미지 수",
+        "deleted_image_count_value": "{{value}}장",
+        "released": "해제 용량"
+      },
+      "cleanup_dialog": {
+        "title": "저장 공간 정리",
+        "loading": "예상치를 가져오는 중...",
+        "target_tournament_count": "삭제 대상 대회 수: {{value}}",
+        "target_image_count": "삭제 대상 이미지 수: {{value}}",
+        "estimated_release": "예상 해제 용량: {{size}}",
+        "not_restorable": "복원할 수 없습니다",
+        "action": {
+          "proceed": "삭제 실행으로 진행합니다"
+        }
+      },
+      "cleanup_confirm": {
+        "title": "최종 확인",
+        "description": "이미지를 삭제합니다. 복원할 수 없습니다. 실행할까요?",
+        "action": {
+          "execute": "최종 확인 후 실행합니다"
+        }
+      }
+    },
+    "app": {
+      "title": "앱",
+      "version": "앱 버전",
+      "build_time": "빌드 시각",
+      "offline": "오프라인 기능",
+      "update": "업데이트",
+      "action": {
+        "apply_update": "새로고침 후 업데이트"
+      },
+      "sw": {
+        "enabled": "활성",
+        "unregistered": "비활성"
+      },
+      "update_status": {
+        "available": "있음",
+        "none": "없음"
+      },
+      "technical": {
+        "title": "기술 정보",
+        "sw_state": "SW state",
+        "sw_scope": "SW scope",
+        "version_build": "version/build id",
+        "clients_claim": "clientsClaim",
+        "skip_waiting": "skipWaiting",
+        "clients_claim_status": {
+          "unknown": "알 수 없음",
+          "enabled": "활성",
+          "disabled": "비활성"
+        },
+        "skip_waiting_status": {
+          "unknown": "알 수 없음",
+          "waiting": "대기 중",
+          "none": "대기 없음"
+        }
+      }
+    },
+    "technical": {
+      "title": "기술 정보",
+      "common_info": "공통 정보",
+      "web_locks": "Web Locks",
+      "web_locks_value": "{{status}}",
+      "web_locks_with_reason": "{{status}} ({{reason}})",
+      "web_locks_reason": {
+        "unsupported": "브라우저가 Web Locks API를 지원하지 않습니다.",
+        "not_acquired": "다른 탭이 이미 실행 중일 수 있습니다."
+      },
+      "opfs": "OPFS",
+      "opfs_value": "{{status}} / 사용량 {{usage}} / 예상 여유 {{free}}",
+      "db_integrity": "DB integrity_check",
+      "db_file_size": "DB 파일 크기",
+      "db_user_version": "DB user_version",
+      "latest_error_logs": "최근 오류 로그",
+      "log_line": "[{{timestamp}}] [{{level}}] {{message}}",
+      "no_logs": "로그가 없습니다.",
+      "locks_status": {
+        "acquired": "획득됨",
+        "unsupported": "실패(미지원)",
+        "not_acquired": "실패"
+      },
+      "opfs_status": {
+        "available": "사용 가능",
+        "unsupported": "미지원",
+        "error": "오류"
+      }
+    },
+    "danger": {
+      "title": "위험 작업",
+      "description": "로컬 초기화를 실행하면 아래 항목을 삭제합니다.",
+      "items": {
+        "tournament": "대회 데이터",
+        "images": "제출 이미지",
+        "song_data": "곡 데이터"
+      },
+      "not_restorable": "복원할 수 없습니다.",
+      "action": {
+        "reset_local": "로컬 초기화",
+        "execute_reset": "초기화를 실행합니다"
+      },
+      "guide": {
+        "title": "로컬 초기화를 실행할까요?",
+        "description": "아래 항목을 삭제합니다(복원 불가).",
+        "next_hint": "다음 단계로 진행하려면 확인 문자열 입력이 필요합니다."
+      },
+      "final": {
+        "title": "최종 확인",
+        "description": "실행하려면 확인 문자열을 입력합니다. 실행 후 초기 상태로 돌아갑니다."
+      },
+      "confirm_label": "확인 문자열",
+      "confirm_placeholder": "삭제",
+      "confirm_helper": "\"{{token}}\"을 입력하면 실행할 수 있습니다.",
+      "reset_confirm_token": "삭제"
+    },
+    "logs": {
+      "copied": "로그를 복사했습니다.",
+      "copy_failed": "로그 복사에 실패했습니다."
+    }
+  }
 }
