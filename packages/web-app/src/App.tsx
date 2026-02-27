@@ -473,9 +473,9 @@ function homeAttrLabel(attr: HomeFilterAttr): string {
     return '送信待ちあり';
   }
   if (attr === 'imported') {
-    return 'インポート大会';
+    return '取り込み';
   }
-  return '自作大会';
+  return '作成';
 }
 
 function homeSortLabel(sort: HomeSort): string {
@@ -2245,8 +2245,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     });
                   }}
                 >
-                  <ToggleButton value="imported">インポート大会</ToggleButton>
-                  <ToggleButton value="created">自作大会</ToggleButton>
+                  <ToggleButton value="imported">取り込み</ToggleButton>
+                  <ToggleButton value="created">作成</ToggleButton>
                 </ToggleButtonGroup>
               </div>
               <Divider />
