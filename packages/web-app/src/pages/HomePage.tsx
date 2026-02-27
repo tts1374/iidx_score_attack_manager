@@ -8,6 +8,8 @@ interface HomePageProps {
   state: TournamentTab;
   items: TournamentListItem[];
   onOpenDetail: (tournamentUuid: string) => void;
+  showClearAllInEmpty?: boolean;
+  onClearAllFilters?: () => void;
 }
 
 type DeadlineTone = 'normal' | 'warning' | 'urgent';
@@ -106,20 +108,21 @@ export function sortForActiveTab(a: TournamentListItem, b: TournamentListItem): 
 
 export function HomePage(props: HomePageProps): JSX.Element {
   const stateBadge = React.useMemo(() => resolveTournamentStateBadge(props.state), [props.state]);
-  const displayItems = React.useMemo(() => {
-    if (props.state !== 'active') {
-      return props.items;
-    }
-    return [...props.items].sort(sortForActiveTab);
-  }, [props.items, props.state]);
 
   return (
     <div className="page tournamentListPage">
-      {displayItems.length === 0 ? (
-        <p className="emptyText">表示できる大会がありません。</p>
+      {props.items.length === 0 ? (
+        <div className="emptyState">
+          <p className="emptyText">表示できる大会がありません。</p>
+          {props.showClearAllInEmpty && props.onClearAllFilters ? (
+            <button type="button" className="emptyResetButton" onClick={props.onClearAllFilters}>
+              すべて解除
+            </button>
+          ) : null}
+        </div>
       ) : (
         <ul className="cardList">
-          {displayItems.map((item) => {
+          {props.items.map((item) => {
             const statusInfo = resolveTournamentCardStatus(item.startDate, item.endDate, props.todayDate);
             const progress = item.chartCount > 0 ? Math.round((item.submittedCount / item.chartCount) * 100) : 0;
             const showRemainingDays = props.state === 'active' && statusInfo.daysLeft !== null;

@@ -8,6 +8,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   Divider,
   Dialog,
   DialogActions,
@@ -488,6 +489,14 @@ function homeSortLabel(sort: HomeSort): string {
   return 'デフォルト';
 }
 
+function truncateSearchChipText(searchText: string): string {
+  const max = 12;
+  if (searchText.length <= max) {
+    return searchText;
+  }
+  return `${searchText.slice(0, max)}…`;
+}
+
 function isHomeQueryDefault(query: HomeQueryState): boolean {
   return (
     query.state === HOME_DEFAULT_QUERY_STATE.state &&
@@ -804,6 +813,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeHasNonDefaultQuery = !isHomeQueryDefault(homeQuery);
   const homeNormalizedSearch = normalizeHomeSearchForFilter(homeQuery.searchText);
   const homeHasSearchQuery = homeNormalizedSearch.length > 0;
+  const homeSearchChip = homeHasSearchQuery ? truncateSearchChipText(homeNormalizedSearch) : '';
 
   const openHomeFilterSheet = React.useCallback(
     (focusSection: HomeFilterSheetFocusSection = null) => {
@@ -836,6 +846,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setHomeFilterDraft(createDefaultHomeQueryState());
   }, []);
 
+  const clearAllHomeQuery = React.useCallback(() => {
+    setHomeQuery(createDefaultHomeQueryState());
+    setHomeFilterDraft(createDefaultHomeQueryState());
+    setHomeSearchMode(false);
+  }, []);
+
   const setHomeSearchText = React.useCallback((value: string) => {
     const normalized = normalizeHomeSearchText(value);
     setHomeQuery((previous) => ({
@@ -848,6 +864,27 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setHomeQuery((previous) => ({
       ...previous,
       searchText: '',
+    }));
+  }, []);
+
+  const clearHomeCategory = React.useCallback(() => {
+    setHomeQuery((previous) => ({
+      ...previous,
+      category: 'none',
+    }));
+  }, []);
+
+  const clearHomeSort = React.useCallback(() => {
+    setHomeQuery((previous) => ({
+      ...previous,
+      sort: 'default',
+    }));
+  }, []);
+
+  const clearHomeAttr = React.useCallback((attr: HomeFilterAttr) => {
+    setHomeQuery((previous) => ({
+      ...previous,
+      attrs: previous.attrs.filter((value) => value !== attr),
     }));
   }, []);
 
@@ -1924,18 +1961,80 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         ) : null}
 
         {route.name === 'home' && (
-          <HomePage
-            todayDate={todayDate}
-            state={homeQuery.state}
-            items={homeVisibleItems}
-            onOpenDetail={async (tournamentUuid) => {
-              const loaded = await reloadDetail(tournamentUuid);
-              if (!loaded) {
-                return;
-              }
-              pushRoute({ name: 'detail', tournamentUuid });
-            }}
-          />
+          <>
+            <section className="homeAppliedChipsRow" aria-label="home-applied-filters">
+              <div className="homeAppliedChipsScroll">
+                <Chip
+                  size="small"
+                  clickable
+                  color={homeQuery.state === 'active' ? 'success' : 'default'}
+                  label={homeStateLabel(homeQuery.state)}
+                  onClick={() => openHomeFilterSheet('state')}
+                />
+                {homeQuery.category !== 'none' ? (
+                  <Chip
+                    size="small"
+                    clickable
+                    label={homeCategoryLabel(homeQuery.category)}
+                    onClick={() => openHomeFilterSheet('category')}
+                    onDelete={clearHomeCategory}
+                  />
+                ) : null}
+                {homeQuery.attrs.map((attr) => (
+                  <Chip
+                    key={attr}
+                    size="small"
+                    clickable
+                    label={homeAttrLabel(attr)}
+                    onClick={() => openHomeFilterSheet('attrs')}
+                    onDelete={() => clearHomeAttr(attr)}
+                  />
+                ))}
+                {homeQuery.sort !== 'default' ? (
+                  <Chip
+                    size="small"
+                    clickable
+                    label={`並び: ${homeSortLabel(homeQuery.sort)}`}
+                    onClick={() => openHomeFilterSheet('sort')}
+                    onDelete={clearHomeSort}
+                  />
+                ) : null}
+                {homeHasSearchQuery ? (
+                  <Chip
+                    size="small"
+                    clickable
+                    label={`検索: "${homeSearchChip}"`}
+                    onClick={() => setHomeSearchMode(true)}
+                    onDelete={clearHomeSearchText}
+                  />
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                size="small"
+                variant="text"
+                className="homeClearAllButton"
+                onClick={clearAllHomeQuery}
+                disabled={!homeHasNonDefaultQuery}
+              >
+                すべて解除
+              </Button>
+            </section>
+            <HomePage
+              todayDate={todayDate}
+              state={homeQuery.state}
+              items={homeVisibleItems}
+              showClearAllInEmpty={homeHasNonDefaultQuery}
+              onClearAllFilters={clearAllHomeQuery}
+              onOpenDetail={async (tournamentUuid) => {
+                const loaded = await reloadDetail(tournamentUuid);
+                if (!loaded) {
+                  return;
+                }
+                pushRoute({ name: 'detail', tournamentUuid });
+              }}
+            />
+          </>
         )}
 
         {route.name === 'import' && (
