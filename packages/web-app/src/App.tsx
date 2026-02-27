@@ -873,6 +873,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     }));
   }, []);
 
+  const closeHomeSearchModeViaBack = React.useCallback(() => {
+    clearHomeSearchText();
+    setHomeSearchMode(false);
+  }, [clearHomeSearchText]);
+
   const clearHomeCategory = React.useCallback(() => {
     setHomeQuery((previous) => ({
       ...previous,
@@ -1857,7 +1862,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           {isHomeRoute ? (
             homeSearchMode ? (
               <Box sx={{ width: '100%', display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 1 }}>
-                <IconButton edge="start" color="inherit" aria-label="search-close" onClick={() => setHomeSearchMode(false)}>
+                <IconButton edge="start" color="inherit" aria-label="search-close" onClick={closeHomeSearchModeViaBack}>
                   <ArrowBackIcon />
                 </IconButton>
                 <Box
