@@ -2210,7 +2210,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   カテゴリ
                 </Typography>
                 <ToggleButtonGroup
-                  value={homeFilterDraft.category}
+                  value={homeFilterDraft.category === 'none' ? null : homeFilterDraft.category}
                   exclusive
                   size="small"
                   fullWidth
@@ -2221,9 +2221,32 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     }));
                   }}
                 >
-                  <ToggleButton value="none">未指定</ToggleButton>
                   <ToggleButton value="pending">未登録あり</ToggleButton>
                   <ToggleButton value="completed">全登録済み</ToggleButton>
+                </ToggleButtonGroup>
+              </div>
+              <Divider />
+              <div className="homeFilterSection">
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  種別
+                </Typography>
+                <ToggleButtonGroup
+                  value={homeFilterDraft.attrs.includes('imported') ? 'imported' : homeFilterDraft.attrs.includes('created') ? 'created' : null}
+                  exclusive
+                  size="small"
+                  fullWidth
+                  onChange={(_event, value: 'imported' | 'created' | null) => {
+                    setHomeFilterDraft((previous) => {
+                      const attrsWithoutType = previous.attrs.filter((entry) => entry !== 'imported' && entry !== 'created');
+                      return {
+                        ...previous,
+                        attrs: value ? normalizeHomeAttrs([...attrsWithoutType, value]) : attrsWithoutType,
+                      };
+                    });
+                  }}
+                >
+                  <ToggleButton value="imported">インポート大会</ToggleButton>
+                  <ToggleButton value="created">自作大会</ToggleButton>
                 </ToggleButtonGroup>
               </div>
               <Divider />
@@ -2247,38 +2270,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       />
                     }
                     label="送信待ちあり"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={homeFilterDraft.attrs.includes('imported')}
-                        onChange={(event) => {
-                          setHomeFilterDraft((previous) => ({
-                            ...previous,
-                            attrs: event.target.checked
-                              ? normalizeHomeAttrs([...previous.attrs, 'imported'])
-                              : previous.attrs.filter((value) => value !== 'imported'),
-                          }));
-                        }}
-                      />
-                    }
-                    label="インポート大会"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={homeFilterDraft.attrs.includes('created')}
-                        onChange={(event) => {
-                          setHomeFilterDraft((previous) => ({
-                            ...previous,
-                            attrs: event.target.checked
-                              ? normalizeHomeAttrs([...previous.attrs, 'created'])
-                              : previous.attrs.filter((value) => value !== 'created'),
-                          }));
-                        }}
-                      />
-                    }
-                    label="自作大会"
                   />
                 </FormGroup>
               </div>
