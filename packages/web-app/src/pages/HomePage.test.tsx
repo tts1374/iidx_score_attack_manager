@@ -1,18 +1,15 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
 import { HomePage } from './HomePage';
 
 describe('HomePage', () => {
-  it('switches tabs and renders pending-focused card status', async () => {
-    const onTabChange = vi.fn();
-
+  it('renders pending-focused card status', () => {
     render(
       <HomePage
         todayDate="2026-02-10"
-        tab="active"
+        state="active"
         items={[
           {
             tournamentUuid: 't1',
@@ -29,7 +26,6 @@ describe('HomePage', () => {
             pendingCount: 2,
           },
         ]}
-        onTabChange={onTabChange}
         onOpenDetail={() => undefined}
       />,
     );
@@ -41,9 +37,6 @@ describe('HomePage', () => {
     expect(within(firstCard).getByText('(50%)')).toBeTruthy();
     expect(within(firstCard).getByText('未登録あり')).toBeTruthy();
     expect(within(firstCard).getByText('詳細を見る')).toBeTruthy();
-
-    await userEvent.click(screen.getByRole('tab', { name: '開催前' }));
-    expect(onTabChange).toHaveBeenCalledWith('upcoming');
   });
 
   it('shows registration badge outside active tab', () => {
@@ -65,9 +58,8 @@ describe('HomePage', () => {
     const { container, rerender } = render(
       <HomePage
         todayDate="2026-02-10"
-        tab="upcoming"
+        state="upcoming"
         items={[commonItem]}
-        onTabChange={() => undefined}
         onOpenDetail={() => undefined}
       />,
     );
@@ -78,9 +70,8 @@ describe('HomePage', () => {
     rerender(
       <HomePage
         todayDate="2026-02-10"
-        tab="ended"
+        state="ended"
         items={[commonItem]}
-        onTabChange={() => undefined}
         onOpenDetail={() => undefined}
       />,
     );
@@ -92,7 +83,7 @@ describe('HomePage', () => {
     const { container } = render(
       <HomePage
         todayDate="2026-02-08"
-        tab="active"
+        state="active"
         items={[
           {
             tournamentUuid: 'done',
@@ -151,7 +142,6 @@ describe('HomePage', () => {
             pendingCount: 2,
           },
         ]}
-        onTabChange={() => undefined}
         onOpenDetail={() => undefined}
       />,
     );

@@ -308,7 +308,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const { appDb, songMasterService } = useAppServices();
 
   const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
-  const [tab, setTab] = React.useState<TournamentTab>('active');
   const [tournaments, setTournaments] = React.useState<Awaited<ReturnType<typeof appDb.listTournaments>>>([]);
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -364,6 +363,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const isSettingsRoute = route.name === 'settings';
   const canUseQrImport = window.isSecureContext === true && typeof navigator.mediaDevices?.getUserMedia === 'function';
   const todayDate = todayJst();
+  const homeState: TournamentTab = 'active';
   const swStatus = resolveServiceWorkerStatus(pwaUpdate, hasSwController);
   const appInfoSnapshot = React.useMemo<AppInfoCardData>(
     () => ({
@@ -563,9 +563,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   );
 
   const refreshTournamentList = React.useCallback(async () => {
-    const rows = await appDb.listTournaments(tab);
+    const rows = await appDb.listTournaments(homeState);
     setTournaments(rows);
-  }, [appDb, tab]);
+  }, [appDb, homeState]);
 
   const refreshSettingsSnapshot = React.useCallback(async () => {
     const songMeta = await appDb.getSongMasterMeta();
@@ -755,7 +755,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           });
         }
         await refreshSettingsSnapshot();
-        setTournaments(await appDb.listTournaments('active'));
+        setTournaments(await appDb.listTournaments(homeState));
 
         if (import.meta.env.DEV) {
           if ('serviceWorker' in navigator) {
@@ -798,7 +798,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     return () => {
       mounted = false;
     };
-  }, [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot]);
+  }, [appDb, appendRuntimeLog, homeState, pushToast, refreshSettingsSnapshot]);
 
   React.useEffect(() => {
     void refreshTournamentList();
@@ -1277,9 +1277,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       setCreateDraft(null);
       setCreateSaving(false);
       setCreateSaveError(null);
-      setTab('active');
       resetRoute({ name: 'home' });
-      setTournaments(await appDb.listTournaments('active'));
+      setTournaments(await appDb.listTournaments(homeState));
       await refreshSettingsSnapshot();
       pushToast('ローカル初期化を実行しました。');
     } catch (error) {
@@ -1287,7 +1286,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     } finally {
       setBusy(false);
     }
-  }, [appDb, busy, pushToast, refreshSettingsSnapshot, resetRoute]);
+  }, [appDb, busy, homeState, pushToast, refreshSettingsSnapshot, resetRoute]);
 
   const homeMenuOpen = homeMenuAnchorEl !== null;
   const detailMenuOpen = detailMenuAnchorEl !== null;
@@ -1406,9 +1405,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         {route.name === 'home' && (
           <HomePage
             todayDate={todayDate}
-            tab={tab}
+            state={homeState}
             items={tournaments}
-            onTabChange={setTab}
             onOpenDetail={async (tournamentUuid) => {
               const loaded = await reloadDetail(tournamentUuid);
               if (!loaded) {

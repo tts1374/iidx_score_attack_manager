@@ -5,9 +5,8 @@ import { resolveTournamentCardStatus } from '../utils/tournament-status';
 
 interface HomePageProps {
   todayDate: string;
-  tab: TournamentTab;
+  state: TournamentTab;
   items: TournamentListItem[];
-  onTabChange: (tab: TournamentTab) => void;
   onOpenDetail: (tournamentUuid: string) => void;
 }
 
@@ -82,7 +81,7 @@ function resolveActivePriority(item: TournamentListItem): number {
   return 2;
 }
 
-function sortForActiveTab(a: TournamentListItem, b: TournamentListItem): number {
+export function sortForActiveTab(a: TournamentListItem, b: TournamentListItem): number {
   const groupComparison = resolveActivePriority(a) - resolveActivePriority(b);
   if (groupComparison !== 0) {
     return groupComparison;
@@ -98,47 +97,24 @@ function sortForActiveTab(a: TournamentListItem, b: TournamentListItem): number 
     return startDateComparison;
   }
 
-  return a.tournamentName.localeCompare(b.tournamentName, 'ja');
+  const nameComparison = a.tournamentName.localeCompare(b.tournamentName, 'ja');
+  if (nameComparison !== 0) {
+    return nameComparison;
+  }
+  return a.tournamentUuid.localeCompare(b.tournamentUuid);
 }
 
 export function HomePage(props: HomePageProps): JSX.Element {
-  const stateBadge = React.useMemo(() => resolveTournamentStateBadge(props.tab), [props.tab]);
+  const stateBadge = React.useMemo(() => resolveTournamentStateBadge(props.state), [props.state]);
   const displayItems = React.useMemo(() => {
-    if (props.tab !== 'active') {
+    if (props.state !== 'active') {
       return props.items;
     }
     return [...props.items].sort(sortForActiveTab);
-  }, [props.items, props.tab]);
+  }, [props.items, props.state]);
 
   return (
     <div className="page tournamentListPage">
-      <section className="tabRow" role="tablist" aria-label="tournament-tabs">
-        <button
-          className={props.tab === 'active' ? 'active' : ''}
-          role="tab"
-          aria-selected={props.tab === 'active'}
-          onClick={() => props.onTabChange('active')}
-        >
-          開催中
-        </button>
-        <button
-          className={props.tab === 'upcoming' ? 'active' : ''}
-          role="tab"
-          aria-selected={props.tab === 'upcoming'}
-          onClick={() => props.onTabChange('upcoming')}
-        >
-          開催前
-        </button>
-        <button
-          className={props.tab === 'ended' ? 'active' : ''}
-          role="tab"
-          aria-selected={props.tab === 'ended'}
-          onClick={() => props.onTabChange('ended')}
-        >
-          終了
-        </button>
-      </section>
-
       {displayItems.length === 0 ? (
         <p className="emptyText">表示できる大会がありません。</p>
       ) : (
@@ -146,7 +122,7 @@ export function HomePage(props: HomePageProps): JSX.Element {
           {displayItems.map((item) => {
             const statusInfo = resolveTournamentCardStatus(item.startDate, item.endDate, props.todayDate);
             const progress = item.chartCount > 0 ? Math.round((item.submittedCount / item.chartCount) * 100) : 0;
-            const showRemainingDays = props.tab === 'active' && statusInfo.daysLeft !== null;
+            const showRemainingDays = props.state === 'active' && statusInfo.daysLeft !== null;
             const deadlineTone = statusInfo.daysLeft !== null ? resolveDeadlineTone(statusInfo.daysLeft) : null;
             const progressBadge = resolveProgressStateBadge(item);
 
