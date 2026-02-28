@@ -263,6 +263,81 @@ label {
   flex-shrink: 0;
 }
 
+.homeSubheaderRow {
+  position: sticky;
+  top: 56px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -16px 12px;
+  padding: 0 18px;
+  background: #f7f8fa;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 0 rgba(148, 163, 184, 0.18);
+}
+
+.homeSubheaderCount {
+  color: #475569;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.homeSubheaderSortButton {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: right;
+}
+
+.homeSubheaderSortButtonLabel {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.homeSubheaderSortButton:hover {
+  background: #e9edf3;
+  color: #1d4ed8;
+}
+
+.homeSubheaderSortButton:active {
+  background: #e2e8f0;
+}
+
+.homeSubheaderSortButton:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.homeSubheaderSortButtonArrow {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 600px) {
+  .homeSubheaderRow {
+    top: 64px;
+  }
+}
+
 .homeFilterSheet {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;

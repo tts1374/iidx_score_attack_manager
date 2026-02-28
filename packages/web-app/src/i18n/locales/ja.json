@@ -197,7 +197,10 @@
     },
     "home": {
       "search_placeholder": "スコアタ名 / 開催者 / ハッシュタグ",
-      "search_chip": "検索: \"{{value}}\""
+      "search_chip": "検索: \"{{value}}\"",
+      "list_count": "{{count}}件表示中",
+      "list_count_loading": "—件表示中",
+      "sort_change_aria": "並び替えを変更"
     },
     "tournament_status": {
       "days_until_start": "あと{{count}}日"
@@ -227,7 +230,7 @@
         "send_waiting": "送信待ちあり"
       },
       "sort": {
-        "default": "デフォルト",
+        "default": "優先度順",
         "deadline": "期日が近い順",
         "progress_low": "進捗が低い順",
         "send_waiting_high": "送信待ちが多い順",

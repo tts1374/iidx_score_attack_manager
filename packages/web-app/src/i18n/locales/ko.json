@@ -197,7 +197,10 @@
     },
     "home": {
       "search_placeholder": "스코어 어택명 / 주최자 / 해시태그",
-      "search_chip": "검색: \"{{value}}\""
+      "search_chip": "검색: \"{{value}}\"",
+      "list_count": "{{count}}건 표시 중",
+      "list_count_loading": "—건 표시 중",
+      "sort_change_aria": "정렬 변경"
     },
     "tournament_status": {
       "days_until_start": "시작까지 {{count}}일"
@@ -227,7 +230,7 @@
         "send_waiting": "전송 대기 있음"
       },
       "sort": {
-        "default": "기본",
+        "default": "우선순위",
         "deadline": "마감 임박 순",
         "progress_low": "진행률 낮은 순",
         "send_waiting_high": "전송 대기 많은 순",
