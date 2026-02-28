@@ -2207,7 +2207,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   ▾
                 </span>
               </button>
-              <Menu anchorEl={homeSortMenuAnchorEl} open={homeSortMenuOpen} onClose={closeHomeSortMenu}>
+              <Menu
+                anchorEl={homeSortMenuAnchorEl}
+                open={homeSortMenuOpen}
+                onClose={closeHomeSortMenu}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              >
                 {HOME_SORT_OPTIONS.map((option) => (
                   <MenuItem
                     key={option.value}
