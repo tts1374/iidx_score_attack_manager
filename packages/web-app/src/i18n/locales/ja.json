@@ -745,5 +745,120 @@
       "copied": "ログをコピーしました。",
       "copy_failed": "ログコピーに失敗しました。"
     }
+  },
+  "tournament_detail": {
+    "action": {
+      "share_tournament": "大会を共有",
+      "open_settings": "設定",
+      "register": "登録",
+      "replace": "差し替え",
+      "zoom_preview": "拡大表示",
+      "export_image": "画像を保存",
+      "copy_text": "テキストをコピー",
+      "copy_logs": "ログコピー",
+      "save_to_device": "端末に保存",
+      "mark_send_completed": "送信完了にする",
+      "submit": "送信する"
+    },
+    "status": {
+      "upcoming": "未開催",
+      "ended": "終了",
+      "active_today": "今日まで",
+      "active_remaining_days": "残り{{count}}日"
+    },
+    "summary": {
+      "period": "{{start}}〜{{end}}",
+      "period_with_space": "{{start}} 〜 {{end}}",
+      "progress": "登録 {{submitted}} / {{total}}",
+      "last_updated": "最終更新: {{date}}"
+    },
+    "chart": {
+      "heading": "譜面一覧",
+      "level": "Lv{{level}}",
+      "status": {
+        "error": "エラー",
+        "pending": "未登録",
+        "submitted": "登録済",
+        "send_pending": "送信待ち"
+      },
+      "resolve_issue": {
+        "mismatch": "一部譜面が曲データと一致しません。",
+        "master_missing": "曲データが未取得です",
+        "chart_not_found": "譜面情報が一致しません"
+      }
+    },
+    "notice": {
+      "share_canceled": "共有をキャンセルしました。"
+    },
+    "share_image": {
+      "owner": "開催者: {{owner}}",
+      "chart_heading": "対象譜面",
+      "import_hint": "読み取って取り込む"
+    },
+    "share_dialog": {
+      "close_aria_label": "共有ダイアログを閉じる",
+      "definition_only": "共有されるのは大会定義のみ（画像は含まれません）",
+      "preview_title": "プレビュー",
+      "preview_image_size": "生成画像（1080x1920）",
+      "preview_alt": "共有画像プレビュー",
+      "preview_generation_failed": "共有画像の生成に失敗しました。共有とエクスポートは利用できません。",
+      "export_title": "エクスポート",
+      "share_text_label": "共有テキスト",
+      "debug_title": "技術情報",
+      "debug_payload_size": "payload_size: {{value}} bytes",
+      "debug_def_hash": "def_hash: {{value}}",
+      "debug_source_tournament_uuid": "source_tournament_uuid: {{value}}",
+      "debug_last_error": "last_error: {{value}}",
+      "preview_zoom_title": "共有プレビュー",
+      "preview_zoom_alt": "共有プレビュー拡大表示",
+      "notice": {
+        "image_generation_failed": "共有画像の生成に失敗しました。",
+        "image_saved": "画像を保存しました。",
+        "share_unsupported_use_export": "この環境では共有できません。エクスポートをご利用ください。",
+        "share_executed": "共有を実行しました。",
+        "share_failed_use_export": "共有に失敗しました。エクスポートをご利用ください。",
+        "text_copied": "テキストをコピーしました。",
+        "auto_copy_failed": "自動コピーできませんでした。表示されたテキストを手動でコピーしてください。",
+        "debug_log_copied": "技術ログをコピーしました。",
+        "debug_log_copy_failed": "技術ログのコピーに失敗しました。"
+      },
+      "error": {
+        "qr_image_load_failed": "QR画像の読み込みに失敗しました。",
+        "unresolved_level": "対象譜面のLvを解決できないため宣伝画像を生成できません。設定画面の曲データを確認後に再試行してください。",
+        "no_visible_charts": "表示可能な対象譜面がないため宣伝画像を生成できません。",
+        "png_generation_failed": "共有画像の生成に失敗しました。",
+        "canvas_context_unavailable": "共有画像の描画環境を取得できませんでした。"
+      }
+    },
+    "submit_bar": {
+      "summary": "送信待ち {{count}}件"
+    },
+    "submit_dialog": {
+      "title": "送信",
+      "images_title": "送信する画像",
+      "images_description": "画像が端末外に共有されます",
+      "target_count": "送信対象: {{count}}件",
+      "message_title": "送信するメッセージ",
+      "complete_title": "送信完了にする",
+      "complete_description": "共有の成否は自動判定できません。相手に届いたことを確認後に実行してください。",
+      "notice": {
+        "saved_images_count": "{{count}}件の画像を保存しました。",
+        "save_images_failed": "画像の保存に失敗しました。",
+        "shared_images_fallback_saved": "この環境では共有できないため、画像を端末に保存しました。",
+        "shared_images": "送信する画像を共有しました。",
+        "share_images_failed": "画像共有に失敗しました。",
+        "message_copied": "送信するメッセージをコピーしました。",
+        "message_copy_failed": "メッセージのコピーに失敗しました。",
+        "message_share_unsupported": "この環境ではメッセージ共有に対応していません。",
+        "message_shared": "送信するメッセージを共有しました。",
+        "message_share_failed": "メッセージ共有に失敗しました。",
+        "no_pending": "送信待ちはありません。",
+        "completed_count": "{{count}}件を送信完了にしました。",
+        "mark_completed_failed": "送信完了の更新に失敗しました。"
+      },
+      "error": {
+        "no_sendable_images": "送信できる送信待ち画像がありません。"
+      }
+    }
   }
 }

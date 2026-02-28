@@ -2,6 +2,7 @@ import React from 'react';
 import { PAYLOAD_VERSION, encodeTournamentPayload, formatHashtagForDisplay, normalizeHashtag } from '@iidx/shared';
 import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
 import QRCode from 'qrcode';
+import { useTranslation } from 'react-i18next';
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
@@ -58,6 +59,7 @@ type SharePosterChart = {
 };
 
 type ChartTaskStatus = 'pending' | 'submitted' | 'error';
+type TranslationFn = (...args: any[]) => any;
 
 function optionalHashtag(value: string): string | null {
   const formatted = formatHashtagForDisplay(value);
@@ -121,42 +123,62 @@ function toAlphaColor(color: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function resolveChartTaskStatus(chart: TournamentDetailChart): {
+function resolveChartTaskStatus(
+  chart: TournamentDetailChart,
+  t: TranslationFn,
+): {
   status: ChartTaskStatus;
   label: string;
   actionLabel: string;
   errorText: string | null;
 } {
+  const registerAction = chart.submitted ? t('tournament_detail.action.replace') : t('tournament_detail.action.register');
   if (chart.resolveIssue === 'MASTER_MISSING') {
     return {
       status: 'error',
-      label: 'エラー',
-      actionLabel: chart.submitted ? '差し替え' : '登録',
-      errorText: '曲データが未取得です',
+      label: t('tournament_detail.chart.status.error'),
+      actionLabel: registerAction,
+      errorText: t('tournament_detail.chart.resolve_issue.master_missing'),
     };
   }
   if (chart.resolveIssue === 'CHART_NOT_FOUND') {
     return {
       status: 'error',
-      label: 'エラー',
-      actionLabel: chart.submitted ? '差し替え' : '登録',
-      errorText: '譜面情報が一致しません',
+      label: t('tournament_detail.chart.status.error'),
+      actionLabel: registerAction,
+      errorText: t('tournament_detail.chart.resolve_issue.chart_not_found'),
     };
   }
   if (!chart.submitted) {
     return {
       status: 'pending',
-      label: '未登録',
-      actionLabel: '登録',
+      label: t('tournament_detail.chart.status.pending'),
+      actionLabel: t('tournament_detail.action.register'),
       errorText: null,
     };
   }
   return {
     status: 'submitted',
-    label: '登録済',
-    actionLabel: '差し替え',
+    label: t('tournament_detail.chart.status.submitted'),
+    actionLabel: t('tournament_detail.action.replace'),
     errorText: null,
   };
+}
+
+function resolveStatusLabel(
+  statusInfo: ReturnType<typeof resolveTournamentCardStatus>,
+  t: TranslationFn,
+): string {
+  if (statusInfo.status === 'upcoming') {
+    return t('tournament_detail.status.upcoming');
+  }
+  if (statusInfo.status === 'ended') {
+    return t('tournament_detail.status.ended');
+  }
+  if (statusInfo.status === 'active-today') {
+    return t('tournament_detail.status.active_today');
+  }
+  return t('tournament_detail.status.active_remaining_days', { count: statusInfo.daysLeft ?? 0 });
 }
 
 function formatDateTime(value: string | null): string | null {
@@ -245,11 +267,11 @@ function fillRoundedRect(
   ctx.fill();
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+function loadImage(src: string, t: TranslationFn): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('QR画像の読み込みに失敗しました。'));
+    image.onerror = () => reject(new Error(t('tournament_detail.share_dialog.error.qr_image_load_failed')));
     image.src = src;
   });
 }
@@ -280,7 +302,7 @@ function resolveTitleLayout(
   };
 }
 
-function resolveSharePosterCharts(detail: TournamentDetailItem): SharePosterChart[] {
+function resolveSharePosterCharts(detail: TournamentDetailItem, t: TranslationFn): SharePosterChart[] {
   const rows: SharePosterChart[] = [];
   let hasUnresolvedLevel = false;
 
@@ -300,22 +322,22 @@ function resolveSharePosterCharts(detail: TournamentDetailItem): SharePosterChar
   });
 
   if (hasUnresolvedLevel) {
-    throw new Error('対象譜面のLvを解決できないため宣伝画像を生成できません。設定画面の曲データを確認後に再試行してください。');
+    throw new Error(t('tournament_detail.share_dialog.error.unresolved_level'));
   }
 
   if (rows.length === 0) {
-    throw new Error('表示可能な対象譜面がないため宣伝画像を生成できません。');
+    throw new Error(t('tournament_detail.share_dialog.error.no_visible_charts'));
   }
 
   return rows.slice(0, 4);
 }
 
-function toPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+function toPngBlob(canvas: HTMLCanvasElement, t: TranslationFn): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error('共有画像の生成に失敗しました。'));
+          reject(new Error(t('tournament_detail.share_dialog.error.png_generation_failed')));
           return;
         }
         resolve(blob);
@@ -326,15 +348,15 @@ function toPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-async function buildShareImage(detail: TournamentDetailItem, shareUrl: string): Promise<Blob> {
-  const posterCharts = resolveSharePosterCharts(detail);
+async function buildShareImage(detail: TournamentDetailItem, shareUrl: string, t: TranslationFn): Promise<Blob> {
+  const posterCharts = resolveSharePosterCharts(detail, t);
 
   const canvas = document.createElement('canvas');
   canvas.width = SHARE_IMAGE_WIDTH;
   canvas.height = SHARE_IMAGE_HEIGHT;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    throw new Error('共有画像の描画環境を取得できませんでした。');
+    throw new Error(t('tournament_detail.share_dialog.error.canvas_context_unavailable'));
   }
 
   ctx.textBaseline = 'alphabetic';
@@ -396,16 +418,24 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string): 
 
   ctx.fillStyle = '#334155';
   ctx.font = `600 32px ${SHARE_FONT_FAMILY}`;
-  ctx.fillText(trimTextToWidth(ctx, `開催者: ${detail.owner}`, innerWidth), innerX, headerCursorY + 12);
+  ctx.fillText(
+    trimTextToWidth(ctx, t('tournament_detail.share_image.owner', { owner: detail.owner }), innerWidth),
+    innerX,
+    headerCursorY + 12,
+  );
   headerCursorY += 68;
 
   ctx.fillStyle = '#1e293b';
   ctx.font = `700 40px ${SHARE_FONT_FAMILY}`;
-  ctx.fillText(`${detail.startDate} 〜 ${detail.endDate}`, innerX, headerCursorY + 8);
+  ctx.fillText(
+    t('tournament_detail.summary.period_with_space', { start: detail.startDate, end: detail.endDate }),
+    innerX,
+    headerCursorY + 8,
+  );
 
   ctx.fillStyle = '#0f172a';
   ctx.font = `800 48px ${SHARE_FONT_FAMILY}`;
-  ctx.fillText('対象譜面', innerX, chartTop + 52);
+  ctx.fillText(t('tournament_detail.share_image.chart_heading'), innerX, chartTop + 52);
 
   const rowHeight = 122;
   const rowGap = 4;
@@ -430,7 +460,7 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string): 
     ctx.fillStyle = color;
     ctx.fillText(trimTextToWidth(ctx, tagText, tagWidth - 24), tagX + 12, metaY + 25);
 
-    const levelText = `Lv${entry.levelLabel}`;
+    const levelText = t('tournament_detail.chart.level', { level: entry.levelLabel });
     const levelWidth = 112;
     const levelX = rowLeft + rowWidth - levelWidth - 24;
     fillRoundedRect(ctx, levelX, metaY, levelWidth, tagHeight, 18, '#e2e8f0');
@@ -492,7 +522,7 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string): 
       light: '#ffffff',
     },
   });
-  const qrImage = await loadImage(qrDataUrl);
+  const qrImage = await loadImage(qrDataUrl, t);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(
     qrImage,
@@ -506,10 +536,10 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string): 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#1e293b';
   ctx.font = `700 34px ${SHARE_FONT_FAMILY}`;
-  ctx.fillText('読み取って取り込む', SHARE_IMAGE_WIDTH / 2, qrCardY + qrCardSize + 56);
+  ctx.fillText(t('tournament_detail.share_image.import_hint'), SHARE_IMAGE_WIDTH / 2, qrCardY + qrCardSize + 56);
   ctx.textAlign = 'left';
 
-  return toPngBlob(canvas);
+  return toPngBlob(canvas, t);
 }
 
 function difficultyTag(chart: TournamentDetailChart): JSX.Element {
@@ -530,6 +560,7 @@ function difficultyTag(chart: TournamentDetailChart): JSX.Element {
 
 export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Element {
   const { appDb, opfs } = useAppServices();
+  const { t } = useTranslation();
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [shareImageStatus, setShareImageStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [shareImageBlob, setShareImageBlob] = React.useState<Blob | null>(null);
@@ -591,7 +622,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   );
   const sendPendingChartIds = React.useMemo(() => sendPendingCharts.map((chart) => chart.chartId), [sendPendingCharts]);
   const sendPendingCount = sendPendingCharts.length;
-  const submitSummaryText = `送信待ち ${sendPendingCount}件`;
+  const submitSummaryText = t('tournament_detail.submit_bar.summary', { count: sendPendingCount });
+  const statusLabel = React.useMemo(() => resolveStatusLabel(statusInfo, t), [statusInfo, t]);
   const formattedLastSubmittedAt = React.useMemo(() => formatDateTime(props.detail.lastSubmittedAt), [props.detail.lastSubmittedAt]);
   const isActivePeriod = statusInfo.status.startsWith('active');
   const canOpenSubmitDialog = isActivePeriod && sendPendingCount > 0;
@@ -615,7 +647,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     setManualCopyVisible(false);
     setPreviewZoomOpen(false);
 
-    void buildShareImage(props.detail, shareUrl)
+    void buildShareImage(props.detail, shareUrl, t)
       .then((blob) => {
         if (!active) {
           return;
@@ -632,7 +664,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         }
         setShareImageStatus('error');
         setShareImageBlob(null);
-        const message = error instanceof Error ? error.message : '共有画像の生成に失敗しました。';
+        const message =
+          error instanceof Error ? error.message : t('tournament_detail.share_dialog.notice.image_generation_failed');
         setShareNotice({ severity: 'error', text: message });
         props.onReportDebugError(message);
       });
@@ -640,7 +673,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     return () => {
       active = false;
     };
-  }, [props, shareDialogOpen, shareUrl]);
+  }, [props, shareDialogOpen, shareUrl, t]);
 
   React.useEffect(() => {
     return () => {
@@ -660,8 +693,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     anchor.download = `${safeFileName(props.detail.tournamentName)}-share.png`;
     anchor.click();
     URL.revokeObjectURL(url);
-    setShareNotice({ severity: 'success', text: '画像を保存しました。' });
-  }, [props.detail.tournamentName, shareImageBlob]);
+    setShareNotice({ severity: 'success', text: t('tournament_detail.share_dialog.notice.image_saved') });
+  }, [props.detail.tournamentName, shareImageBlob, t]);
 
   const shareByWebShareApi = React.useCallback(async () => {
     if (!shareImageBlob) {
@@ -670,7 +703,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') {
       setShareNotice({
         severity: 'warning',
-        text: 'この環境では共有できません。エクスポートをご利用ください。',
+        text: t('tournament_detail.share_dialog.notice.share_unsupported_use_export'),
       });
       return;
     }
@@ -681,7 +714,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     if (!navigator.canShare({ files: [shareFile] })) {
       setShareNotice({
         severity: 'warning',
-        text: 'この環境では共有できません。エクスポートをご利用ください。',
+        text: t('tournament_detail.share_dialog.notice.share_unsupported_use_export'),
       });
       return;
     }
@@ -692,21 +725,21 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         text: shareText,
         files: [shareFile],
       });
-      setShareNotice({ severity: 'success', text: '共有を実行しました。' });
+      setShareNotice({ severity: 'success', text: t('tournament_detail.share_dialog.notice.share_executed') });
       props.onReportDebugError(null);
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        setShareNotice({ severity: 'info', text: '共有をキャンセルしました。' });
+        setShareNotice({ severity: 'info', text: t('tournament_detail.notice.share_canceled') });
         return;
       }
-      const message = '共有に失敗しました。エクスポートをご利用ください。';
+      const message = t('tournament_detail.share_dialog.notice.share_failed_use_export');
       setShareNotice({
         severity: 'error',
         text: message,
       });
       props.onReportDebugError(message);
     }
-  }, [props, shareImageBlob, shareText]);
+  }, [props, shareImageBlob, shareText, t]);
 
   const copyShareText = React.useCallback(async () => {
     try {
@@ -715,15 +748,15 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       }
       await navigator.clipboard.writeText(shareText);
       setManualCopyVisible(false);
-      setShareNotice({ severity: 'success', text: 'テキストをコピーしました。' });
+      setShareNotice({ severity: 'success', text: t('tournament_detail.share_dialog.notice.text_copied') });
     } catch {
       setManualCopyVisible(true);
       setShareNotice({
         severity: 'warning',
-        text: '自動コピーできませんでした。表示されたテキストを手動でコピーしてください。',
+        text: t('tournament_detail.share_dialog.notice.auto_copy_failed'),
       });
     }
-  }, [shareText]);
+  }, [shareText, t]);
 
   const copyShareDebugLog = React.useCallback(async () => {
     const debugInfo = JSON.stringify(
@@ -742,11 +775,11 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         throw new Error('clipboard unavailable');
       }
       await navigator.clipboard.writeText(debugInfo);
-      setShareNotice({ severity: 'success', text: '技術ログをコピーしました。' });
+      setShareNotice({ severity: 'success', text: t('tournament_detail.share_dialog.notice.debug_log_copied') });
     } catch {
-      setShareNotice({ severity: 'error', text: '技術ログのコピーに失敗しました。' });
+      setShareNotice({ severity: 'error', text: t('tournament_detail.share_dialog.notice.debug_log_copy_failed') });
     }
-  }, [payloadSizeBytes, props.debugLastError, props.detail.defHash, props.detail.sourceTournamentUuid, props.detail.tournamentUuid]);
+  }, [payloadSizeBytes, props.debugLastError, props.detail.defHash, props.detail.sourceTournamentUuid, props.detail.tournamentUuid, t]);
 
   const openShareDialog = React.useCallback(() => {
     setShareDialogOpen(true);
@@ -778,10 +811,10 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       files.push(new File([toSafeArrayBuffer(bytes)], fileName, { type: 'image/jpeg' }));
     }
     if (files.length === 0) {
-      throw new Error('送信できる送信待ち画像がありません。');
+      throw new Error(t('tournament_detail.submit_dialog.error.no_sendable_images'));
     }
     return files;
-  }, [appDb, opfs, props.detail.tournamentUuid, sendPendingCharts]);
+  }, [appDb, opfs, props.detail.tournamentUuid, sendPendingCharts, t]);
 
   const downloadFiles = React.useCallback((files: File[]) => {
     files.forEach((file) => {
@@ -802,16 +835,16 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     try {
       const files = await collectSubmissionFiles();
       downloadFiles(files);
-      setSubmitNotice({ severity: 'success', text: `${files.length}件の画像を保存しました。` });
+      setSubmitNotice({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.saved_images_count', { count: files.length }) });
       props.onReportDebugError(null);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : '画像の保存に失敗しました。';
+      const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.save_images_failed');
       setSubmitNotice({ severity: 'error', text: message });
       props.onReportDebugError(message);
     } finally {
       setSubmitBusy(false);
     }
-  }, [collectSubmissionFiles, downloadFiles, props, submitBusy]);
+  }, [collectSubmissionFiles, downloadFiles, props, submitBusy, t]);
 
   const shareSubmissionImages = React.useCallback(async () => {
     if (submitBusy) {
@@ -824,7 +857,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         downloadFiles(files);
         setSubmitNotice({
           severity: 'warning',
-          text: 'この環境では共有できないため、画像を端末に保存しました。',
+          text: t('tournament_detail.submit_dialog.notice.shared_images_fallback_saved'),
         });
         return;
       }
@@ -833,20 +866,20 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         text: submitMessageText,
         files,
       });
-      setSubmitNotice({ severity: 'success', text: '送信する画像を共有しました。' });
+      setSubmitNotice({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.shared_images') });
       props.onReportDebugError(null);
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        setSubmitNotice({ severity: 'info', text: '共有をキャンセルしました。' });
+        setSubmitNotice({ severity: 'info', text: t('tournament_detail.notice.share_canceled') });
         return;
       }
-      const message = error instanceof Error ? error.message : '画像共有に失敗しました。';
+      const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.share_images_failed');
       setSubmitNotice({ severity: 'error', text: message });
       props.onReportDebugError(message);
     } finally {
       setSubmitBusy(false);
     }
-  }, [collectSubmissionFiles, downloadFiles, props, submitBusy, submitMessageText]);
+  }, [collectSubmissionFiles, downloadFiles, props, submitBusy, submitMessageText, t]);
 
   const copySubmitMessage = React.useCallback(async () => {
     try {
@@ -854,40 +887,40 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         throw new Error('clipboard unavailable');
       }
       await navigator.clipboard.writeText(submitMessageText);
-      setSubmitNotice({ severity: 'success', text: '送信するメッセージをコピーしました。' });
+      setSubmitNotice({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.message_copied') });
     } catch {
-      setSubmitNotice({ severity: 'error', text: 'メッセージのコピーに失敗しました。' });
+      setSubmitNotice({ severity: 'error', text: t('tournament_detail.submit_dialog.notice.message_copy_failed') });
     }
-  }, [submitMessageText]);
+  }, [submitMessageText, t]);
 
   const shareSubmitMessage = React.useCallback(async () => {
     if (typeof navigator.share !== 'function') {
-      setSubmitNotice({ severity: 'warning', text: 'この環境ではメッセージ共有に対応していません。' });
+      setSubmitNotice({ severity: 'warning', text: t('tournament_detail.submit_dialog.notice.message_share_unsupported') });
       return;
     }
     try {
       await navigator.share({
         text: submitMessageText,
       });
-      setSubmitNotice({ severity: 'success', text: '送信するメッセージを共有しました。' });
+      setSubmitNotice({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.message_shared') });
       props.onReportDebugError(null);
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        setSubmitNotice({ severity: 'info', text: '共有をキャンセルしました。' });
+        setSubmitNotice({ severity: 'info', text: t('tournament_detail.notice.share_canceled') });
         return;
       }
-      const message = 'メッセージ共有に失敗しました。';
+      const message = t('tournament_detail.submit_dialog.notice.message_share_failed');
       setSubmitNotice({ severity: 'error', text: message });
       props.onReportDebugError(message);
     }
-  }, [props, submitMessageText]);
+  }, [props, submitMessageText, t]);
 
   const markSubmissionAsCompleted = React.useCallback(async () => {
     if (submitBusy) {
       return;
     }
     if (sendPendingChartIds.length === 0) {
-      setSubmitNotice({ severity: 'info', text: '送信待ちはありません。' });
+      setSubmitNotice({ severity: 'info', text: t('tournament_detail.submit_dialog.notice.no_pending') });
       return;
     }
     setSubmitBusy(true);
@@ -901,16 +934,19 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         return next;
       });
       await Promise.resolve(props.onUpdated());
-      setSubmitNotice({ severity: 'success', text: `${sendPendingChartIds.length}件を送信完了にしました。` });
+      setSubmitNotice({
+        severity: 'success',
+        text: t('tournament_detail.submit_dialog.notice.completed_count', { count: sendPendingChartIds.length }),
+      });
       props.onReportDebugError(null);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : '送信完了の更新に失敗しました。';
+      const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.mark_completed_failed');
       setSubmitNotice({ severity: 'error', text: message });
       props.onReportDebugError(message);
     } finally {
       setSubmitBusy(false);
     }
-  }, [appDb, props, sendPendingChartIds, submitBusy]);
+  }, [appDb, props, sendPendingChartIds, submitBusy, t]);
 
   return (
     <div className="page detailPageWithSubmitBar">
@@ -918,45 +954,50 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         <div className="tournamentDetailHeader">
           <div className="tournamentDetailMeta">
             <h2>{props.detail.tournamentName}</h2>
-            <p className={`detailRemainingBadge detailRemainingBadge-${remainingTone}`}>{statusInfo.label}</p>
+            <p className={`detailRemainingBadge detailRemainingBadge-${remainingTone}`}>{statusLabel}</p>
             <p className="periodLine">
-              {props.detail.startDate}〜{props.detail.endDate}
+              {t('tournament_detail.summary.period', { start: props.detail.startDate, end: props.detail.endDate })}
             </p>
             <div className="progressLine">
-              登録 {props.detail.submittedCount} / {props.detail.chartCount}
+              {t('tournament_detail.summary.progress', {
+                submitted: props.detail.submittedCount,
+                total: props.detail.chartCount,
+              })}
             </div>
             <div className="progressBar" aria-hidden>
               <span style={{ width: `${progress}%` }} />
             </div>
-            {formattedLastSubmittedAt ? <p className="detailLastUpdated">最終更新: {formattedLastSubmittedAt}</p> : null}
+            {formattedLastSubmittedAt ? (
+              <p className="detailLastUpdated">{t('tournament_detail.summary.last_updated', { date: formattedLastSubmittedAt })}</p>
+            ) : null}
           </div>
           {!props.detail.isImported ? (
             <button className="detailShareButton" onClick={openShareDialog}>
-              大会を共有
+              {t('tournament_detail.action.share_tournament')}
             </button>
           ) : null}
         </div>
       </section>
 
       <section>
-        <h2>譜面一覧</h2>
+        <h2>{t('tournament_detail.chart.heading')}</h2>
         {showChartResolveAlert ? (
           <Alert
             severity="warning"
             sx={{ mb: 1.5 }}
             action={
               <Button size="small" color="inherit" onClick={props.onOpenSettings}>
-                設定
+                {t('tournament_detail.action.open_settings')}
               </Button>
             }
           >
-            一部譜面が曲データと一致しません。
+            {t('tournament_detail.chart.resolve_issue.mismatch')}
           </Alert>
         ) : null}
         <ul className="chartList">
           {props.detail.charts.map((chart) => {
             const levelLabel = resolveLevelLabel(chart.level);
-            const chartStatus = resolveChartTaskStatus(chart);
+            const chartStatus = resolveChartTaskStatus(chart, t);
             const chartNeedsSend = chart.submitted && resolveNeedsSend(chart);
             return (
               <li key={chart.chartId}>
@@ -966,14 +1007,14 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                     <div className="chartMetaLine">
                       <span className="chartPlayStyleText">{chart.playStyle}</span>
                       {difficultyTag(chart)}
-                      <span className="chartLevelTag">Lv{levelLabel ?? '?'}</span>
+                      <span className="chartLevelTag">{t('tournament_detail.chart.level', { level: levelLabel ?? '?' })}</span>
                     </div>
                     {chartStatus.errorText ? <p className="chartResolveIssue">{chartStatus.errorText}</p> : null}
                   </div>
                   <div className="chartActions">
                     <div className="chartStatusLine">
                       <span className={`chartSubmitLabel ${chartStatus.status}`}>{chartStatus.label}</span>
-                      {chartNeedsSend ? <span className="chartSendPendingBadge">送信待ち</span> : null}
+                      {chartNeedsSend ? <span className="chartSendPendingBadge">{t('tournament_detail.chart.status.send_pending')}</span> : null}
                     </div>
                     {isActivePeriod ? (
                       <button
@@ -994,9 +1035,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
       <Dialog open={shareDialogOpen} onClose={closeShareDialog} fullWidth maxWidth="sm">
         <DialogTitle sx={{ pr: 6 }}>
-          大会を共有
+          {t('tournament_detail.action.share_tournament')}
           <IconButton
-            aria-label="共有ダイアログを閉じる"
+            aria-label={t('tournament_detail.share_dialog.close_aria_label')}
             onClick={closeShareDialog}
             sx={{ position: 'absolute', right: 8, top: 8 }}
           >
@@ -1005,20 +1046,20 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         </DialogTitle>
         <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
           <Alert severity="info" icon={false}>
-            共有されるのは大会定義のみ（画像は含まれません）
+            {t('tournament_detail.share_dialog.definition_only')}
           </Alert>
 
           <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                プレビュー
+                {t('tournament_detail.share_dialog.preview_title')}
               </Typography>
               <Button size="small" onClick={() => setPreviewZoomOpen(true)} disabled={shareImageStatus !== 'ready'}>
-                拡大表示
+                {t('tournament_detail.action.zoom_preview')}
               </Button>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              生成画像（1080x1920）
+              {t('tournament_detail.share_dialog.preview_image_size')}
             </Typography>
             <Box
               sx={{
@@ -1046,7 +1087,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                 <Box
                   component="img"
                   src={shareImagePreviewUrl}
-                  alt="共有画像プレビュー"
+                  alt={t('tournament_detail.share_dialog.preview_alt')}
                   sx={{
                     width: '100%',
                     maxWidth: 330,
@@ -1058,7 +1099,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                 />
               ) : null}
               {shareImageStatus === 'error' ? (
-                <Alert severity="error">共有画像の生成に失敗しました。共有とエクスポートは利用できません。</Alert>
+                <Alert severity="error">{t('tournament_detail.share_dialog.preview_generation_failed')}</Alert>
               ) : null}
             </Box>
           </Box>
@@ -1067,10 +1108,10 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              共有
+              {t('common.share')}
             </Typography>
             <Button variant="contained" onClick={shareByWebShareApi} disabled={shareUnavailable}>
-              共有
+              {t('common.share')}
             </Button>
           </Box>
 
@@ -1078,20 +1119,20 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              エクスポート
+              {t('tournament_detail.share_dialog.export_title')}
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: manualCopyVisible ? 1.5 : 0 }}>
               <Button variant="outlined" onClick={exportImage} disabled={shareUnavailable}>
-                画像を保存
+                {t('tournament_detail.action.export_image')}
               </Button>
               <Button variant="outlined" onClick={() => void copyShareText()} disabled={shareUnavailable}>
-                テキストをコピー
+                {t('tournament_detail.action.copy_text')}
               </Button>
             </Box>
             {manualCopyVisible ? (
               <TextField
                 fullWidth
-                label="共有テキスト"
+                label={t('tournament_detail.share_dialog.share_text_label')}
                 value={shareText}
                 multiline
                 minRows={2}
@@ -1104,16 +1145,24 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             <Accordion disableGutters elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 2 }}>
               <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ borderRadius: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  技術情報
+                  {t('tournament_detail.share_dialog.debug_title')}
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ display: 'grid', gap: 0.75, pt: 0 }}>
-                <Typography variant="body2">payload_size: {payloadSizeBytes} bytes</Typography>
-                <Typography variant="body2">def_hash: {props.detail.defHash}</Typography>
-                <Typography variant="body2">source_tournament_uuid: {props.detail.sourceTournamentUuid ?? '-'}</Typography>
-                <Typography variant="body2">last_error: {props.debugLastError ?? '-'}</Typography>
+                <Typography variant="body2">{t('tournament_detail.share_dialog.debug_payload_size', { value: payloadSizeBytes })}</Typography>
+                <Typography variant="body2">{t('tournament_detail.share_dialog.debug_def_hash', { value: props.detail.defHash })}</Typography>
+                <Typography variant="body2">
+                  {t('tournament_detail.share_dialog.debug_source_tournament_uuid', {
+                    value: props.detail.sourceTournamentUuid ?? t('common.not_available'),
+                  })}
+                </Typography>
+                <Typography variant="body2">
+                  {t('tournament_detail.share_dialog.debug_last_error', {
+                    value: props.debugLastError ?? t('common.not_available'),
+                  })}
+                </Typography>
                 <Button size="small" variant="outlined" onClick={() => void copyShareDebugLog()}>
-                  ログコピー
+                  {t('tournament_detail.action.copy_logs')}
                 </Button>
               </AccordionDetails>
             </Accordion>
@@ -1122,41 +1171,46 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           {shareNotice ? <Alert severity={shareNotice.severity}>{shareNotice.text}</Alert> : null}
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeShareDialog}>閉じる</Button>
+          <Button onClick={closeShareDialog}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={previewZoomOpen} onClose={() => setPreviewZoomOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>共有プレビュー</DialogTitle>
+        <DialogTitle>{t('tournament_detail.share_dialog.preview_zoom_title')}</DialogTitle>
         <DialogContent dividers>
           {shareImagePreviewUrl ? (
-            <Box component="img" src={shareImagePreviewUrl} alt="共有プレビュー拡大表示" sx={{ width: '100%', display: 'block' }} />
+            <Box
+              component="img"
+              src={shareImagePreviewUrl}
+              alt={t('tournament_detail.share_dialog.preview_zoom_alt')}
+              sx={{ width: '100%', display: 'block' }}
+            />
           ) : null}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPreviewZoomOpen(false)}>閉じる</Button>
+          <Button onClick={() => setPreviewZoomOpen(false)}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={submitDialogOpen} onClose={() => setSubmitDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>送信</DialogTitle>
+        <DialogTitle>{t('tournament_detail.submit_dialog.title')}</DialogTitle>
         <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              送信する画像
+              {t('tournament_detail.submit_dialog.images_title')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              画像が端末外に共有されます
+              {t('tournament_detail.submit_dialog.images_description')}
             </Typography>
             <Typography variant="body2" sx={{ mb: 1.5 }}>
-              送信対象: {sendPendingCount}件
+              {t('tournament_detail.submit_dialog.target_count', { count: sendPendingCount })}
             </Typography>
             <Stack direction="row" spacing={1}>
               <Button variant="contained" onClick={() => void shareSubmissionImages()} disabled={submitBusy || sendPendingCount === 0}>
-                共有
+                {t('common.share')}
               </Button>
               <Button variant="outlined" onClick={() => void saveSubmissionImages()} disabled={submitBusy || sendPendingCount === 0}>
-                端末に保存
+                {t('tournament_detail.action.save_to_device')}
               </Button>
             </Stack>
           </Box>
@@ -1165,15 +1219,15 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              送信するメッセージ
+              {t('tournament_detail.submit_dialog.message_title')}
             </Typography>
             <TextField fullWidth size="small" value={submitMessageText} InputProps={{ readOnly: true }} sx={{ mb: 1.5 }} />
             <Stack direction="row" spacing={1}>
               <Button variant="outlined" onClick={() => void copySubmitMessage()} disabled={submitBusy}>
-                コピー
+                {t('common.copy')}
               </Button>
               <Button variant="outlined" onClick={() => void shareSubmitMessage()} disabled={submitBusy}>
-                共有
+                {t('common.share')}
               </Button>
             </Stack>
           </Box>
@@ -1182,13 +1236,13 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              送信完了にする
+              {t('tournament_detail.submit_dialog.complete_title')}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              共有の成否は自動判定できません。相手に届いたことを確認後に実行してください。
+              {t('tournament_detail.submit_dialog.complete_description')}
             </Typography>
             <Button variant="outlined" onClick={() => void markSubmissionAsCompleted()} disabled={submitBusy || sendPendingCount === 0}>
-              送信完了にする
+              {t('tournament_detail.action.mark_send_completed')}
             </Button>
           </Box>
 
@@ -1196,7 +1250,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSubmitDialogOpen(false)} disabled={submitBusy}>
-            閉じる
+            {t('common.close')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1215,7 +1269,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             }}
             disabled={!canOpenSubmitDialog}
           >
-            送信する
+            {t('tournament_detail.action.submit')}
           </button>
           <p className="detailSubmitSubInfo">{submitSummaryText}</p>
         </div>

@@ -745,5 +745,120 @@
       "copied": "Logs copied.",
       "copy_failed": "Failed to copy logs."
     }
+  },
+  "tournament_detail": {
+    "action": {
+      "share_tournament": "Share tournament",
+      "open_settings": "Settings",
+      "register": "Register",
+      "replace": "Replace",
+      "zoom_preview": "Zoom preview",
+      "export_image": "Save image",
+      "copy_text": "Copy text",
+      "copy_logs": "Copy logs",
+      "save_to_device": "Save to device",
+      "mark_send_completed": "Mark as sent",
+      "submit": "Send"
+    },
+    "status": {
+      "upcoming": "Not started",
+      "ended": "Ended",
+      "active_today": "Ends today",
+      "active_remaining_days": "{{count}} days left"
+    },
+    "summary": {
+      "period": "{{start}}〜{{end}}",
+      "period_with_space": "{{start}} 〜 {{end}}",
+      "progress": "Registered {{submitted}} / {{total}}",
+      "last_updated": "Last updated: {{date}}"
+    },
+    "chart": {
+      "heading": "Charts",
+      "level": "Lv{{level}}",
+      "status": {
+        "error": "Error",
+        "pending": "Not registered",
+        "submitted": "Registered",
+        "send_pending": "Pending send"
+      },
+      "resolve_issue": {
+        "mismatch": "Some charts do not match song data.",
+        "master_missing": "Song data has not been fetched.",
+        "chart_not_found": "Chart data does not match."
+      }
+    },
+    "notice": {
+      "share_canceled": "Share was canceled."
+    },
+    "share_image": {
+      "owner": "Host: {{owner}}",
+      "chart_heading": "Target Charts",
+      "import_hint": "Scan to import"
+    },
+    "share_dialog": {
+      "close_aria_label": "Close share dialog",
+      "definition_only": "Only tournament definition is shared (images are not included).",
+      "preview_title": "Preview",
+      "preview_image_size": "Generated image (1080x1920)",
+      "preview_alt": "Shared image preview",
+      "preview_generation_failed": "Failed to generate the shared image. Share and export are unavailable.",
+      "export_title": "Export",
+      "share_text_label": "Share text",
+      "debug_title": "Technical info",
+      "debug_payload_size": "payload_size: {{value}} bytes",
+      "debug_def_hash": "def_hash: {{value}}",
+      "debug_source_tournament_uuid": "source_tournament_uuid: {{value}}",
+      "debug_last_error": "last_error: {{value}}",
+      "preview_zoom_title": "Share preview",
+      "preview_zoom_alt": "Enlarged share preview",
+      "notice": {
+        "image_generation_failed": "Failed to generate the shared image.",
+        "image_saved": "Image saved.",
+        "share_unsupported_use_export": "Sharing is not available in this environment. Use export instead.",
+        "share_executed": "Share completed.",
+        "share_failed_use_export": "Sharing failed. Use export instead.",
+        "text_copied": "Text copied.",
+        "auto_copy_failed": "Auto copy failed. Please copy the displayed text manually.",
+        "debug_log_copied": "Technical logs copied.",
+        "debug_log_copy_failed": "Failed to copy technical logs."
+      },
+      "error": {
+        "qr_image_load_failed": "Failed to load QR image.",
+        "unresolved_level": "Cannot generate the promo image because target chart levels could not be resolved. Check song data in Settings and try again.",
+        "no_visible_charts": "Cannot generate the promo image because there are no displayable target charts.",
+        "png_generation_failed": "Failed to generate the shared image.",
+        "canvas_context_unavailable": "Could not acquire drawing context for shared image."
+      }
+    },
+    "submit_bar": {
+      "summary": "Pending send: {{count}}"
+    },
+    "submit_dialog": {
+      "title": "Send",
+      "images_title": "Images to send",
+      "images_description": "Images are shared outside this device.",
+      "target_count": "Targets: {{count}}",
+      "message_title": "Message to send",
+      "complete_title": "Mark as sent",
+      "complete_description": "Share success cannot be detected automatically. Run this only after confirming the recipient received it.",
+      "notice": {
+        "saved_images_count": "Saved {{count}} image(s).",
+        "save_images_failed": "Failed to save images.",
+        "shared_images_fallback_saved": "Sharing is not available in this environment, so images were saved to the device.",
+        "shared_images": "Images to send were shared.",
+        "share_images_failed": "Failed to share images.",
+        "message_copied": "Message to send was copied.",
+        "message_copy_failed": "Failed to copy message.",
+        "message_share_unsupported": "Message sharing is not supported in this environment.",
+        "message_shared": "Message to send was shared.",
+        "message_share_failed": "Failed to share message.",
+        "no_pending": "No pending sends.",
+        "completed_count": "Marked {{count}} item(s) as sent.",
+        "mark_completed_failed": "Failed to update sent status."
+      },
+      "error": {
+        "no_sendable_images": "There are no pending images that can be sent."
+      }
+    }
   }
 }
