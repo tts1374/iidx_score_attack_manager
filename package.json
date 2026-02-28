@@ -7,7 +7,9 @@
     "dev": "pnpm --filter @iidx/web-app dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "sync:versions": "node scripts/sync-versions.mjs",
+    "sync:versions:check": "node scripts/sync-versions.mjs --check"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",
