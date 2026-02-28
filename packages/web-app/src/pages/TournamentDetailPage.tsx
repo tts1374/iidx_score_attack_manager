@@ -19,6 +19,7 @@ import {
   Divider,
   IconButton,
   Skeleton,
+  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -53,12 +54,16 @@ type ShareNotice = {
   text: string;
 };
 
+type SubmitToast = ShareNotice & {
+  undoChartIds?: number[];
+};
+
 type SharePosterChart = {
   chart: TournamentDetailChart;
   levelLabel: string;
 };
 
-type ChartTaskStatus = 'pending' | 'submitted' | 'error';
+type ChartShareState = 'unregistered' | 'unshared' | 'shared';
 type TranslationFn = (...args: any[]) => any;
 
 function optionalHashtag(value: string): string | null {
@@ -111,6 +116,18 @@ function resolveLevelLabel(level: string): string | null {
   return resolved.kind === 'valid' ? resolved.label : null;
 }
 
+function resolveChartLevelText(level: string): string {
+  const levelLabel = resolveLevelLabel(level);
+  if (levelLabel) {
+    return levelLabel;
+  }
+  const trimmed = String(level ?? '').trim();
+  if (trimmed.length > 0 && trimmed !== '-') {
+    return trimmed;
+  }
+  return '?';
+}
+
 function toAlphaColor(color: string, alpha: number): string {
   const hex = color.trim().replace('#', '');
   const normalized = hex.length === 3 ? hex.split('').map((char) => `${char}${char}`).join('') : hex;
@@ -123,44 +140,39 @@ function toAlphaColor(color: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function hasEvidence(chart: TournamentDetailChart): boolean {
+  return chart.updateSeq > 0 && !chart.fileDeleted;
+}
+
+function resolveChartShareState(chart: TournamentDetailChart, needsSend: boolean): ChartShareState {
+  if (!hasEvidence(chart)) {
+    return 'unregistered';
+  }
+  return needsSend ? 'unshared' : 'shared';
+}
+
 function resolveChartTaskStatus(
   chart: TournamentDetailChart,
   t: TranslationFn,
 ): {
-  status: ChartTaskStatus;
-  label: string;
   actionLabel: string;
   errorText: string | null;
 } {
-  const registerAction = chart.submitted ? t('tournament_detail.action.replace') : t('tournament_detail.action.register');
+  const registerAction = hasEvidence(chart) ? t('tournament_detail.action.replace') : t('tournament_detail.action.register');
   if (chart.resolveIssue === 'MASTER_MISSING') {
     return {
-      status: 'error',
-      label: t('tournament_detail.chart.status.error'),
       actionLabel: registerAction,
       errorText: t('tournament_detail.chart.resolve_issue.master_missing'),
     };
   }
   if (chart.resolveIssue === 'CHART_NOT_FOUND') {
     return {
-      status: 'error',
-      label: t('tournament_detail.chart.status.error'),
       actionLabel: registerAction,
       errorText: t('tournament_detail.chart.resolve_issue.chart_not_found'),
     };
   }
-  if (!chart.submitted) {
-    return {
-      status: 'pending',
-      label: t('tournament_detail.chart.status.pending'),
-      actionLabel: t('tournament_detail.action.register'),
-      errorText: null,
-    };
-  }
   return {
-    status: 'submitted',
-    label: t('tournament_detail.chart.status.submitted'),
-    actionLabel: t('tournament_detail.action.replace'),
+    actionLabel: registerAction,
     errorText: null,
   };
 }
@@ -542,22 +554,6 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string, t
   return toPngBlob(canvas, t);
 }
 
-function difficultyTag(chart: TournamentDetailChart): JSX.Element {
-  const color = difficultyColor(chart.difficulty);
-  return (
-    <span
-      className="chartDifficultyTag"
-      style={{
-        color,
-        borderColor: color,
-        backgroundColor: toAlphaColor(color, 0.12),
-      }}
-    >
-      {chart.difficulty}
-    </span>
-  );
-}
-
 export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Element {
   const { appDb, opfs } = useAppServices();
   const { t } = useTranslation();
@@ -570,7 +566,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const [previewZoomOpen, setPreviewZoomOpen] = React.useState(false);
   const [submitDialogOpen, setSubmitDialogOpen] = React.useState(false);
   const [submitBusy, setSubmitBusy] = React.useState(false);
-  const [submitNotice, setSubmitNotice] = React.useState<ShareNotice | null>(null);
+  const [submitUndoBusy, setSubmitUndoBusy] = React.useState(false);
+  const [submitToast, setSubmitToast] = React.useState<SubmitToast | null>(null);
+  const [submitToastOpen, setSubmitToastOpen] = React.useState(false);
   const [needsSendOverrides, setNeedsSendOverrides] = React.useState<Record<number, boolean>>({});
 
   const payload = React.useMemo(() => {
@@ -597,7 +595,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     () => resolveTournamentCardStatus(props.detail.startDate, props.detail.endDate, props.todayDate),
     [props.detail.endDate, props.detail.startDate, props.todayDate],
   );
-  const progress = props.detail.chartCount > 0 ? Math.round((props.detail.submittedCount / props.detail.chartCount) * 100) : 0;
   const hasMasterMissing = React.useMemo(
     () => props.detail.charts.some((chart) => chart.resolveIssue === 'MASTER_MISSING'),
     [props.detail.charts],
@@ -616,20 +613,69 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     },
     [needsSendOverrides],
   );
+  const showSubmitToast = React.useCallback((next: SubmitToast) => {
+    setSubmitToast(next);
+    setSubmitToastOpen(true);
+  }, []);
+  const closeSubmitToast = React.useCallback((_: Event | React.SyntheticEvent, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSubmitToastOpen(false);
+  }, []);
+  const chartStateCounts = React.useMemo(() => {
+    let shared = 0;
+    let unshared = 0;
+    let unregistered = 0;
+    props.detail.charts.forEach((chart) => {
+      const state = resolveChartShareState(chart, resolveNeedsSend(chart));
+      if (state === 'shared') {
+        shared += 1;
+        return;
+      }
+      if (state === 'unshared') {
+        unshared += 1;
+        return;
+      }
+      unregistered += 1;
+    });
+    return {
+      shared,
+      unshared,
+      unregistered,
+    };
+  }, [props.detail.charts, resolveNeedsSend]);
   const sendPendingCharts = React.useMemo(
-    () => props.detail.charts.filter((chart) => chart.submitted && resolveNeedsSend(chart)),
+    () =>
+      props.detail.charts.filter((chart) => {
+        const state = resolveChartShareState(chart, resolveNeedsSend(chart));
+        return state === 'unshared';
+      }),
     [props.detail.charts, resolveNeedsSend],
   );
   const sendPendingChartIds = React.useMemo(() => sendPendingCharts.map((chart) => chart.chartId), [sendPendingCharts]);
   const sendPendingCount = sendPendingCharts.length;
-  const submitSummaryText = t('tournament_detail.submit_bar.summary', { count: sendPendingCount });
+  const submitSummaryText = t('tournament_detail.summary.state_counts', {
+    shared: chartStateCounts.shared,
+    unshared: chartStateCounts.unshared,
+    unregistered: chartStateCounts.unregistered,
+  });
+  const submitButtonLabel = t('tournament_detail.submit_bar.cta', { count: sendPendingCount });
   const statusLabel = React.useMemo(() => resolveStatusLabel(statusInfo, t), [statusInfo, t]);
   const formattedLastSubmittedAt = React.useMemo(() => formatDateTime(props.detail.lastSubmittedAt), [props.detail.lastSubmittedAt]);
   const isActivePeriod = statusInfo.status.startsWith('active');
-  const canOpenSubmitDialog = isActivePeriod && sendPendingCount > 0;
+  const canOpenSubmitDialog = sendPendingCount > 0;
   const remainingTone =
     statusInfo.daysLeft === null ? 'neutral' : statusInfo.daysLeft < 3 ? 'strong' : statusInfo.daysLeft <= 7 ? 'warning' : 'normal';
   const shareUnavailable = shareImageStatus !== 'ready' || !shareImageBlob;
+  const totalChartCount = Math.max(props.detail.chartCount, 0);
+  const toPercent = React.useCallback(
+    (count: number): number => (totalChartCount > 0 ? (count / totalChartCount) * 100 : 0),
+    [totalChartCount],
+  );
+  const sharedPercent = toPercent(chartStateCounts.shared);
+  const unsharedPercent = toPercent(chartStateCounts.unshared);
+  const unregisteredPercent = toPercent(chartStateCounts.unregistered);
 
   React.useEffect(() => {
     setNeedsSendOverrides({});
@@ -816,6 +862,18 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     return files;
   }, [appDb, opfs, props.detail.tournamentUuid, sendPendingCharts, t]);
 
+  const copyTextToClipboard = React.useCallback(async (value: string): Promise<boolean> => {
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        return false;
+      }
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const downloadFiles = React.useCallback((files: File[]) => {
     files.forEach((file) => {
       const url = URL.createObjectURL(file);
@@ -827,126 +885,116 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     });
   }, []);
 
-  const saveSubmissionImages = React.useCallback(async () => {
-    if (submitBusy) {
-      return;
-    }
-    setSubmitBusy(true);
-    try {
-      const files = await collectSubmissionFiles();
-      downloadFiles(files);
-      setSubmitNotice({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.saved_images_count', { count: files.length }) });
-      props.onReportDebugError(null);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.save_images_failed');
-      setSubmitNotice({ severity: 'error', text: message });
-      props.onReportDebugError(message);
-    } finally {
-      setSubmitBusy(false);
-    }
-  }, [collectSubmissionFiles, downloadFiles, props, submitBusy, t]);
-
-  const shareSubmissionImages = React.useCallback(async () => {
-    if (submitBusy) {
-      return;
-    }
-    setSubmitBusy(true);
-    try {
-      const files = await collectSubmissionFiles();
-      if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function' || !navigator.canShare({ files })) {
-        downloadFiles(files);
-        setSubmitNotice({
-          severity: 'warning',
-          text: t('tournament_detail.submit_dialog.notice.shared_images_fallback_saved'),
-        });
-        return;
-      }
-      await navigator.share({
-        title: props.detail.tournamentName,
-        text: submitMessageText,
-        files,
-      });
-      setSubmitNotice({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.shared_images') });
-      props.onReportDebugError(null);
-    } catch (error: unknown) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        setSubmitNotice({ severity: 'info', text: t('tournament_detail.notice.share_canceled') });
-        return;
-      }
-      const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.share_images_failed');
-      setSubmitNotice({ severity: 'error', text: message });
-      props.onReportDebugError(message);
-    } finally {
-      setSubmitBusy(false);
-    }
-  }, [collectSubmissionFiles, downloadFiles, props, submitBusy, submitMessageText, t]);
-
-  const copySubmitMessage = React.useCallback(async () => {
-    try {
-      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-        throw new Error('clipboard unavailable');
-      }
-      await navigator.clipboard.writeText(submitMessageText);
-      setSubmitNotice({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.message_copied') });
-    } catch {
-      setSubmitNotice({ severity: 'error', text: t('tournament_detail.submit_dialog.notice.message_copy_failed') });
-    }
-  }, [submitMessageText, t]);
-
-  const shareSubmitMessage = React.useCallback(async () => {
-    if (typeof navigator.share !== 'function') {
-      setSubmitNotice({ severity: 'warning', text: t('tournament_detail.submit_dialog.notice.message_share_unsupported') });
-      return;
-    }
-    try {
-      await navigator.share({
-        text: submitMessageText,
-      });
-      setSubmitNotice({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.message_shared') });
-      props.onReportDebugError(null);
-    } catch (error: unknown) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        setSubmitNotice({ severity: 'info', text: t('tournament_detail.notice.share_canceled') });
-        return;
-      }
-      const message = t('tournament_detail.submit_dialog.notice.message_share_failed');
-      setSubmitNotice({ severity: 'error', text: message });
-      props.onReportDebugError(message);
-    }
-  }, [props, submitMessageText, t]);
-
-  const markSubmissionAsCompleted = React.useCallback(async () => {
-    if (submitBusy) {
-      return;
-    }
-    if (sendPendingChartIds.length === 0) {
-      setSubmitNotice({ severity: 'info', text: t('tournament_detail.submit_dialog.notice.no_pending') });
-      return;
-    }
-    setSubmitBusy(true);
-    try {
-      await appDb.markEvidenceSendCompleted(props.detail.tournamentUuid, sendPendingChartIds);
+  const markChartsAsShared = React.useCallback(
+    async (chartIds: number[]) => {
+      await appDb.markEvidenceSendCompleted(props.detail.tournamentUuid, chartIds);
       setNeedsSendOverrides((current) => {
         const next = { ...current };
-        sendPendingChartIds.forEach((chartId) => {
+        chartIds.forEach((chartId) => {
           next[chartId] = false;
         });
         return next;
       });
       await Promise.resolve(props.onUpdated());
-      setSubmitNotice({
+      showSubmitToast({
         severity: 'success',
-        text: t('tournament_detail.submit_dialog.notice.completed_count', { count: sendPendingChartIds.length }),
+        text: t('tournament_detail.submit_dialog.notice.marked_shared'),
+        undoChartIds: [...chartIds],
       });
       props.onReportDebugError(null);
+    },
+    [appDb, props, showSubmitToast, t],
+  );
+
+  const undoLastShare = React.useCallback(async () => {
+    const chartIds = submitToast?.undoChartIds;
+    if (!chartIds || chartIds.length === 0 || submitUndoBusy) {
+      return;
+    }
+    setSubmitUndoBusy(true);
+    try {
+      await appDb.markEvidenceSendPending(props.detail.tournamentUuid, chartIds);
+      setNeedsSendOverrides((current) => {
+        const next = { ...current };
+        chartIds.forEach((chartId) => {
+          next[chartId] = true;
+        });
+        return next;
+      });
+      await Promise.resolve(props.onUpdated());
+      showSubmitToast({ severity: 'success', text: t('tournament_detail.submit_dialog.notice.undo_applied') });
+      props.onReportDebugError(null);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.mark_completed_failed');
-      setSubmitNotice({ severity: 'error', text: message });
+      const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.undo_failed');
+      showSubmitToast({ severity: 'error', text: message });
+      props.onReportDebugError(message);
+    } finally {
+      setSubmitUndoBusy(false);
+    }
+  }, [appDb, props, showSubmitToast, submitToast?.undoChartIds, submitUndoBusy, t]);
+
+  const sharePendingEvidence = React.useCallback(async () => {
+    if (submitBusy) {
+      return;
+    }
+    if (sendPendingChartIds.length === 0) {
+      showSubmitToast({ severity: 'info', text: t('tournament_detail.submit_dialog.notice.no_pending') });
+      return;
+    }
+
+    setSubmitDialogOpen(false);
+    setSubmitBusy(true);
+    const targetChartIds = [...sendPendingChartIds];
+    try {
+      const files = await collectSubmissionFiles();
+      const webShareSupported =
+        typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files });
+
+      if (webShareSupported) {
+        try {
+          await navigator.share({
+            title: props.detail.tournamentName,
+            text: submitMessageText,
+            files,
+          });
+          await markChartsAsShared(targetChartIds);
+          return;
+        } catch (error: unknown) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            showSubmitToast({ severity: 'info', text: t('tournament_detail.notice.share_canceled') });
+            return;
+          }
+        }
+      }
+
+      downloadFiles(files);
+      const copied = await copyTextToClipboard(submitMessageText);
+      if (!copied) {
+        const message = t('tournament_detail.submit_dialog.notice.fallback_copy_failed');
+        showSubmitToast({ severity: 'warning', text: message });
+        props.onReportDebugError(message);
+        return;
+      }
+      await markChartsAsShared(targetChartIds);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.share_images_failed');
+      showSubmitToast({ severity: 'error', text: message });
       props.onReportDebugError(message);
     } finally {
       setSubmitBusy(false);
     }
-  }, [appDb, props, sendPendingChartIds, submitBusy, t]);
+  }, [
+    collectSubmissionFiles,
+    copyTextToClipboard,
+    downloadFiles,
+    markChartsAsShared,
+    props,
+    sendPendingChartIds,
+    showSubmitToast,
+    submitBusy,
+    submitMessageText,
+    t,
+  ]);
 
   return (
     <div className="page detailPageWithSubmitBar">
@@ -958,23 +1006,31 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             <p className="periodLine">
               {t('tournament_detail.summary.period', { start: props.detail.startDate, end: props.detail.endDate })}
             </p>
-            <div className="progressLine">
-              {t('tournament_detail.summary.progress', {
-                submitted: props.detail.submittedCount,
-                total: props.detail.chartCount,
-              })}
+            <div className="detailStateProgressBar" aria-hidden>
+              <span className="detailStateProgressSegment detailStateProgressSegment-shared" style={{ width: `${sharedPercent}%` }} />
+              <span
+                className="detailStateProgressSegment detailStateProgressSegment-unshared"
+                style={{ width: `${unsharedPercent}%` }}
+              />
+              <span
+                className="detailStateProgressSegment detailStateProgressSegment-unregistered"
+                style={{ width: `${unregisteredPercent}%` }}
+              />
             </div>
-            <div className="progressBar" aria-hidden>
-              <span style={{ width: `${progress}%` }} />
-            </div>
+            <p className="detailStateProgressSummary" data-testid="tournament-detail-state-summary-text">
+              {submitSummaryText}
+            </p>
             {formattedLastSubmittedAt ? (
               <p className="detailLastUpdated">{t('tournament_detail.summary.last_updated', { date: formattedLastSubmittedAt })}</p>
             ) : null}
           </div>
           {!props.detail.isImported ? (
-            <button className="detailShareButton" data-testid="tournament-detail-share-button" onClick={openShareDialog}>
-              {t('tournament_detail.action.share_tournament')}
-            </button>
+            <div className="detailShareArea">
+              <button className="detailShareButton" data-testid="tournament-detail-share-button" onClick={openShareDialog}>
+                {t('tournament_detail.action.share_tournament')}
+              </button>
+              <p className="detailShareHint">{t('tournament_detail.share_dialog.definition_only')}</p>
+            </div>
           ) : null}
         </div>
       </section>
@@ -996,40 +1052,43 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         ) : null}
         <ul className="chartList">
           {props.detail.charts.map((chart) => {
-            const levelLabel = resolveLevelLabel(chart.level);
+            const levelText = resolveChartLevelText(chart.level);
             const chartStatus = resolveChartTaskStatus(chart, t);
-            const chartNeedsSend = chart.submitted && resolveNeedsSend(chart);
+            const chartNeedsSend = resolveNeedsSend(chart);
+            const chartShareState = resolveChartShareState(chart, chartNeedsSend);
+            const chartHasIssue = Boolean(chartStatus.errorText);
+            const difficultyLevelText = `${chart.difficulty} ${levelText}`;
+            const difficultyTextColor = difficultyColor(chart.difficulty);
             return (
               <li key={chart.chartId}>
-                <div className={`chartListItem ${chartStatus.status === 'error' ? 'chartListItemError' : ''}`}>
+                <div className={`chartListItem ${chartHasIssue ? 'chartListItemError' : ''}`}>
                   <div className="chartText">
                     <strong className="chartTitle">{chart.title}</strong>
-                    <div className="chartMetaLine">
+                    <div className="chartMetaLine" data-testid="tournament-detail-chart-meta-line">
                       <span className="chartPlayStyleText">{chart.playStyle}</span>
-                      {difficultyTag(chart)}
-                      <span className="chartLevelTag">{t('tournament_detail.chart.level', { level: levelLabel ?? '?' })}</span>
+                      <span className="chartMetaSeparator" aria-hidden>
+                        ・
+                      </span>
+                      <span className="chartDifficultyLevelText" style={{ color: difficultyTextColor }}>
+                        {difficultyLevelText}
+                      </span>
                     </div>
                     {chartStatus.errorText ? <p className="chartResolveIssue">{chartStatus.errorText}</p> : null}
                   </div>
                   <div className="chartActions">
                     <div className="chartStatusLine">
                       <span
-                        className={`chartSubmitLabel ${chartStatus.status}`}
+                        className={`chartStateBadge chartStateBadge-${chartShareState}`}
                         data-testid="tournament-detail-chart-status-label"
-                        data-chart-status={chartStatus.status}
+                        data-chart-state={chartShareState}
                       >
-                        {chartStatus.label}
+                        {t(`tournament_detail.chart.status.${chartShareState}`)}
                       </span>
-                      {chartNeedsSend ? (
-                        <span className="chartSendPendingBadge" data-testid="tournament-detail-chart-send-pending-badge">
-                          {t('tournament_detail.chart.status.send_pending')}
-                        </span>
-                      ) : null}
                     </div>
                     {isActivePeriod ? (
                       <button
                         type="button"
-                        className={`chartSubmitButton ${chart.submitted ? 'submitted' : 'pending'}`}
+                        className={`chartSubmitButton ${hasEvidence(chart) ? 'submitted' : 'pending'}`}
                         data-testid="tournament-detail-chart-submit-button"
                         onClick={() => props.onOpenSubmit(chart.chartId)}
                       >
@@ -1210,82 +1269,53 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
       <Dialog open={submitDialogOpen} onClose={() => setSubmitDialogOpen(false)} fullWidth maxWidth="sm" data-testid="tournament-detail-submit-dialog">
         <DialogTitle>{t('tournament_detail.submit_dialog.title')}</DialogTitle>
-        <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
-          <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              {t('tournament_detail.submit_dialog.images_title')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              {t('tournament_detail.submit_dialog.images_description')}
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1.5 }}>
-              {t('tournament_detail.submit_dialog.target_count', { count: sendPendingCount })}
-            </Typography>
-            <Stack direction="row" spacing={1}>
-              <Button variant="contained" onClick={() => void shareSubmissionImages()} disabled={submitBusy || sendPendingCount === 0}>
-                {t('common.share')}
-              </Button>
-              <Button variant="outlined" onClick={() => void saveSubmissionImages()} disabled={submitBusy || sendPendingCount === 0}>
-                {t('tournament_detail.action.save_to_device')}
-              </Button>
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              {t('tournament_detail.submit_dialog.message_title')}
-            </Typography>
-            <TextField
-              fullWidth
-              size="small"
-              value={submitMessageText}
-              inputProps={{ 'data-testid': 'tournament-detail-submit-message-input' }}
-              InputProps={{ readOnly: true }}
-              sx={{ mb: 1.5 }}
-            />
-            <Stack direction="row" spacing={1}>
-              <Button variant="outlined" onClick={() => void copySubmitMessage()} disabled={submitBusy}>
-                {t('common.copy')}
-              </Button>
-              <Button variant="outlined" onClick={() => void shareSubmitMessage()} disabled={submitBusy}>
-                {t('common.share')}
-              </Button>
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              {t('tournament_detail.submit_dialog.complete_title')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              {t('tournament_detail.submit_dialog.complete_description')}
-            </Typography>
-            <Button
-              variant="outlined"
-              onClick={() => void markSubmissionAsCompleted()}
-              disabled={submitBusy || sendPendingCount === 0}
-              data-testid="tournament-detail-mark-send-completed-button"
-            >
-              {t('tournament_detail.action.mark_send_completed')}
-            </Button>
-          </Box>
-
-          {submitNotice ? (
-            <Alert severity={submitNotice.severity} data-testid="tournament-detail-submit-notice-alert">
-              {submitNotice.text}
-            </Alert>
-          ) : null}
+        <DialogContent dividers>
+          <Typography variant="body1" data-testid="tournament-detail-submit-confirm-text">
+            {t('tournament_detail.submit_dialog.confirm_message', { count: sendPendingCount })}
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSubmitDialogOpen(false)} disabled={submitBusy}>
-            {t('common.close')}
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => void sharePendingEvidence()}
+            disabled={submitBusy || sendPendingCount === 0}
+            data-testid="tournament-detail-submit-share-button"
+          >
+            {t('tournament_detail.action.submit')}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={submitToastOpen}
+        autoHideDuration={4500}
+        onClose={closeSubmitToast}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={submitToast?.severity ?? 'info'}
+          onClose={(event) => closeSubmitToast(event)}
+          sx={{ width: '100%' }}
+          action={
+            submitToast?.undoChartIds ? (
+              <Button
+                size="small"
+                color="inherit"
+                onClick={() => void undoLastShare()}
+                disabled={submitUndoBusy}
+                data-testid="tournament-detail-submit-undo-button"
+              >
+                {t('tournament_detail.submit_dialog.undo_action')}
+              </Button>
+            ) : undefined
+          }
+        >
+          {submitToast?.text ?? ''}
+        </Alert>
+      </Snackbar>
 
       <footer className="detailSubmitBar">
         <div className="detailSubmitBarInner">
@@ -1298,11 +1328,10 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                 return;
               }
               setSubmitDialogOpen(true);
-              setSubmitNotice(null);
             }}
             disabled={!canOpenSubmitDialog}
           >
-            {t('tournament_detail.action.submit')}
+            {submitButtonLabel}
           </button>
           <p className="detailSubmitSubInfo" data-testid="tournament-detail-submit-summary-text" data-send-pending-count={sendPendingCount}>
             {submitSummaryText}
