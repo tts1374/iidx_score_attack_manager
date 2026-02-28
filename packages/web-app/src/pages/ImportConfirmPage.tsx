@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatHashtagForDisplay, getTournamentStatus, type TournamentPayload } from '@iidx/shared';
 import type { ImportTargetTournament, SongMasterChartDetail } from '@iidx/db';
+import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '../services/context';
 import { IMPORT_CONFIRM_PATH } from '../utils/payload-url';
@@ -30,7 +31,7 @@ interface PreviewChart {
 
 interface ImportPreview {
   payload: TournamentPayload;
-  statusLabel: '未開催' | '開催中' | '終了';
+  statusKey: 'upcoming' | 'active' | 'ended';
   statusClassName: 'statusBadge-upcoming' | 'statusBadge-active-normal' | 'statusBadge-ended';
   charts: PreviewChart[];
   existing: ImportTargetTournament | null;
@@ -45,41 +46,48 @@ type ImportConfirmState =
 
 function resolveStatus(start: string, end: string, todayDate: string): {
   isEnded: boolean;
-  label: ImportPreview['statusLabel'];
+  statusKey: ImportPreview['statusKey'];
   className: ImportPreview['statusClassName'];
 } {
   const status = getTournamentStatus(start, end, todayDate);
   if (status === 'upcoming') {
     return {
       isEnded: false,
-      label: '未開催',
+      statusKey: 'upcoming',
       className: 'statusBadge-upcoming',
     };
   }
   if (status === 'ended') {
     return {
       isEnded: true,
-      label: '終了',
+      statusKey: 'ended',
       className: 'statusBadge-ended',
     };
   }
   return {
     isEnded: false,
-    label: '開催中',
+    statusKey: 'active',
     className: 'statusBadge-active-normal',
   };
 }
 
-function buildPreviewCharts(chartIds: number[], detailMap: Map<number, SongMasterChartDetail>): PreviewChart[] {
+function buildPreviewCharts(
+  chartIds: number[],
+  detailMap: Map<number, SongMasterChartDetail>,
+  options: {
+    fallbackTitle: (chartId: number) => string;
+    notAvailableLabel: string;
+  },
+): PreviewChart[] {
   return chartIds.map((chartId) => {
     const found = detailMap.get(chartId);
     if (!found) {
       return {
         chartId,
-        title: `chart:${chartId}`,
-        playStyle: '-',
-        difficulty: '-',
-        level: '-',
+        title: options.fallbackTitle(chartId),
+        playStyle: options.notAvailableLabel,
+        difficulty: options.notAvailableLabel,
+        level: options.notAvailableLabel,
         missing: true,
       };
     }
@@ -92,6 +100,16 @@ function buildPreviewCharts(chartIds: number[], detailMap: Map<number, SongMaste
       missing: false,
     };
   });
+}
+
+function resolveStatusLabelKey(statusKey: ImportPreview['statusKey']): string {
+  if (statusKey === 'upcoming') {
+    return 'import.confirm.status.upcoming';
+  }
+  if (statusKey === 'ended') {
+    return 'import.confirm.status.ended';
+  }
+  return 'import.confirm.status.active';
 }
 
 function summarizeMerge(existing: ImportTargetTournament | null, chartIds: number[]): { addedCharts: number; sameCharts: number } {
@@ -116,6 +134,7 @@ function summarizeMerge(existing: ImportTargetTournament | null, chartIds: numbe
 
 export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
   const { appDb } = useAppServices();
+  const { t } = useTranslation();
   const [validationState, setValidationState] = React.useState<ImportConfirmState>({ status: 'loading' });
   const [applying, setApplying] = React.useState(false);
 
@@ -129,6 +148,34 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
   React.useEffect(() => {
     window.history.replaceState(window.history.state, '', IMPORT_CONFIRM_PATH);
   }, []);
+
+  const resolveLocationImportErrorMessage = React.useCallback(
+    (error: ImportConfirmError): string => {
+      if (error.code === 'INVALID_PARAM') {
+        return t('import.error.invalid_param');
+      }
+      if (error.code === 'DECODE_ERROR') {
+        return t('import.error.decode_error');
+      }
+      if (error.code === 'DECOMPRESS_ERROR') {
+        return t('import.error.decompress_error');
+      }
+      if (error.code === 'JSON_ERROR') {
+        return t('import.error.json_error');
+      }
+      if (error.code === 'SCHEMA_ERROR') {
+        return t('import.error.schema_error');
+      }
+      if (error.code === 'TOO_LARGE') {
+        return t('import.error.too_large');
+      }
+      if (error.code === 'UNSUPPORTED_VERSION') {
+        return t('import.error.unsupported_version');
+      }
+      return error.message;
+    },
+    [t],
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -151,22 +198,29 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       if (locationPayload.status === 'none') {
         fail({
           code: 'INVALID_PARAM',
-          message: 'URLインポートリンクを認識できませんでした。',
+          message: t('import.error.none'),
         });
         return;
       }
       if (locationPayload.status === 'invalid') {
-        fail(locationPayload.error);
+        fail({
+          code: locationPayload.error.code,
+          message: resolveLocationImportErrorMessage(locationPayload.error),
+        });
         return;
       }
       const payload: TournamentPayload = locationPayload.payload;
 
       const statusInfo = resolveStatus(payload.start, payload.end, props.todayDate);
+      const notAvailableLabel = t('common.not_available');
       const emptyPreview: ImportPreview = {
         payload,
-        statusLabel: statusInfo.label,
+        statusKey: statusInfo.statusKey,
         statusClassName: statusInfo.className,
-        charts: buildPreviewCharts(payload.charts, new Map()),
+        charts: buildPreviewCharts(payload.charts, new Map(), {
+          fallbackTitle: (chartId) => t('import.confirm.value.chart_id', { chartId }),
+          notAvailableLabel,
+        }),
         existing: null,
         addedCharts: payload.charts.length,
         sameCharts: 0,
@@ -176,7 +230,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
         fail(
           {
             code: 'EXPIRED',
-            message: '終了済みの大会は取り込みできません。',
+            message: t('import.error.expired'),
           },
           emptyPreview,
         );
@@ -188,7 +242,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
         fail(
           {
             code: 'MASTER_MISSING',
-            message: '曲マスタが未取得のため検証できません。',
+            message: t('import.error.master_missing'),
           },
           emptyPreview,
         );
@@ -201,14 +255,17 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       );
       const previewWithMaster: ImportPreview = {
         ...emptyPreview,
-        charts: buildPreviewCharts(payload.charts, chartDetailMap),
+        charts: buildPreviewCharts(payload.charts, chartDetailMap, {
+          fallbackTitle: (chartId) => t('import.confirm.value.chart_id', { chartId }),
+          notAvailableLabel,
+        }),
       };
       const missingChartIds = payload.charts.filter((chartId) => !chartDetailMap.has(chartId));
       if (missingChartIds.length > 0) {
         fail(
           {
             code: 'CHART_NOT_FOUND',
-            message: `曲マスタに存在しない譜面があります: ${missingChartIds.join(', ')}`,
+            message: t('import.error.chart_not_found', { chartIds: missingChartIds.join(', ') }),
           },
           previewWithMaster,
         );
@@ -228,7 +285,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
         fail(
           {
             code: 'SCHEMA_ERROR',
-            message: 'UUID一致の既存大会と開催期間が矛盾するため取り込みできません。',
+            message: t('import.error.period_conflict'),
           },
           completedPreview,
         );
@@ -248,14 +305,14 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
     void validate().catch((error) => {
       fail({
         code: 'SCHEMA_ERROR',
-        message: error instanceof Error ? error.message : String(error),
+        message: t('import.error.unexpected', { message: error instanceof Error ? error.message : String(error) }),
       });
     });
 
     return () => {
       cancelled = true;
     };
-  }, [appDb, locationPayload, props.todayDate]);
+  }, [appDb, locationPayload, props.todayDate, resolveLocationImportErrorMessage, t]);
 
   const showOpenSettingsAction =
     validationState.status === 'error' &&
@@ -286,7 +343,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
     <div className="page importConfirmPage">
       {validationState.status === 'loading' ? (
         <section className="detailCard">
-          <h2>取り込みデータを検証しています...</h2>
+          <h2>{t('import.state.loading')}</h2>
         </section>
       ) : null}
 
@@ -296,7 +353,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
           <p>{validationState.error.message}</p>
           {showOpenSettingsAction ? (
             <button onClick={props.onOpenSettings} disabled={props.busy}>
-              設定を開く
+              {t('import.action.open_settings')}
             </button>
           ) : null}
         </section>
@@ -307,19 +364,17 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
           <section className="detailCard importConfirmSummaryCard">
             <div className="tournamentCardHeader">
               <h2>{preview.payload.name}</h2>
-              <span className={`statusBadge ${preview.statusClassName}`}>{preview.statusLabel}</span>
+              <span className={`statusBadge ${preview.statusClassName}`}>{t(resolveStatusLabelKey(preview.statusKey))}</span>
             </div>
             <div className="tournamentMeta">
               <p>{preview.payload.owner}</p>
-              <p>
-                {preview.payload.start} 〜 {preview.payload.end}
-              </p>
-              <p>{formatHashtagForDisplay(preview.payload.hashtag) || '-'}</p>
+              <p>{t('import.confirm.value.period', { from: preview.payload.start, to: preview.payload.end })}</p>
+              <p>{formatHashtagForDisplay(preview.payload.hashtag) || t('common.not_available')}</p>
             </div>
           </section>
 
           <section className="detailCard importConfirmChartsCard">
-            <h3>対象譜面</h3>
+            <h3>{t('import.confirm.section.charts')}</h3>
             <ul className="chartList">
               {preview.charts.slice(0, 4).map((chart) => (
                 <li key={chart.chartId}>
@@ -332,9 +387,15 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
                         className={chart.missing ? 'errorText' : ''}
                         style={chart.missing ? undefined : { color: difficultyColor(chart.difficulty) }}
                       >
-                        {chart.playStyle} {chart.difficulty} Lv{chart.level}
+                        {t('import.confirm.value.chart_detail', {
+                          playStyle: chart.playStyle,
+                          difficulty: chart.difficulty,
+                          level: chart.level,
+                        })}
                       </span>
-                      {chart.missing ? <span className="errorText">曲マスタ不一致 (chart:{chart.chartId})</span> : null}
+                      {chart.missing ? (
+                        <span className="errorText">{t('import.confirm.chart_missing', { chartId: chart.chartId })}</span>
+                      ) : null}
                     </div>
                   </div>
                 </li>
@@ -344,25 +405,25 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
 
           {preview.existing ? (
             <section className="detailCard importConfirmMergeCard">
-              <h3>既存大会が見つかりました（UUID一致）</h3>
-              <p>適用方式: マージ（譜面のみ）</p>
-              <p>追加される譜面数: {preview.addedCharts}</p>
-              <p>既存と同一の譜面数: {preview.sameCharts}</p>
-              <p className="hintText">大会名/開催者/期間/ハッシュタグは更新されません。</p>
+              <h3>{t('import.confirm.section.merge')}</h3>
+              <p>{t('import.confirm.merge.mode')}</p>
+              <p>{t('import.confirm.merge.added_charts', { count: preview.addedCharts })}</p>
+              <p>{t('import.confirm.merge.same_charts', { count: preview.sameCharts })}</p>
+              <p className="hintText">{t('import.confirm.merge.note')}</p>
             </section>
           ) : null}
 
           <section className="detailCard">
-            <h3>注意</h3>
-            <p className="hintText">取り込みデータは自己責任で利用してください。</p>
-            <p className="hintText">UUID衝突時は大会情報を更新せず、譜面差分のみを適用します。</p>
+            <h3>{t('import.confirm.section.caution')}</h3>
+            <p className="hintText">{t('import.confirm.caution.self_responsibility')}</p>
+            <p className="hintText">{t('import.confirm.caution.uuid_conflict')}</p>
           </section>
         </>
       ) : null}
 
       <div className="importConfirmFooter">
         <button onClick={props.onBack} disabled={props.busy || applying}>
-          キャンセル
+          {t('common.cancel')}
         </button>
         <button
           className="primaryActionButton"
@@ -371,7 +432,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
             void confirmImport();
           }}
         >
-          {applying ? '取り込み中...' : '取り込む'}
+          {applying ? t('import.action.importing') : t('import.action.import')}
         </button>
       </div>
     </div>

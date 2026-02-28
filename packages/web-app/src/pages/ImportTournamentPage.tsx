@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ImportTournamentPageProps {
   songMasterReady: boolean;
@@ -9,6 +10,7 @@ interface ImportTournamentPageProps {
 }
 
 export function ImportTournamentPage(props: ImportTournamentPageProps): JSX.Element {
+  const { t } = useTranslation();
   const [importText, setImportText] = React.useState('');
   const importDisabled = !props.songMasterReady || props.busy;
 
@@ -16,17 +18,17 @@ export function ImportTournamentPage(props: ImportTournamentPageProps): JSX.Elem
     <div className="page">
       {!props.songMasterReady && (
         <section className="warningBox">
-          <p>曲マスタが未取得のため、大会取込は利用できません。</p>
+          <p>{t('import.warning.song_master_unavailable')}</p>
           {props.songMasterMessage && <p>{props.songMasterMessage}</p>}
-          <p>設定画面の「曲データ」セクションで更新を確認してください。</p>
+          <p>{t('import.warning.song_master_action')}</p>
         </section>
       )}
 
       <section className="detailCard importSection">
-        <h2>大会取込</h2>
-        <p className="hintText">URLもしくは画像/テキストファイルを取り込めます。</p>
+        <h2>{t('import.title')}</h2>
+        <p className="hintText">{t('import.description')}</p>
         <textarea
-          placeholder="URLを貼り付け"
+          placeholder={t('import.input.url_placeholder')}
           value={importText}
           onChange={(event) => setImportText(event.target.value)}
           rows={4}
@@ -39,10 +41,10 @@ export function ImportTournamentPage(props: ImportTournamentPageProps): JSX.Elem
               setImportText('');
             }}
           >
-            テキスト取込
+            {t('import.action.import_text')}
           </button>
           <label className={`fileButton ${importDisabled ? 'disabled' : ''}`}>
-            ファイル取込
+            {t('import.action.import_file')}
             <input
               type="file"
               accept="image/*,.txt,.json"

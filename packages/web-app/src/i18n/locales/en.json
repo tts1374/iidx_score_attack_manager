@@ -261,6 +261,70 @@
       "view_detail": "View details"
     }
   },
+  "import": {
+    "title": "Import tournament",
+    "description": "You can import from a URL or image/text files.",
+    "warning": {
+      "song_master_unavailable": "Tournament import is unavailable because song master data is missing.",
+      "song_master_action": "Check updates in the \"Song data\" section on the settings screen."
+    },
+    "input": {
+      "url_placeholder": "Paste URL"
+    },
+    "action": {
+      "import_text": "Import text",
+      "import_file": "Import file",
+      "open_settings": "Open settings",
+      "import": "Import",
+      "importing": "Importing..."
+    },
+    "state": {
+      "loading": "Validating import data..."
+    },
+    "error": {
+      "none": "Could not recognize the URL import link.",
+      "invalid_param": "The URL parameter is invalid.",
+      "decode_error": "Failed to decode the payload.",
+      "decompress_error": "Failed to decompress the payload (gzip).",
+      "json_error": "Failed to parse the payload JSON.",
+      "schema_error": "Required fields or types in import data are invalid.",
+      "too_large": "Import data size exceeds the limit.",
+      "expired": "Ended tournaments cannot be imported.",
+      "master_missing": "Cannot validate because song master data is missing.",
+      "chart_not_found": "Charts not found in song master data: {{chartIds}}",
+      "unsupported_version": "This data version is not supported.",
+      "period_conflict": "Import failed because the existing tournament with the same UUID has a conflicting period.",
+      "unexpected": "Unexpected error: {{message}}"
+    },
+    "confirm": {
+      "section": {
+        "charts": "Target charts",
+        "merge": "Existing tournament found (same UUID)",
+        "caution": "Caution"
+      },
+      "status": {
+        "upcoming": "Upcoming",
+        "active": "Active",
+        "ended": "Ended"
+      },
+      "value": {
+        "period": "{{from}} - {{to}}",
+        "chart_id": "chart:{{chartId}}",
+        "chart_detail": "{{playStyle}} {{difficulty}} Lv{{level}}"
+      },
+      "chart_missing": "Song master mismatch (chart:{{chartId}})",
+      "merge": {
+        "mode": "Apply mode: Merge (charts only)",
+        "added_charts": "Charts to add: {{count}}",
+        "same_charts": "Charts already existing: {{count}}",
+        "note": "Tournament name/owner/period/hashtag will not be updated."
+      },
+      "caution": {
+        "self_responsibility": "Use imported data at your own risk.",
+        "uuid_conflict": "When UUIDs conflict, tournament info is kept and only chart differences are applied."
+      }
+    }
+  },
   "settings": {
     "title": "Settings",
     "language": {

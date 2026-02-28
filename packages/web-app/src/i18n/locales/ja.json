@@ -261,6 +261,70 @@
       "view_detail": "詳細を見る"
     }
   },
+  "import": {
+    "title": "大会取込",
+    "description": "URLもしくは画像/テキストファイルを取り込めます。",
+    "warning": {
+      "song_master_unavailable": "曲マスタが未取得のため、大会取込は利用できません。",
+      "song_master_action": "設定画面の「曲データ」セクションで更新を確認してください。"
+    },
+    "input": {
+      "url_placeholder": "URLを貼り付け"
+    },
+    "action": {
+      "import_text": "テキスト取込",
+      "import_file": "ファイル取込",
+      "open_settings": "設定を開く",
+      "import": "取り込む",
+      "importing": "取り込み中..."
+    },
+    "state": {
+      "loading": "取り込みデータを検証しています..."
+    },
+    "error": {
+      "none": "URLインポートリンクを認識できませんでした。",
+      "invalid_param": "URLパラメータが不正です。",
+      "decode_error": "ペイロードのデコードに失敗しました。",
+      "decompress_error": "ペイロードのgzip展開に失敗しました。",
+      "json_error": "ペイロードJSONの解析に失敗しました。",
+      "schema_error": "取り込みデータの必須項目または型が不正です。",
+      "too_large": "取り込みデータサイズが上限を超えています。",
+      "expired": "終了済みの大会は取り込みできません。",
+      "master_missing": "曲マスタが未取得のため検証できません。",
+      "chart_not_found": "曲マスタに存在しない譜面があります: {{chartIds}}",
+      "unsupported_version": "対応していないデータバージョンです。",
+      "period_conflict": "UUID一致の既存大会と開催期間が矛盾するため取り込みできません。",
+      "unexpected": "予期しないエラー: {{message}}"
+    },
+    "confirm": {
+      "section": {
+        "charts": "対象譜面",
+        "merge": "既存大会が見つかりました（UUID一致）",
+        "caution": "注意"
+      },
+      "status": {
+        "upcoming": "未開催",
+        "active": "開催中",
+        "ended": "終了"
+      },
+      "value": {
+        "period": "{{from}} 〜 {{to}}",
+        "chart_id": "chart:{{chartId}}",
+        "chart_detail": "{{playStyle}} {{difficulty}} Lv{{level}}"
+      },
+      "chart_missing": "曲マスタ不一致 (chart:{{chartId}})",
+      "merge": {
+        "mode": "適用方式: マージ（譜面のみ）",
+        "added_charts": "追加される譜面数: {{count}}",
+        "same_charts": "既存と同一の譜面数: {{count}}",
+        "note": "大会名/開催者/期間/ハッシュタグは更新されません。"
+      },
+      "caution": {
+        "self_responsibility": "取り込みデータは自己責任で利用してください。",
+        "uuid_conflict": "UUID衝突時は大会情報を更新せず、譜面差分のみを適用します。"
+      }
+    }
+  },
   "settings": {
     "title": "設定",
     "language": {
