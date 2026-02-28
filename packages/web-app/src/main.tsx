@@ -4,6 +4,7 @@ import { acquireSingleTabLock, checkRuntimeCapabilities } from '@iidx/db';
 import type { TournamentPayload } from '@iidx/shared';
 
 import { App, AppFallbackUnsupported } from './App';
+import { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage } from './i18n';
 import { createAppServices } from './services/app-services';
 import { AppServicesProvider } from './services/context';
 import { resolveImportPayloadFromLocation } from './utils/import-confirm';
@@ -664,6 +665,8 @@ async function bootstrap(): Promise<void> {
         window.setTimeout(() => reject(new Error('初期化がタイムアウトしました。')), 20000);
       }),
     ]);
+    const persistedLanguage = await services.appDb.getSetting(APP_LANGUAGE_SETTING_KEY).catch(() => null);
+    await ensureI18n(normalizeLanguage(persistedLanguage));
 
     window.addEventListener('beforeunload', () => {
       if (releaseLock) {

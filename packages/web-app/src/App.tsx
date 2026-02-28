@@ -37,7 +37,9 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import SearchIcon from '@mui/icons-material/Search';
+import { useTranslation } from 'react-i18next';
 
+import { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage, type AppLanguage } from './i18n';
 import { ImportQrScannerDialog } from './components/ImportQrScannerDialog';
 import { UnsupportedScreen } from './components/UnsupportedScreen';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
@@ -673,6 +675,7 @@ async function resolveOpfsStatus(): Promise<AppInfoCardData['opfsStatus']> {
 
 export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const { appDb, songMasterService } = useAppServices();
+  const { t } = useTranslation();
 
   const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
   const [homeQuery, setHomeQuery] = React.useState<HomeQueryState>(() => createDefaultHomeQueryState());
@@ -724,6 +727,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [createSaving, setCreateSaving] = React.useState(false);
   const [createSaveError, setCreateSaveError] = React.useState<string | null>(null);
   const [debugModeEnabled, setDebugModeEnabled] = React.useState(() => readDebugMode());
+  const [language, setLanguage] = React.useState<AppLanguage>('ja');
   const [detailTechnicalDialogOpen, setDetailTechnicalDialogOpen] = React.useState(false);
   const [detailDebugLastError, setDetailDebugLastError] = React.useState<string | null>(null);
   const [whatsNewDialogOpen, setWhatsNewDialogOpen] = React.useState(false);
@@ -1269,6 +1273,25 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, []);
 
   React.useEffect(() => {
+    let mounted = true;
+    void appDb
+      .getSetting(APP_LANGUAGE_SETTING_KEY)
+      .then((value) => {
+        const normalized = normalizeLanguage(value);
+        void ensureI18n(normalized);
+        if (mounted) {
+          setLanguage(normalized);
+        }
+      })
+      .catch(() => {
+        // ignore language load errors
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [appDb]);
+
+  React.useEffect(() => {
     const onError = (event: ErrorEvent) => {
       appendRuntimeLog({
         level: 'error',
@@ -1662,6 +1685,20 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     [appDb, appendRuntimeLog, refreshSettingsSnapshot],
   );
 
+  const changeLanguage = React.useCallback(
+    async (nextLanguage: AppLanguage) => {
+      const normalized = normalizeLanguage(nextLanguage);
+      if (normalized === language) {
+        return;
+      }
+      await ensureI18n(normalized);
+      await appDb.setSetting(APP_LANGUAGE_SETTING_KEY, normalized);
+      setLanguage(normalized);
+      pushToast(t('settings.language.toast.changed', { language: t(`settings.language.option.${normalized}`) }));
+    },
+    [appDb, language, pushToast, t],
+  );
+
   const estimateStorageCleanup = React.useCallback(
     async (days: number) => appDb.estimateEvidenceCleanup(days),
     [appDb],
@@ -1705,11 +1742,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       case 'submit':
         return 'スコア提出';
       case 'settings':
-        return '設定';
+        return t('settings.title');
       default:
         return '';
     }
-  }, [route.name]);
+  }, [route.name, t]);
 
   const openCreatePage = React.useCallback(() => {
     if (!songMasterReady) {
@@ -1952,12 +1989,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       openSettingsPage();
                     }}
                   >
-                    設定
+                    {t('settings.title')}
                   </MenuItem>
                 </Menu>
               </>
             )
-          ) : (
+            ) : (
             <>
               {isSettingsRoute ? (
                 <Box
@@ -2186,6 +2223,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           <SettingsPage
             appInfo={appInfoSnapshot}
             songMasterMeta={songMasterMeta}
+            language={language}
             autoDeleteEnabled={autoDeleteEnabled}
             autoDeleteDays={autoDeleteDays}
             debugModeEnabled={debugModeEnabled}
@@ -2196,6 +2234,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             onAutoDeleteConfigChange={saveAutoDelete}
             onEstimateStorageCleanup={estimateStorageCleanup}
             onRunStorageCleanup={runStorageCleanup}
+            onLanguageChange={changeLanguage}
             onToggleDebugMode={toggleDebugMode}
             onApplyAppUpdate={applyPendingAppUpdate}
             onResetLocalData={resetLocalData}

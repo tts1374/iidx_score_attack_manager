@@ -1,0 +1,268 @@
+{
+  "common": {
+    "detail": "詳細",
+    "close": "閉じる",
+    "copy": "コピー",
+    "share": "共有",
+    "cancel": "キャンセル",
+    "next": "次へ",
+    "execute": "実行",
+    "not_available": "-",
+    "unknown": "不明"
+  },
+  "settings": {
+    "title": "設定",
+    "language": {
+      "title": "言語",
+      "description": "UI表示言語を選択します。",
+      "label": "表示言語",
+      "option": {
+        "ja": "日本語",
+        "en": "English",
+        "ko": "한국어"
+      },
+      "toast": {
+        "changed": "表示言語を{{language}}に変更しました。",
+        "change_failed": "表示言語の変更に失敗しました。"
+      }
+    },
+    "health": {
+      "summary": "ヘルスサマリ: {{level}}",
+      "level": {
+        "normal": "正常",
+        "caution": "注意",
+        "abnormal": "異常"
+      },
+      "action": {
+        "restart": "別タブを閉じて再起動",
+        "fetch_song": "曲データを取得",
+        "cleanup": "容量を整理",
+        "default": "対応を実行"
+      },
+      "reason": {
+        "web_locks_failed": "Web Locks: 取得失敗",
+        "song_unavailable": "曲データ: 利用不可",
+        "opfs_error": "OPFS: アクセス失敗",
+        "db_integrity_error": "DB整合性: エラー",
+        "capacity_critical": "容量: 不足リスク"
+      }
+    },
+    "song_data": {
+      "title": "曲データ",
+      "status": {
+        "label": "状態",
+        "available": "利用可",
+        "unavailable": "利用不可",
+        "update_failed_cache": "更新失敗（キャッシュ使用）",
+        "check_not_run": "最新確認未実施"
+      },
+      "size": "サイズ",
+      "last_fetched_at": "最終取得日",
+      "last_checked_at": "最終確認日時",
+      "update_available": "更新があります。必要に応じて「更新を確認」を実行してください。",
+      "check_not_run_info": "最新確認未実施（情報表示）: 必要に応じて「更新を確認」を実行してください。",
+      "update_failed_cache_info": "更新確認に失敗しました。既存データを継続利用しています。",
+      "action": {
+        "check_updates": "更新を確認",
+        "checking": "確認中...",
+        "refetch": "再取得（キャッシュ破棄）"
+      },
+      "detail": {
+        "fetched_at": "取得日時",
+        "generated_at": "生成日",
+        "download_source": "DL元",
+        "download_source_value": "GitHub Releases",
+        "latest_result": "直近更新結果",
+        "latest_judgement_note": "最新判定は「更新を確認」で実施します。",
+        "failed_cache_note": "失敗時は既存を使用（初回は利用不可）します。"
+      },
+      "technical": {
+        "title": "技術情報",
+        "schema_version": "schema_version",
+        "sha256": "sha256",
+        "latest_checked_at": "latest.json取得時刻",
+        "latest_status_code": "latest.json結果コード",
+        "download_url": "DL URL",
+        "verification": "検証結果",
+        "action": {
+          "copy_logs": "ログコピー"
+        },
+        "latest_error": "latest.json取得エラー: {{message}}"
+      },
+      "result": {
+        "none": "-",
+        "failed": "失敗: {{message}}",
+        "up_to_date": "成功: 最新です",
+        "updated_success": "成功: 更新を適用しました",
+        "local_cache_failed": "失敗（キャッシュ使用）: {{message}}",
+        "success": "成功"
+      },
+      "verification": {
+        "match": "一致",
+        "diff": "差分あり",
+        "failed": "確認失敗",
+        "none": "-"
+      },
+      "error": {
+        "refetch_default": "再取得（キャッシュ破棄）に失敗しました。",
+        "latest_fetch_failed": "latest.json fetch failed: {{status}}",
+        "latest_invalid": "latest.json の形式が不正です。",
+        "latest_missing": "latest.json の必須項目が不足しています。",
+        "unexpected": "予期しないエラー: {{message}}"
+      },
+      "refetch_confirm": {
+        "title": "再取得（キャッシュ破棄）を実行しますか？",
+        "description": "キャッシュを破棄した後、再ダウンロード・検証・置換を行います。失敗時は既存データを保持します。"
+      },
+      "refetch_progress": {
+        "title": "再取得（キャッシュ破棄）進捗",
+        "step": {
+          "download": "取得",
+          "verify": "検証",
+          "save": "保存",
+          "complete": "完了"
+        }
+      }
+    },
+    "storage": {
+      "title": "容量",
+      "usage": "使用量（概算）",
+      "usage_unknown": "概算/不明",
+      "usage_value": "{{used}} / {{quota}}",
+      "risk": "リスク",
+      "risk_value": {
+        "safe": "余裕",
+        "warning": "注意",
+        "critical": "不足"
+      },
+      "action": {
+        "cleanup": "容量を整理"
+      },
+      "auto_delete": {
+        "enable": "画像自動削除を有効にする",
+        "days_label": "終了後N日で画像削除",
+        "helper": "大会データは残り、画像のみ削除（復元不可）"
+      },
+      "detail": {
+        "last_run_at": "直近実行日時",
+        "deleted_image_count": "削除画像枚数",
+        "deleted_image_count_value": "{{value}} 枚",
+        "released": "解放容量"
+      },
+      "cleanup_dialog": {
+        "title": "容量を整理",
+        "loading": "見積りを取得中...",
+        "target_tournament_count": "削除対象大会数: {{value}} 件",
+        "target_image_count": "削除対象画像枚数: {{value}} 枚",
+        "estimated_release": "解放見込み容量（概算）: {{size}}",
+        "not_restorable": "復元不可",
+        "action": {
+          "proceed": "削除実行へ進む"
+        }
+      },
+      "cleanup_confirm": {
+        "title": "最終確認",
+        "description": "画像を削除します。復元できません。実行してよいですか？",
+        "action": {
+          "execute": "最終確認して実行"
+        }
+      }
+    },
+    "app": {
+      "title": "アプリ",
+      "version": "アプリ版本体",
+      "build_time": "ビルド日時",
+      "offline": "オフライン機能",
+      "update": "更新",
+      "action": {
+        "apply_update": "再読み込みして更新"
+      },
+      "sw": {
+        "enabled": "有効",
+        "unregistered": "無効"
+      },
+      "update_status": {
+        "available": "あり",
+        "none": "なし"
+      },
+      "technical": {
+        "title": "技術情報",
+        "sw_state": "SW state",
+        "sw_scope": "SW scope",
+        "version_build": "version/build id",
+        "clients_claim": "clientsClaim",
+        "skip_waiting": "skipWaiting",
+        "clients_claim_status": {
+          "unknown": "不明",
+          "enabled": "有効",
+          "disabled": "無効"
+        },
+        "skip_waiting_status": {
+          "unknown": "不明",
+          "waiting": "待機あり",
+          "none": "待機なし"
+        }
+      }
+    },
+    "technical": {
+      "title": "技術情報",
+      "common_info": "共通情報",
+      "web_locks": "Web Locks",
+      "web_locks_value": "{{status}}",
+      "web_locks_with_reason": "{{status}}（{{reason}}）",
+      "web_locks_reason": {
+        "unsupported": "ブラウザが Web Locks API に未対応です。",
+        "not_acquired": "別タブで稼働中の可能性があります。"
+      },
+      "opfs": "OPFS",
+      "opfs_value": "{{status}} / 使用量 {{usage}} / 空き推定 {{free}}",
+      "db_integrity": "DB integrity_check",
+      "db_file_size": "DBファイルサイズ",
+      "db_user_version": "DB user_version",
+      "latest_error_logs": "直近エラーログ",
+      "log_line": "[{{timestamp}}] [{{level}}] {{message}}",
+      "no_logs": "ログはありません。",
+      "locks_status": {
+        "acquired": "取得済",
+        "unsupported": "失敗（未対応）",
+        "not_acquired": "失敗"
+      },
+      "opfs_status": {
+        "available": "利用可",
+        "unsupported": "未対応",
+        "error": "エラー"
+      }
+    },
+    "danger": {
+      "title": "危険操作",
+      "description": "ローカル初期化を実行すると以下を削除します。",
+      "items": {
+        "tournament": "大会データ",
+        "images": "提出画像",
+        "song_data": "曲データ"
+      },
+      "not_restorable": "復元できません。",
+      "action": {
+        "reset_local": "ローカル初期化",
+        "execute_reset": "初期化を実行"
+      },
+      "guide": {
+        "title": "ローカル初期化を実行しますか？",
+        "description": "以下を削除します（復元不可）。",
+        "next_hint": "次へ進むと確認文字列の入力が必要です。"
+      },
+      "final": {
+        "title": "最終確認",
+        "description": "実行するには確認文字列を入力してください。実行後は初期状態に戻ります。"
+      },
+      "confirm_label": "確認文字列",
+      "confirm_placeholder": "削除",
+      "confirm_helper": "「{{token}}」と入力すると実行できます。",
+      "reset_confirm_token": "削除"
+    },
+    "logs": {
+      "copied": "ログをコピーしました。",
+      "copy_failed": "ログコピーに失敗しました。"
+    }
+  }
+}

@@ -22,6 +22,14 @@ pnpm build
 pnpm test
 ```
 
+## i18n 運用ルール
+- 新規の表示文言は必ず i18n キーを追加し、UI 直書きを禁止する
+- i18n キーは不変とし、文言修正時は辞書 (`ja/en/ko`) のみ更新する
+- 文字列連結で文を組み立てず、辞書で完結させる
+- プレースホルダは named 形式 (`{{days}}`) を必須とする
+- `ja` を SSOT とし、`en/ko` は初回 AI 翻訳後に辞書で調整する
+- 用語揺れ防止は `packages/web-app/src/i18n/glossary.ts` を使い、AI 翻訳後に手動で照合する
+
 ## 曲マスタ配布のローカルモック
 ```bash
 node scripts/mock-song-master-server.mjs --sqlite ./song_master.sqlite --schema 33 --port 8787
