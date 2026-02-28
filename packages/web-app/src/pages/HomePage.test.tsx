@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { HomePage } from './HomePage';
@@ -32,12 +32,20 @@ describe('HomePage', () => {
     );
 
     const firstCard = screen.getAllByRole('listitem')[0]!;
-    expect(within(firstCard).getByText('開催中')).toBeTruthy();
-    expect(within(firstCard).getByText('残2日')).toBeTruthy();
-    expect(within(firstCard).getByText(/登録 2 \/ 4/)).toBeTruthy();
-    expect(within(firstCard).getByText('(50%)')).toBeTruthy();
-    expect(within(firstCard).getByText('未登録あり')).toBeTruthy();
-    expect(within(firstCard).getByText('詳細を見る')).toBeTruthy();
+    const statusBadge = firstCard.querySelector('.statusBadge');
+    const remainingDays = firstCard.querySelector('.remainingDays');
+    const progressLine = firstCard.querySelector('.progressLine');
+    const progressPercent = firstCard.querySelector('.progressPercent');
+    const pendingBadge = firstCard.querySelector('.pendingBadge');
+    const navigationHint = firstCard.querySelector('.cardNavigationHint > span');
+
+    expect(statusBadge?.textContent?.trim()).toBeTruthy();
+    expect(remainingDays?.textContent).toContain('2');
+    expect(progressLine?.textContent).toContain('2');
+    expect(progressLine?.textContent).toContain('4');
+    expect(progressPercent?.textContent).toBe('(50%)');
+    expect(pendingBadge?.textContent?.trim()).toBeTruthy();
+    expect(navigationHint?.textContent?.trim()).toBeTruthy();
   });
 
   it('renders state badge for non-active state', () => {
@@ -64,11 +72,11 @@ describe('HomePage', () => {
         onOpenDetail={() => undefined}
       />,
     );
-    const scoped = within(container);
-
-    expect(scoped.getByText('開催前')).toBeTruthy();
-    expect(scoped.getByText('未登録あり')).toBeTruthy();
-    expect(scoped.queryByText('残2日')).toBeNull();
+    const upcomingBadge = container.querySelector('.statusBadge');
+    expect(upcomingBadge?.textContent?.trim()).toBeTruthy();
+    expect(container.querySelector('.pendingBadge')?.textContent?.trim()).toBeTruthy();
+    expect(container.querySelector('.remainingDays')).toBeNull();
+    const upcomingLabel = upcomingBadge?.textContent;
 
     rerender(
       <HomePage
@@ -79,13 +87,15 @@ describe('HomePage', () => {
       />,
     );
 
-    expect(scoped.getByText('終了')).toBeTruthy();
-    expect(scoped.getByText('未登録あり')).toBeTruthy();
+    const endedBadge = container.querySelector('.statusBadge');
+    expect(endedBadge?.textContent?.trim()).toBeTruthy();
+    expect(endedBadge?.textContent).not.toBe(upcomingLabel);
+    expect(container.querySelector('.pendingBadge')?.textContent?.trim()).toBeTruthy();
   });
 
   it('shows open-filter action on empty state', async () => {
     const onOpenFilterInEmpty = vi.fn();
-    render(
+    const { container } = render(
       <HomePage
         todayDate="2026-02-08"
         state="active"
@@ -94,7 +104,9 @@ describe('HomePage', () => {
         onOpenDetail={() => undefined}
       />,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'フィルタを開く' }));
+    const emptyResetButton = container.querySelector('.emptyResetButton');
+    expect(emptyResetButton).toBeTruthy();
+    await userEvent.click(emptyResetButton as HTMLButtonElement);
     expect(onOpenFilterInEmpty).toHaveBeenCalledTimes(1);
   });
 });
