@@ -5,6 +5,8 @@
     "copy": "Copy",
     "share": "Share",
     "cancel": "Cancel",
+    "back": "Back",
+    "delete": "Delete",
     "next": "Next",
     "execute": "Run",
     "not_available": "-",
@@ -323,6 +325,170 @@
         "self_responsibility": "Use imported data at your own risk.",
         "uuid_conflict": "When UUIDs conflict, tournament info is kept and only chart differences are applied."
       }
+    }
+  },
+  "create_tournament": {
+    "wizard": {
+      "aria_label": "Tournament definition wizard",
+      "step": {
+        "basic": "Basic info",
+        "charts": "Charts",
+        "confirm": "Confirm"
+      },
+      "nav_item": "{{index}}. {{label}}"
+    },
+    "step": {
+      "basic_title": "1) Basic tournament info",
+      "charts_title": "2) Target charts ({{current}} / {{max}})",
+      "confirm_title": "3) Confirm"
+    },
+    "field": {
+      "name": {
+        "label": "Tournament name *",
+        "label_plain": "Tournament name",
+        "placeholder": "e.g.) Score Attack 2026"
+      },
+      "owner": {
+        "label": "Organizer *",
+        "label_plain": "Organizer",
+        "placeholder": "e.g.) IIDX Club"
+      },
+      "hashtag": {
+        "label": "Hashtag *",
+        "label_plain": "Hashtag",
+        "placeholder": "e.g.) ScoreAttack2026"
+      },
+      "period": {
+        "label": "Period *",
+        "label_plain": "Period",
+        "start_placeholder": "Start date",
+        "end_placeholder": "End date"
+      },
+      "song": {
+        "label": "Song title",
+        "placeholder": "Enter song title",
+        "no_options_empty_query": "Enter a song title.",
+        "no_options_not_found": "No matching songs found.",
+        "loading": "Loading..."
+      },
+      "play_style": {
+        "label": "Play style",
+        "disabled_hint": "You can change this after selecting a song.",
+        "sp": "SP",
+        "dp": "DP"
+      },
+      "difficulty": {
+        "label": "Difficulty",
+        "select_song_hint": "Select a song to choose difficulty.",
+        "no_available": "No selectable charts are available.",
+        "used_in_other": "This chart is already used in another selection.",
+        "value": "{{difficulty}} Lv{{level}}"
+      }
+    },
+    "text": {
+      "period_separator": "~",
+      "list_separator": ", "
+    },
+    "period": {
+      "empty": "-",
+      "range": "{{start}} to {{end}}",
+      "range_with_days": "{{start}} to {{end}} ({{count}} days)"
+    },
+    "action": {
+      "set_next_month": "Next month (1st to end of month)",
+      "next_with_step": "{{action}} ({{step}})",
+      "back_with_step": "{{action}} ({{step}})",
+      "create": "Create tournament",
+      "creating": "Creating..."
+    },
+    "progress": {
+      "completed": "Completed: {{count}}/4",
+      "missing": "Missing: {{items}}",
+      "none": "None"
+    },
+    "chart": {
+      "max_limit": "Up to {{max}} charts.",
+      "add": "+ Add",
+      "selection_label": "Selection {{index}}",
+      "selection_delete_aria": "Remove selection {{index}}"
+    },
+    "validation": {
+      "name_required": "Enter a tournament name.",
+      "owner_required": "Enter an organizer.",
+      "hashtag_required": "Enter a hashtag.",
+      "start_date_required": "Select a start date.",
+      "end_date_required": "Select an end date.",
+      "end_date_after_start": "End date must be on or after start date.",
+      "end_date_from_today": "End date must be today or later.",
+      "chart_required": "Select at least one chart.",
+      "chart_difficulty_required": "Select a difficulty for each chart.",
+      "chart_duplicate": "Duplicate chart registration is not allowed.",
+      "chart_duplicate_on_page": "The same chart is selected more than once.",
+      "check_input": "Please review your input.",
+      "check_chart_input": "Please review chart input.",
+      "missing_items": "Missing: {{items}}"
+    },
+    "confirm": {
+      "chart_list_title": "Chart list",
+      "chart_title": "Chart {{index}}",
+      "debug": {
+        "title": "Debug info",
+        "def_hash": "def_hash",
+        "source_tournament_uuid": "source_tournament_uuid",
+        "null": "null"
+      }
+    }
+  },
+  "submit_evidence": {
+    "chart": {
+      "level": "Lv{{level}}"
+    },
+    "status": {
+      "processing": "Submitting",
+      "failed": "Submission failed",
+      "submitted": "Submitted",
+      "submitted_with_date": "Submitted {{date}}",
+      "not_submitted": "Not submitted"
+    },
+    "step": {
+      "select_image": "Step 1) Select image",
+      "review_image": "Step 2) Review image"
+    },
+    "images": {
+      "preview_alt": "Submitted image preview",
+      "updated_at": "Last updated: {{date}}",
+      "action": {
+        "tap_to_select": "Tap to select an image",
+        "take_photo": "Take photo",
+        "pick_from_gallery": "Choose from gallery",
+        "reselect": "Select again"
+      }
+    },
+    "note": {
+      "local_only": "Images are saved only on this device.",
+      "not_sent": "Images are not sent to other people."
+    },
+    "action": {
+      "processing": "Submitting",
+      "update": "Update",
+      "save": "Save"
+    },
+    "menu": {
+      "actions_aria": "Submitted image actions"
+    },
+    "hint": {
+      "select_to_submit": "Select an image to submit."
+    },
+    "error": {
+      "submit_failed": "Submission failed",
+      "quota_exceeded": "Storage full",
+      "save_failed": "Failed to save",
+      "delete_failed": "Failed to delete"
+    },
+    "delete_dialog": {
+      "title": "Delete submitted image?",
+      "description": "This action cannot be undone.",
+      "confirm": "Delete"
     }
   },
   "settings": {

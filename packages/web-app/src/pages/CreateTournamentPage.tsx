@@ -6,13 +6,18 @@ import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { jaJP } from '@mui/x-date-pickers/locales';
-import { ja } from 'date-fns/locale/ja';
+import { enUS, jaJP, koKR } from '@mui/x-date-pickers/locales';
+import { enUS as enDateLocale } from 'date-fns/locale/en-US';
+import { ja as jaDateLocale } from 'date-fns/locale/ja';
+import { ko as koDateLocale } from 'date-fns/locale/ko';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '../services/context';
 import { difficultyColor, versionLabel } from '../utils/iidx';
 import {
   MAX_CHART_ROWS,
+  type CreateTournamentFieldLabelKey,
   createEmptyChartDraft,
   formatIsoDate,
   normalizeHashtagForDisplay,
@@ -35,15 +40,24 @@ interface CreateTournamentPageProps {
 }
 
 type CreateWizardStep = 0 | 1 | 2;
+type AppLanguage = 'ja' | 'en' | 'ko';
 
 const SONG_SEARCH_DEBUG_STORAGE_KEY = 'iidx:debug:song-search';
 const CREATE_WIZARD_DEBUG_STORAGE_KEY = 'iidx:debug:create-wizard';
-const JA_PICKER_LOCALE_TEXT = jaJP.components.MuiLocalizationProvider.defaultProps.localeText as any;
 const SONG_AUTOCOMPLETE_SX = {
   width: '100%',
   maxWidth: '100%',
 } as const;
-const WIZARD_STEPS = ['基本情報', '譜面', '確認'] as const;
+const DATE_PICKER_LOCALE_TEXT_BY_LANGUAGE = {
+  ja: jaJP.components.MuiLocalizationProvider.defaultProps.localeText as any,
+  en: enUS.components.MuiLocalizationProvider.defaultProps.localeText as any,
+  ko: koKR.components.MuiLocalizationProvider.defaultProps.localeText as any,
+} as const;
+const DATE_FNS_LOCALE_BY_LANGUAGE = {
+  ja: jaDateLocale,
+  en: enDateLocale,
+  ko: koDateLocale,
+} as const;
 
 function isSongSearchDebugEnabled(): boolean {
   const g = globalThis as { __IIDX_DEBUG_SONG_SEARCH__?: unknown; localStorage?: Storage };
@@ -128,19 +142,47 @@ function formatDateForDisplay(value: string): string {
   return `${year}/${month}/${day}`;
 }
 
-function resolvePeriodText(startDate: string, endDate: string): string {
-  if (!startDate || !endDate) {
-    return '-';
+function resolveAppLanguage(language: string): AppLanguage {
+  if (language.startsWith('en')) {
+    return 'en';
   }
-  const dayCount = resolveRangeDayCount(startDate, endDate);
-  if (dayCount === null) {
-    return `${formatDateForDisplay(startDate)} 〜 ${formatDateForDisplay(endDate)}`;
+  if (language.startsWith('ko')) {
+    return 'ko';
   }
-  return `${formatDateForDisplay(startDate)} 〜 ${formatDateForDisplay(endDate)}（${dayCount}日間）`;
+  return 'ja';
 }
 
-function resolveStepButtonReason(message: string | null, fallbackMessage: string): string {
-  return message ?? fallbackMessage;
+function resolvePeriodText(
+  startDate: string,
+  endDate: string,
+  translate: TFunction,
+): string {
+  if (!startDate || !endDate) {
+    return translate('create_tournament.period.empty');
+  }
+  const dayCount = resolveRangeDayCount(startDate, endDate);
+  const start = formatDateForDisplay(startDate);
+  const end = formatDateForDisplay(endDate);
+  if (dayCount === null) {
+    return translate('create_tournament.period.range', { start, end });
+  }
+  return translate('create_tournament.period.range_with_days', { start, end, count: dayCount });
+}
+
+function resolveStepButtonReason(
+  messageKey: string | null,
+  fallbackKey: string,
+  translate: TFunction,
+): string {
+  return messageKey ? translate(messageKey) : translate(fallbackKey);
+}
+
+function resolveMissingFieldLabels(
+  keys: readonly CreateTournamentFieldLabelKey[],
+  translate: TFunction,
+): string {
+  const separator = translate('create_tournament.text.list_separator');
+  return keys.map((key) => translate(key)).join(separator);
 }
 
 function scrollStepTitleIntoView(stepTitle: HTMLHeadingElement): void {
@@ -152,6 +194,7 @@ function scrollStepTitleIntoView(stepTitle: HTMLHeadingElement): void {
 }
 
 export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Element {
+  const { t, i18n } = useTranslation();
   const { appDb } = useAppServices();
   const draft = props.draft;
   const rows = draft.rows;
@@ -167,7 +210,19 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const startDateValue = React.useMemo(() => parseIsoDate(draft.startDate), [draft.startDate]);
   const endDateValue = React.useMemo(() => parseIsoDate(draft.endDate), [draft.endDate]);
   const todayDateValue = React.useMemo(() => parseIsoDate(props.todayDate), [props.todayDate]);
-  const periodText = React.useMemo(() => resolvePeriodText(draft.startDate, draft.endDate), [draft.endDate, draft.startDate]);
+  const appLanguage = React.useMemo(() => resolveAppLanguage(i18n.resolvedLanguage ?? i18n.language ?? 'ja'), [i18n.language, i18n.resolvedLanguage]);
+  const datePickerLocaleText = DATE_PICKER_LOCALE_TEXT_BY_LANGUAGE[appLanguage];
+  const datePickerAdapterLocale = DATE_FNS_LOCALE_BY_LANGUAGE[appLanguage];
+  const wizardSteps = React.useMemo(
+    () => [
+      t('create_tournament.wizard.step.basic'),
+      t('create_tournament.wizard.step.charts'),
+      t('create_tournament.wizard.step.confirm'),
+    ],
+    [t],
+  );
+  const periodText = React.useMemo(() => resolvePeriodText(draft.startDate, draft.endDate, t), [draft.endDate, draft.startDate, t]);
+  const missingBasicFieldsText = React.useMemo(() => resolveMissingFieldLabels(validation.missingBasicFields, t), [t, validation.missingBasicFields]);
   const displayHashtag = React.useMemo(() => normalizeHashtagForDisplay(draft.hashtag), [draft.hashtag]);
   const stepOneReady = validation.hasRequiredFields && validation.periodError === null;
   const stepTwoReady = validation.chartStepError === null;
@@ -298,20 +353,20 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
   const stepOneDisabledReason = !stepOneReady
     ? validation.missingBasicFields.length > 0
-      ? `未入力項目: ${validation.missingBasicFields.join('、')}`
-      : resolveStepButtonReason(validation.periodError, '入力内容を確認してください。')
+      ? t('create_tournament.validation.missing_items', { items: missingBasicFieldsText })
+      : resolveStepButtonReason(validation.periodError, 'create_tournament.validation.check_input', t)
     : null;
   const stepTwoDisabledReason = !stepTwoReady
-    ? resolveStepButtonReason(validation.chartStepError, '譜面の入力内容を確認してください。')
+    ? resolveStepButtonReason(validation.chartStepError, 'create_tournament.validation.check_chart_input', t)
     : null;
   const createDisabledReason = !validation.canProceed
-    ? resolveStepButtonReason(validation.periodError ?? validation.chartStepError, '入力内容を確認してください。')
+    ? resolveStepButtonReason(validation.periodError ?? validation.chartStepError, 'create_tournament.validation.check_input', t)
     : null;
 
   return (
     <div className="page createTournamentPage">
-      <nav className="createWizardSteps" aria-label="大会定義ウィザード">
-        {WIZARD_STEPS.map((stepLabel, index) => {
+      <nav className="createWizardSteps" aria-label={t('create_tournament.wizard.aria_label')}>
+        {wizardSteps.map((stepLabel, index) => {
           const stepIndex = index as CreateWizardStep;
           const stepClassName =
             stepIndex === currentStep
@@ -327,7 +382,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               onClick={() => setCurrentStep(stepIndex)}
               disabled={stepIndex > maxSelectableStep}
             >
-              {index + 1}. {stepLabel}
+              {t('create_tournament.wizard.nav_item', { index: index + 1, label: stepLabel })}
             </button>
           );
         })}
@@ -341,39 +396,39 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               stepTitleRefs.current[0] = element;
             }}
           >
-            1) 大会基本情報
+            {t('create_tournament.step.basic_title')}
           </h2>
           <div className="createFieldStack">
             <label className="createField">
-              <span className="fieldChipLabel">大会名 *</span>
+              <span className="fieldChipLabel">{t('create_tournament.field.name.label')}</span>
               <input
                 maxLength={50}
                 value={draft.name}
-                placeholder="例）スコアタ2026"
+                placeholder={t('create_tournament.field.name.placeholder')}
                 onChange={(event) => {
                   const value = event.target.value;
                   props.onDraftChange((current) => ({ ...current, name: value }));
                 }}
               />
-              {validation.nameError ? <p className="errorText createInlineError">{validation.nameError}</p> : null}
+              {validation.nameError ? <p className="errorText createInlineError">{t(validation.nameError)}</p> : null}
             </label>
 
             <label className="createField">
-              <span className="fieldChipLabel">開催者 *</span>
+              <span className="fieldChipLabel">{t('create_tournament.field.owner.label')}</span>
               <input
                 maxLength={50}
                 value={draft.owner}
-                placeholder="例）IIDX部"
+                placeholder={t('create_tournament.field.owner.placeholder')}
                 onChange={(event) => {
                   const value = event.target.value;
                   props.onDraftChange((current) => ({ ...current, owner: value }));
                 }}
               />
-              {validation.ownerError ? <p className="errorText createInlineError">{validation.ownerError}</p> : null}
+              {validation.ownerError ? <p className="errorText createInlineError">{t(validation.ownerError)}</p> : null}
             </label>
 
             <label className="createField">
-              <span className="fieldChipLabel">ハッシュタグ *</span>
+              <span className="fieldChipLabel">{t('create_tournament.field.hashtag.label')}</span>
               <div className="hashtagInputGroup">
                 <span className="hashtagInputPrefix" aria-hidden="true">
                   #
@@ -381,21 +436,21 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 <input
                   maxLength={50}
                   value={draft.hashtag}
-                  placeholder="例）スコアタ2026"
+                  placeholder={t('create_tournament.field.hashtag.placeholder')}
                   onChange={(event) => {
                     const value = event.target.value.replace(/^[#＃]+/u, '');
                     props.onDraftChange((current) => ({ ...current, hashtag: value }));
                   }}
                 />
               </div>
-              {validation.hashtagError ? <p className="errorText createInlineError">{validation.hashtagError}</p> : null}
+              {validation.hashtagError ? <p className="errorText createInlineError">{t(validation.hashtagError)}</p> : null}
             </label>
 
             <div className="createField">
-              <span className="fieldChipLabel">期間 *</span>
+              <span className="fieldChipLabel">{t('create_tournament.field.period.label')}</span>
               <div className="periodRangeInputs">
                 <div className="periodDateField">
-                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ja} localeText={JA_PICKER_LOCALE_TEXT}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
                     <DatePicker
                       value={startDateValue}
                       onChange={(value) => {
@@ -405,14 +460,14 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                         }));
                       }}
                       format="yyyy/MM/dd"
-                      slotProps={{ textField: { placeholder: '開始日', fullWidth: true, size: 'small' } }}
+                      slotProps={{ textField: { placeholder: t('create_tournament.field.period.start_placeholder'), fullWidth: true, size: 'small' } }}
                     />
                   </LocalizationProvider>
-                  {validation.startDateError ? <p className="errorText createInlineError">{validation.startDateError}</p> : null}
+                  {validation.startDateError ? <p className="errorText createInlineError">{t(validation.startDateError)}</p> : null}
                 </div>
-                <span aria-hidden="true">〜</span>
+                <span aria-hidden="true">{t('create_tournament.text.period_separator')}</span>
                 <div className="periodDateField">
-                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ja} localeText={JA_PICKER_LOCALE_TEXT}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
                     <DatePicker
                       value={endDateValue}
                       {...endDatePickerMinProps}
@@ -423,10 +478,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                         }));
                       }}
                       format="yyyy/MM/dd"
-                      slotProps={{ textField: { placeholder: '終了日', fullWidth: true, size: 'small' } }}
+                      slotProps={{ textField: { placeholder: t('create_tournament.field.period.end_placeholder'), fullWidth: true, size: 'small' } }}
                     />
                   </LocalizationProvider>
-                  {validation.endDateError ? <p className="errorText createInlineError">{validation.endDateError}</p> : null}
+                  {validation.endDateError ? <p className="errorText createInlineError">{t(validation.endDateError)}</p> : null}
                 </div>
               </div>
 
@@ -442,7 +497,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                     }));
                   }}
                 >
-                  来月（1日〜月末）
+                  {t('create_tournament.action.set_next_month')}
                 </button>
               </div>
 
@@ -451,9 +506,11 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           </div>
 
           <article className="chartRowCard createProgressCard">
-            <p className="progressLine">入力完了: {validation.basicCompletedCount}/4</p>
+            <p className="progressLine">{t('create_tournament.progress.completed', { count: validation.basicCompletedCount })}</p>
             <p className="hintText">
-              未入力項目: {validation.missingBasicFields.length > 0 ? validation.missingBasicFields.join('、') : 'なし'}
+              {t('create_tournament.progress.missing', {
+                items: validation.missingBasicFields.length > 0 ? missingBasicFieldsText : t('create_tournament.progress.none'),
+              })}
             </p>
           </article>
         </section>
@@ -464,14 +521,14 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           <div className="createSectionHeading">
             <h2
               className="createSectionTitle"
-              ref={(element) => {
-                stepTitleRefs.current[1] = element;
-              }}
-            >
-              2) 対象譜面 ({rows.length} / {MAX_CHART_ROWS})
+            ref={(element) => {
+              stepTitleRefs.current[1] = element;
+            }}
+          >
+              {t('create_tournament.step.charts_title', { current: rows.length, max: MAX_CHART_ROWS })}
             </h2>
             <div className="createSectionAction">
-              {!canAddRow ? <p className="hintText createButtonReason">最大4譜面までです。</p> : null}
+              {!canAddRow ? <p className="hintText createButtonReason">{t('create_tournament.chart.max_limit', { max: MAX_CHART_ROWS })}</p> : null}
               <button
                 type="button"
                 className="addRowButton"
@@ -486,7 +543,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   }));
                 }}
               >
-                ＋追加
+                {t('create_tournament.chart.add')}
               </button>
             </div>
           </div>
@@ -500,11 +557,11 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               return (
                 <article key={row.key} className="chartRowCard createChartCard">
                   <div className="chartRowHeader">
-                    <strong>選曲 {index + 1}</strong>
+                    <strong>{t('create_tournament.chart.selection_label', { index: index + 1 })}</strong>
                     <button
                       type="button"
                       className="iconOnlyButton"
-                      aria-label={`選曲 ${index + 1} を削除`}
+                      aria-label={t('create_tournament.chart.selection_delete_aria', { index: index + 1 })}
                       onClick={() =>
                         props.onDraftChange((current) => ({
                           ...current,
@@ -518,7 +575,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">曲名</span>
+                    <span className="fieldChipLabel">{t('create_tournament.field.song.label')}</span>
                     <Box sx={SONG_AUTOCOMPLETE_SX}>
                       <Autocomplete<SongSummary, false, false, false>
                         fullWidth
@@ -533,8 +590,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                             void handleSearch(row.key, row.query);
                           }
                         }}
-                        noOptionsText={row.query.trim().length === 0 ? '曲名を入力してください。' : '該当する曲がありません。'}
-                        loadingText="読み込み中..."
+                        noOptionsText={
+                          row.query.trim().length === 0
+                            ? t('create_tournament.field.song.no_options_empty_query')
+                            : t('create_tournament.field.song.no_options_not_found')
+                        }
+                        loadingText={t('create_tournament.field.song.loading')}
                         isOptionEqualToValue={(option, value) => option.musicId === value.musicId}
                         getOptionLabel={(option) => option.title}
                         onInputChange={(_, value, reason) => {
@@ -562,7 +623,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                         renderInput={(params) => (
                           <TextField
                             {...(params as any)}
-                            placeholder="曲名を入力"
+                            placeholder={t('create_tournament.field.song.placeholder')}
                             InputProps={{
                               ...params.InputProps,
                               endAdornment: (
@@ -598,8 +659,8 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">プレイスタイル</span>
-                    {!row.selectedSong ? <span className="hintText">曲を選択するまで変更できません。</span> : null}
+                    <span className="fieldChipLabel">{t('create_tournament.field.play_style.label')}</span>
+                    {!row.selectedSong ? <span className="hintText">{t('create_tournament.field.play_style.disabled_hint')}</span> : null}
                     <div className="styleRadioGroup">
                       <label className={`styleOption ${row.playStyle === 'SP' ? 'selected' : ''} ${!row.selectedSong ? 'disabled' : ''}`}>
                         <input
@@ -615,7 +676,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                             void loadCharts(row.key, row.selectedSong.musicId, 'SP');
                           }}
                         />
-                        SP
+                        {t('create_tournament.field.play_style.sp')}
                       </label>
                       <label className={`styleOption ${row.playStyle === 'DP' ? 'selected' : ''} ${!row.selectedSong ? 'disabled' : ''}`}>
                         <input
@@ -631,20 +692,20 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                             void loadCharts(row.key, row.selectedSong.musicId, 'DP');
                           }}
                         />
-                        DP
+                        {t('create_tournament.field.play_style.dp')}
                       </label>
                     </div>
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">難易度</span>
-                    {!row.selectedSong ? <span className="hintText">曲を選択すると選べます。</span> : null}
+                    <span className="fieldChipLabel">{t('create_tournament.field.difficulty.label')}</span>
+                    {!row.selectedSong ? <span className="hintText">{t('create_tournament.field.difficulty.select_song_hint')}</span> : null}
                     {row.selectedSong && row.chartOptions.length === 0 ? (
-                      <span className="hintText">選択可能な譜面がありません。</span>
+                      <span className="hintText">{t('create_tournament.field.difficulty.no_available')}</span>
                     ) : null}
                     {row.selectedSong && row.chartOptions.length > 0 ? (
                       <>
-                        {selectableChartCount === 0 ? <span className="hintText">他の選曲で譜面が使用中です。</span> : null}
+                        {selectableChartCount === 0 ? <span className="hintText">{t('create_tournament.field.difficulty.used_in_other')}</span> : null}
                         <div className="difficultyButtons">
                           {row.chartOptions.map((chart) => {
                             const active = row.selectedChartId === chart.chartId;
@@ -663,7 +724,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                                   updateRow(row.key, (current) => ({ ...current, selectedChartId: chart.chartId }));
                                 }}
                               >
-                                {chart.difficulty} Lv{chart.level}
+                                {t('create_tournament.field.difficulty.value', {
+                                  difficulty: chart.difficulty,
+                                  level: chart.level,
+                                })}
                               </button>
                             );
                           })}
@@ -671,12 +735,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                       </>
                     ) : null}
                     {row.selectedSong && row.chartOptions.length > 0 && row.selectedChartId === null ? (
-                      <p className="errorText createInlineError">難易度を選択してください。</p>
+                      <p className="errorText createInlineError">{t('create_tournament.validation.chart_difficulty_required')}</p>
                     ) : null}
                   </div>
 
                   {row.selectedChartId !== null && validation.duplicateChartIds.has(row.selectedChartId) ? (
-                    <p className="errorText createInlineError">同一譜面が重複しています。</p>
+                    <p className="errorText createInlineError">{t('create_tournament.validation.chart_duplicate_on_page')}</p>
                   ) : null}
                 </article>
               );
@@ -690,28 +754,28 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           <section className="createSection">
             <h2
               className="createSectionTitle"
-              ref={(element) => {
-                stepTitleRefs.current[2] = element;
-              }}
-            >
-              3) 確認
+            ref={(element) => {
+              stepTitleRefs.current[2] = element;
+            }}
+          >
+              {t('create_tournament.step.confirm_title')}
             </h2>
             <article className="chartRowCard createConfirmInfoCard">
               <dl className="createConfirmInfoList">
                 <div className="createConfirmInfoItem">
-                  <dt>大会名</dt>
-                  <dd>{draft.name.trim() || '-'}</dd>
+                  <dt>{t('create_tournament.field.name.label_plain')}</dt>
+                  <dd>{draft.name.trim() || t('common.not_available')}</dd>
                 </div>
                 <div className="createConfirmInfoItem">
-                  <dt>開催者</dt>
-                  <dd>{draft.owner.trim() || '-'}</dd>
+                  <dt>{t('create_tournament.field.owner.label_plain')}</dt>
+                  <dd>{draft.owner.trim() || t('common.not_available')}</dd>
                 </div>
                 <div className="createConfirmInfoItem">
-                  <dt>ハッシュタグ</dt>
-                  <dd>{displayHashtag || '-'}</dd>
+                  <dt>{t('create_tournament.field.hashtag.label_plain')}</dt>
+                  <dd>{displayHashtag || t('common.not_available')}</dd>
                 </div>
                 <div className="createConfirmInfoItem">
-                  <dt>期間</dt>
+                  <dt>{t('create_tournament.field.period.label_plain')}</dt>
                   <dd>{periodText}</dd>
                 </div>
               </dl>
@@ -719,36 +783,39 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           </section>
 
           <section className="createSection">
-            <h2 className="createSectionTitle">譜面一覧</h2>
+            <h2 className="createSectionTitle">{t('create_tournament.confirm.chart_list_title')}</h2>
             <div className="chartRows">
               {rows.map((row, index) => {
                 const selectedChart = resolveSelectedChartOption(row);
                 return (
                   <article key={row.key} className="chartRowCard createChartCard">
                     <div className="chartRowHeader">
-                      <strong>譜面 {index + 1}</strong>
+                      <strong>{t('create_tournament.confirm.chart_title', { index: index + 1 })}</strong>
                     </div>
 
                     <div className="createField">
-                      <span className="fieldChipLabel">曲名</span>
-                      <p className="createConfirmValue">{row.selectedSong?.title ?? '-'}</p>
+                      <span className="fieldChipLabel">{t('create_tournament.field.song.label')}</span>
+                      <p className="createConfirmValue">{row.selectedSong?.title ?? t('common.not_available')}</p>
                     </div>
 
                     <div className="createField">
-                      <span className="fieldChipLabel">プレイスタイル</span>
+                      <span className="fieldChipLabel">{t('create_tournament.field.play_style.label')}</span>
                       <div className="createConfirmStyleGroup">
                         <span className="styleOption selected createConfirmStyleChip">{row.playStyle}</span>
                       </div>
                     </div>
 
                     <div className="createField">
-                      <span className="fieldChipLabel">難易度</span>
+                      <span className="fieldChipLabel">{t('create_tournament.field.difficulty.label')}</span>
                       {selectedChart ? (
                         <span className="createConfirmDifficulty" style={difficultyButtonStyle(selectedChart.difficulty, true)}>
-                          {selectedChart.difficulty} Lv{selectedChart.level}
+                          {t('create_tournament.field.difficulty.value', {
+                            difficulty: selectedChart.difficulty,
+                            level: selectedChart.level,
+                          })}
                         </span>
                       ) : (
-                        <p className="createConfirmValue">-</p>
+                        <p className="createConfirmValue">{t('common.not_available')}</p>
                       )}
                     </div>
                   </article>
@@ -759,16 +826,16 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
           {wizardDebugEnabled ? (
             <section className="createSection">
-              <h2 className="createSectionTitle">デバッグ情報</h2>
+              <h2 className="createSectionTitle">{t('create_tournament.confirm.debug.title')}</h2>
               <article className="chartRowCard createConfirmInfoCard">
                 <dl className="createConfirmInfoList">
                   <div className="createConfirmInfoItem">
-                    <dt>def_hash</dt>
-                    <dd>{debugDefHash ?? '-'}</dd>
+                    <dt>{t('create_tournament.confirm.debug.def_hash')}</dt>
+                    <dd>{debugDefHash ?? t('common.not_available')}</dd>
                   </div>
                   <div className="createConfirmInfoItem">
-                    <dt>source_tournament_uuid</dt>
-                    <dd>null</dd>
+                    <dt>{t('create_tournament.confirm.debug.source_tournament_uuid')}</dt>
+                    <dd>{t('create_tournament.confirm.debug.null')}</dd>
                   </div>
                 </dl>
               </article>
@@ -782,7 +849,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           <>
             {!stepOneReady ? <p className="errorText createInlineError">{stepOneDisabledReason}</p> : null}
             <button type="button" className="primaryActionButton" onClick={() => setCurrentStep(1)} disabled={!stepOneReady}>
-              次へ（譜面）
+              {t('create_tournament.action.next_with_step', {
+                action: t('common.next'),
+                step: t('create_tournament.wizard.step.charts'),
+              })}
             </button>
           </>
         ) : null}
@@ -792,10 +862,16 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             {!stepTwoReady ? <p className="errorText createInlineError">{stepTwoDisabledReason}</p> : null}
             <div className="createConfirmActions">
               <button type="button" onClick={() => setCurrentStep(0)}>
-                戻る（基本情報）
+                {t('create_tournament.action.back_with_step', {
+                  action: t('common.back'),
+                  step: t('create_tournament.wizard.step.basic'),
+                })}
               </button>
               <button type="button" className="primaryActionButton" onClick={() => setCurrentStep(2)} disabled={!stepTwoReady}>
-                次へ（確認）
+                {t('create_tournament.action.next_with_step', {
+                  action: t('common.next'),
+                  step: t('create_tournament.wizard.step.confirm'),
+                })}
               </button>
             </div>
           </>
@@ -809,7 +885,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             ) : null}
             <div className="createConfirmActions">
               <button type="button" onClick={() => setCurrentStep(1)} disabled={props.saving}>
-                戻る（譜面）
+                {t('create_tournament.action.back_with_step', {
+                  action: t('common.back'),
+                  step: t('create_tournament.wizard.step.charts'),
+                })}
               </button>
               <button
                 type="button"
@@ -819,7 +898,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   void props.onConfirmCreate();
                 }}
               >
-                {props.saving ? '作成中...' : '大会を作成'}
+                {props.saving ? t('create_tournament.action.creating') : t('create_tournament.action.create')}
               </button>
             </div>
           </>

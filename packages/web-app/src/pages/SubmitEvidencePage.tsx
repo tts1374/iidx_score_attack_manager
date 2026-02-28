@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { sha256Hex } from '@iidx/shared';
 import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
+import { useTranslation } from 'react-i18next';
 
 import { useAppServices } from '../services/context';
 import { difficultyColor } from '../utils/iidx';
@@ -39,7 +40,22 @@ interface PreviewImageState {
   source: PreviewImageSource;
 }
 
-function formatSubmittedAt(value: string | null): string | null {
+type SubmitEvidenceErrorKey =
+  | 'submit_evidence.error.quota_exceeded'
+  | 'submit_evidence.error.save_failed'
+  | 'submit_evidence.error.delete_failed';
+
+function resolveLanguageTag(language: string): string {
+  if (language.startsWith('en')) {
+    return 'en-US';
+  }
+  if (language.startsWith('ko')) {
+    return 'ko-KR';
+  }
+  return 'ja-JP';
+}
+
+function formatSubmittedAt(value: string | null, languageTag: string): string | null {
   if (!value) {
     return null;
   }
@@ -49,7 +65,7 @@ function formatSubmittedAt(value: string | null): string | null {
     return null;
   }
 
-  return new Intl.DateTimeFormat('ja-JP', {
+  return new Intl.DateTimeFormat(languageTag, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -59,20 +75,21 @@ function formatSubmittedAt(value: string | null): string | null {
   }).format(date);
 }
 
-function resolveFailureReason(error: unknown): string {
+function resolveFailureReasonKey(error: unknown): SubmitEvidenceErrorKey {
   if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-    return '容量不足';
+    return 'submit_evidence.error.quota_exceeded';
   }
-  return '保存に失敗しました';
+  return 'submit_evidence.error.save_failed';
 }
 
 export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element {
+  const { t, i18n } = useTranslation();
   const { appDb, opfs } = useAppServices();
   const [submitState, setSubmitState] = React.useState<SubmitState>(SubmitState.NOT_SUBMITTED);
   const [previewImage, setPreviewImage] = React.useState<PreviewImageState | null>(null);
   const [hasSubmittedEvidence, setHasSubmittedEvidence] = React.useState(false);
   const [submittedAt, setSubmittedAt] = React.useState<string | null>(null);
-  const [errorReason, setErrorReason] = React.useState<string | null>(null);
+  const [errorReasonKey, setErrorReasonKey] = React.useState<SubmitEvidenceErrorKey | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [deleteBusy, setDeleteBusy] = React.useState(false);
@@ -111,7 +128,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
   const applyPickedFile = React.useCallback(
     (file: File) => {
       manualSelectionRef.current = true;
-      setErrorReason(null);
+      setErrorReasonKey(null);
       setSubmitState(SubmitState.READY);
       setPreviewFromBlob(file, 'selected');
     },
@@ -143,7 +160,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
     closeMenu();
     setDeleteDialogOpen(false);
     setDeleteBusy(false);
-    setErrorReason(null);
+    setErrorReasonKey(null);
     setHasSubmittedEvidence(false);
     setSubmittedAt(null);
     setSubmitState(SubmitState.NOT_SUBMITTED);
@@ -195,7 +212,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
     }
 
     setSubmitState(SubmitState.PROCESSING);
-    setErrorReason(null);
+    setErrorReasonKey(null);
     try {
       let sourceBlob = previewImage?.blob ?? null;
       if (!sourceBlob && hasSubmittedEvidence) {
@@ -237,7 +254,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
       await Promise.resolve(props.onSaved('submit'));
     } catch (error) {
       setSubmitState(SubmitState.ERROR);
-      setErrorReason(resolveFailureReason(error));
+      setErrorReasonKey(resolveFailureReasonKey(error));
     }
   };
 
@@ -247,7 +264,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
     }
 
     setDeleteBusy(true);
-    setErrorReason(null);
+    setErrorReasonKey(null);
     try {
       await appDb.deleteEvidence(props.detail.tournamentUuid, props.chart.chartId);
       clearPreview();
@@ -259,33 +276,43 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
       await Promise.resolve(props.onSaved('delete'));
     } catch {
       setSubmitState(SubmitState.ERROR);
-      setErrorReason('削除に失敗しました');
+      setErrorReasonKey('submit_evidence.error.delete_failed');
     } finally {
       setDeleteBusy(false);
     }
   };
 
-  const formattedSubmittedAt = formatSubmittedAt(submittedAt);
+  const languageTag = React.useMemo(
+    () => resolveLanguageTag(i18n.resolvedLanguage ?? i18n.language ?? 'ja'),
+    [i18n.language, i18n.resolvedLanguage],
+  );
+  const formattedSubmittedAt = formatSubmittedAt(submittedAt, languageTag);
   const isProcessing = submitState === SubmitState.PROCESSING;
   const hasImage = previewImage !== null;
-  const primaryLabel = isProcessing ? '提出処理中' : hasSubmittedEvidence ? '更新する' : '保存する';
+  const primaryLabel = isProcessing
+    ? t('submit_evidence.action.processing')
+    : hasSubmittedEvidence
+      ? t('submit_evidence.action.update')
+      : t('submit_evidence.action.save');
   const primaryDisabled = isProcessing || deleteBusy || (!hasSubmittedEvidence && !hasImage);
 
   const statusBadge = (() => {
     if (submitState === SubmitState.PROCESSING) {
-      return { tone: 'processing', label: '提出処理中' };
+      return { tone: 'processing', label: t('submit_evidence.status.processing') };
     }
     if (submitState === SubmitState.ERROR) {
-      return { tone: 'error', label: '提出失敗' };
+      return { tone: 'error', label: t('submit_evidence.status.failed') };
     }
     if (hasSubmittedEvidence) {
       return {
         tone: 'submitted',
-        label: formattedSubmittedAt ? `提出済み ${formattedSubmittedAt}` : '提出済み',
+        label: formattedSubmittedAt
+          ? t('submit_evidence.status.submitted_with_date', { date: formattedSubmittedAt })
+          : t('submit_evidence.status.submitted'),
       };
     }
-    return { tone: 'idle', label: '未提出' };
-  })();
+    return { tone: 'idle', label: t('submit_evidence.status.not_submitted') };
+  })() as { tone: 'processing' | 'error' | 'submitted' | 'idle'; label: string };
 
   return (
     <div className="page submitEvidencePage">
@@ -297,13 +324,13 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
               {props.chart.playStyle} {props.chart.difficulty}
             </p>
             <h3>{props.chart.title}</h3>
-            <p style={{ color: difficultyColor(props.chart.difficulty) }}>Lv{props.chart.level}</p>
+            <p style={{ color: difficultyColor(props.chart.difficulty) }}>{t('submit_evidence.chart.level', { level: props.chart.level })}</p>
           </div>
           <div className="submitOverviewSide">
             <span className={`submitStateBadge submitStateBadge-${statusBadge.tone}`}>{statusBadge.label}</span>
             {hasSubmittedEvidence ? (
               <IconButton
-                aria-label="提出画像の操作"
+                aria-label={t('submit_evidence.menu.actions_aria')}
                 size="small"
                 onClick={(event) => {
                   setMenuAnchorEl(event.currentTarget);
@@ -318,7 +345,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
       </section>
 
       <section className="detailCard submitStepCard">
-        <h3 className="submitStepTitle">Step 1) 画像を選ぶ</h3>
+        <h3 className="submitStepTitle">{t('submit_evidence.step.select_image')}</h3>
         <div
           className={`submitPickerArea ${isProcessing || deleteBusy ? 'disabled' : ''}`}
           role="button"
@@ -340,7 +367,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
             }
           }}
         >
-          タップして画像を選ぶ
+          {t('submit_evidence.images.action.tap_to_select')}
         </div>
         <div className="submitPickerActions">
           <button
@@ -349,7 +376,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
             disabled={isProcessing || deleteBusy}
             className="submitSecondaryButton"
           >
-            カメラで撮る
+            {t('submit_evidence.images.action.take_photo')}
           </button>
           <button
             type="button"
@@ -357,7 +384,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
             disabled={isProcessing || deleteBusy}
             className="submitSecondaryButton"
           >
-            ギャラリーから選ぶ
+            {t('submit_evidence.images.action.pick_from_gallery')}
           </button>
         </div>
 
@@ -382,12 +409,12 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
 
       {previewImage ? (
         <section className="detailCard submitStepCard">
-          <h3 className="submitStepTitle">Step 2) 画像を確認</h3>
+          <h3 className="submitStepTitle">{t('submit_evidence.step.review_image')}</h3>
           <div className="submitPreviewFrame">
-            <img src={previewImage.url} alt="提出画像プレビュー" className="submitPreviewImage" />
+            <img src={previewImage.url} alt={t('submit_evidence.images.preview_alt')} className="submitPreviewImage" />
           </div>
           {hasSubmittedEvidence && formattedSubmittedAt ? (
-            <p className="submitUpdatedAt">最終更新: {formattedSubmittedAt}</p>
+            <p className="submitUpdatedAt">{t('submit_evidence.images.updated_at', { date: formattedSubmittedAt })}</p>
           ) : null}
           <div className="submitPreviewActions">
             <button
@@ -396,15 +423,15 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
               disabled={isProcessing || deleteBusy}
               className="submitSecondaryButton"
             >
-              選び直す
+              {t('submit_evidence.images.action.reselect')}
             </button>
           </div>
         </section>
       ) : null}
 
       <section className="detailCard submitNoticeCard">
-        <p>画像はこの端末の中だけに保存されます</p>
-        <p>他の人に画像は送られません</p>
+        <p>{t('submit_evidence.note.local_only')}</p>
+        <p>{t('submit_evidence.note.not_sent')}</p>
       </section>
 
       <footer className="submitActionBar">
@@ -412,18 +439,18 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
           <span className={`submitProcessingDot ${isProcessing ? 'active' : ''}`} aria-hidden />
           {primaryLabel}
         </button>
-        {!hasSubmittedEvidence && !hasImage ? <p className="submitActionHint">画像を選ぶと提出できます</p> : null}
-        {submitState === SubmitState.ERROR && errorReason ? (
+        {!hasSubmittedEvidence && !hasImage ? <p className="submitActionHint">{t('submit_evidence.hint.select_to_submit')}</p> : null}
+        {submitState === SubmitState.ERROR && errorReasonKey ? (
           <p className="submitActionError">
-            提出に失敗しました
-            <span>{errorReason}</span>
+            {t('submit_evidence.error.submit_failed')}
+            <span>{t(errorReasonKey)}</span>
           </p>
         ) : null}
       </footer>
 
       {isProcessing ? (
         <div className="submitScreenLock" role="status" aria-live="polite">
-          提出処理中
+          {t('submit_evidence.status.processing')}
         </div>
       ) : null}
 
@@ -435,14 +462,14 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
             closeMenu();
           }}
         >
-          削除
+          {t('common.delete')}
         </MenuItem>
       </Menu>
 
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>提出画像を削除しますか？</DialogTitle>
+        <DialogTitle>{t('submit_evidence.delete_dialog.title')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>削除すると元に戻せません。</DialogContentText>
+          <DialogContentText>{t('submit_evidence.delete_dialog.description')}</DialogContentText>
         </DialogContent>
         <DialogActions>
           <button
@@ -455,10 +482,10 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
             }}
             disabled={deleteBusy}
           >
-            キャンセル
+            {t('common.cancel')}
           </button>
           <button type="button" onClick={() => void confirmDelete()} disabled={deleteBusy}>
-            削除する
+            {t('submit_evidence.delete_dialog.confirm')}
           </button>
         </DialogActions>
       </Dialog>

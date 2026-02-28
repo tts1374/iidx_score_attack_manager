@@ -88,7 +88,7 @@ describe('create tournament draft helpers', () => {
       hashtag: '  ###  ',
     };
     const validation = resolveCreateTournamentValidation(draft, '2026-02-15');
-    expect(validation.hashtagError).toBe('ハッシュタグを入力してください。');
+    expect(validation.hashtagError).toBe('create_tournament.validation.hashtag_required');
     expect(validation.canProceed).toBe(false);
   });
 
@@ -138,7 +138,7 @@ describe('create tournament draft helpers', () => {
       endDate: '2026-02-14',
     };
     const validation = resolveCreateTournamentValidation(draft, '2026-02-15');
-    expect(validation.periodError).toBe('終了日には今日以降の日付を指定してください。');
+    expect(validation.periodError).toBe('create_tournament.validation.end_date_from_today');
     expect(validation.canProceed).toBe(false);
   });
 
