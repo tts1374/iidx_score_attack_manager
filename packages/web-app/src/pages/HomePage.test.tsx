@@ -23,7 +23,7 @@ describe('HomePage', () => {
             isImported: false,
             chartCount: 4,
             submittedCount: 2,
-            sendWaitingCount: 0,
+            sendWaitingCount: 1,
             pendingCount: 2,
           },
         ]}
@@ -35,16 +35,20 @@ describe('HomePage', () => {
     const statusBadge = firstCard.querySelector('.statusBadge');
     const remainingDays = firstCard.querySelector('.remainingDays');
     const progressLine = firstCard.querySelector('.progressLine');
-    const progressPercent = firstCard.querySelector('.progressPercent');
-    const pendingBadge = firstCard.querySelector('.pendingBadge');
+    const sendWaitingBadge = firstCard.querySelector('.sendWaitingBadge');
+    const sharedSegment = firstCard.querySelector('.progressBarSegment-shared') as HTMLDivElement | null;
+    const sendWaitingSegment = firstCard.querySelector('.progressBarSegment-sendWaiting') as HTMLDivElement | null;
+    const unregisteredSegment = firstCard.querySelector('.progressBarSegment-unregistered') as HTMLDivElement | null;
     const navigationHint = firstCard.querySelector('.cardNavigationHint > span');
 
     expect(statusBadge?.textContent?.trim()).toBeTruthy();
-    expect(remainingDays?.textContent).toContain('2');
-    expect(progressLine?.textContent).toContain('2');
-    expect(progressLine?.textContent).toContain('4');
-    expect(progressPercent?.textContent).toBe('(50%)');
-    expect(pendingBadge?.textContent?.trim()).toBeTruthy();
+    expect(remainingDays?.textContent).toBe('残り2日');
+    expect(progressLine?.textContent).toContain('1');
+    expect(progressLine?.classList.contains('progressLine-muted')).toBe(false);
+    expect(sendWaitingBadge?.textContent?.trim()).toBeTruthy();
+    expect(sharedSegment?.style.width).toBe('25%');
+    expect(sendWaitingSegment?.style.width).toBe('25%');
+    expect(unregisteredSegment?.style.width).toBe('50%');
     expect(navigationHint?.textContent?.trim()).toBeTruthy();
   });
 
@@ -75,6 +79,7 @@ describe('HomePage', () => {
     const upcomingBadge = container.querySelector('.statusBadge');
     expect(upcomingBadge?.textContent?.trim()).toBeTruthy();
     expect(container.querySelector('.pendingBadge')?.textContent?.trim()).toBeTruthy();
+    expect(container.querySelector('.progressLine')?.classList.contains('progressLine-muted')).toBe(true);
     expect(container.querySelector('.remainingDays')).toBeNull();
     const upcomingLabel = upcomingBadge?.textContent;
 
@@ -91,6 +96,36 @@ describe('HomePage', () => {
     expect(endedBadge?.textContent?.trim()).toBeTruthy();
     expect(endedBadge?.textContent).not.toBe(upcomingLabel);
     expect(container.querySelector('.pendingBadge')?.textContent?.trim()).toBeTruthy();
+  });
+
+  it('shows completed badge when all charts are shared', () => {
+    const { container } = render(
+      <HomePage
+        todayDate="2026-02-10"
+        state="active"
+        items={[
+          {
+            tournamentUuid: 't1',
+            sourceTournamentUuid: null,
+            tournamentName: 'テスト大会',
+            owner: 'owner',
+            hashtag: 'tag',
+            startDate: '2026-02-01',
+            endDate: '2026-02-12',
+            isImported: false,
+            chartCount: 2,
+            submittedCount: 2,
+            sendWaitingCount: 0,
+            pendingCount: 0,
+          },
+        ]}
+        onOpenDetail={() => undefined}
+      />,
+    );
+
+    expect(container.querySelector('.completedBadge')?.textContent?.trim()).toBeTruthy();
+    expect(container.querySelector('.sendWaitingBadge')).toBeNull();
+    expect(container.querySelector('.pendingBadge')).toBeNull();
   });
 
   it('shows open-filter action on empty state', async () => {
