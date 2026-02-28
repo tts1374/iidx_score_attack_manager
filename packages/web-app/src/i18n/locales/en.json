@@ -197,7 +197,9 @@
     },
     "home": {
       "search_placeholder": "Score Attack / Owner / Hashtag",
-      "search_chip": "Search: \"{{value}}\""
+      "search_chip": "Search: \"{{value}}\"",
+      "list_count": "Showing {{count}}",
+      "list_count_loading": "Showing —"
     },
     "tournament_status": {
       "days_until_start": "Starts in {{count}} days"
@@ -227,7 +229,7 @@
         "send_waiting": "Waiting to send"
       },
       "sort": {
-        "default": "Default",
+        "default": "Priority",
         "deadline": "Nearest deadline",
         "progress_low": "Lowest progress",
         "send_waiting_high": "Most send-waiting",
