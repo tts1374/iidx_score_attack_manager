@@ -1,5 +1,7 @@
 import React from 'react';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+
 import { extractQrTextFromImageData } from '../utils/image';
 
 interface ImportQrScannerDialogProps {
@@ -10,6 +12,7 @@ interface ImportQrScannerDialogProps {
 }
 
 export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.Element {
+  const { t } = useTranslation();
   const [starting, setStarting] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
@@ -17,6 +20,7 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
   const streamRef = React.useRef<MediaStream | null>(null);
   const frameRequestRef = React.useRef<number | null>(null);
   const detectedRef = React.useRef(false);
+  const cameraStartFailedPrefix = t('common.import_qr_dialog.error.camera_start_failed_prefix');
 
   const stopScanner = React.useCallback(() => {
     detectedRef.current = true;
@@ -51,7 +55,7 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
     detectedRef.current = false;
 
     if (window.isSecureContext !== true || typeof navigator.mediaDevices?.getUserMedia !== 'function') {
-      setErrorMessage('この端末ではQR読み取りを利用できません。');
+      setErrorMessage(t('common.import_qr_dialog.error.unavailable'));
       return;
     }
 
@@ -78,7 +82,7 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
         streamRef.current = stream;
         const video = videoRef.current;
         if (!video) {
-          throw new Error('カメラプレビューの初期化に失敗しました。');
+          throw new Error(t('common.import_qr_dialog.error.preview_init_failed'));
         }
         video.srcObject = stream;
         await video.play();
@@ -125,7 +129,7 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
           return;
         }
         const reason = error instanceof Error ? error.message : String(error);
-        setErrorMessage(`カメラを起動できませんでした。${reason}`);
+        setErrorMessage(t('common.import_qr_dialog.error.camera_start_failed', { reason }));
       } finally {
         if (!disposed) {
           setStarting(false);
@@ -139,23 +143,23 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
       disposed = true;
       stopScanner();
     };
-  }, [props.onDetected, props.open, stopScanner]);
+  }, [cameraStartFailedPrefix, props.onDetected, props.open, stopScanner, t]);
 
-  const showTextImportButton = errorMessage?.startsWith('カメラを起動できませんでした。') ?? false;
+  const showTextImportButton = errorMessage?.startsWith(cameraStartFailedPrefix) ?? false;
 
   return (
     <Dialog open={props.open} onClose={props.onClose} fullWidth maxWidth="xs">
-      <DialogTitle>QR読み取り</DialogTitle>
+      <DialogTitle>{t('common.import_qr_dialog.title')}</DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" className="hintText">
-          QRコードをカメラにかざしてください。
+          {t('common.import_qr_dialog.description')}
         </Typography>
         <div className="importQrScannerViewport">
           <video ref={videoRef} className="importQrScannerVideo" autoPlay muted playsInline />
         </div>
         {starting ? (
           <Typography variant="body2" className="hintText">
-            カメラ起動中...
+            {t('common.import_qr_dialog.starting')}
           </Typography>
         ) : null}
         {errorMessage ? (
@@ -166,7 +170,7 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
             {showTextImportButton ? (
               <div className="importQrScannerErrorActions">
                 <Button size="small" onClick={props.onOpenTextImport}>
-                  テキスト取込
+                  {t('common.import_qr_dialog.action.text_import')}
                 </Button>
               </div>
             ) : null}
@@ -175,7 +179,7 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
         <canvas ref={canvasRef} className="importQrScannerCanvas" />
       </DialogContent>
       <DialogActions>
-        <Button onClick={props.onClose}>閉じる</Button>
+        <Button onClick={props.onClose}>{t('common.close')}</Button>
       </DialogActions>
     </Dialog>
   );

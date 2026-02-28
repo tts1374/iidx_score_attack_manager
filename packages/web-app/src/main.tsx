@@ -2,9 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { acquireSingleTabLock, checkRuntimeCapabilities } from '@iidx/db';
 import type { TournamentPayload } from '@iidx/shared';
+import { useTranslation } from 'react-i18next';
 
 import { App, AppFallbackUnsupported } from './App';
-import { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage } from './i18n';
+import i18n, { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage } from './i18n';
 import { createAppServices } from './services/app-services';
 import { AppServicesProvider } from './services/context';
 import { resolveImportPayloadFromLocation } from './utils/import-confirm';
@@ -316,20 +317,21 @@ async function ensureServiceWorkerController(
 }
 
 function LocalConsentScreen(props: LocalConsentScreenProps): JSX.Element {
+  const { t } = useTranslation();
   const [understood, setUnderstood] = React.useState(false);
 
   return (
     <main className="page startupShell">
       <section className="unsupported startupCard">
-        <h1>スコアタログ</h1>
-        <p>ようこそ！このアプリはbeatmania IIDXのスコアタの管理をするアプリです！</p>
-        <h2>このアプリのデータについて</h2>
+        <h1>{t('common.local_consent.app_name')}</h1>
+        <p>{t('common.local_consent.welcome')}</p>
+        <h2>{t('common.local_consent.data_title')}</h2>
         <ul>
-          <li>データはご利用中のブラウザ内に保存されます</li>
-          <li>サーバーへの自動同期は行われません</li>
-          <li>端末変更やブラウザデータ削除で消える場合があります</li>
-          <li>QRコードやURLアクセスで大会をインポートすることができます</li>
-          <li>必要に応じてバックアップをご検討ください</li>
+          <li>{t('common.local_consent.items.saved_in_browser')}</li>
+          <li>{t('common.local_consent.items.no_auto_sync')}</li>
+          <li>{t('common.local_consent.items.may_be_lost')}</li>
+          <li>{t('common.local_consent.items.import_available')}</li>
+          <li>{t('common.local_consent.items.consider_backup')}</li>
         </ul>
         <label className="startupConsentCheck">
           <input
@@ -337,11 +339,11 @@ function LocalConsentScreen(props: LocalConsentScreenProps): JSX.Element {
             checked={understood}
             onChange={(event) => setUnderstood(event.currentTarget.checked)}
           />
-          <span>上記を理解しました</span>
+          <span>{t('common.local_consent.understood')}</span>
         </label>
         <div className="actions">
           <button type="button" className="primaryActionButton" disabled={!understood} onClick={props.onStart}>
-            はじめる
+            {t('common.local_consent.start')}
           </button>
         </div>
       </section>
@@ -350,10 +352,12 @@ function LocalConsentScreen(props: LocalConsentScreenProps): JSX.Element {
 }
 
 function SetupLoadingScreen(): JSX.Element {
+  const { t } = useTranslation();
+
   return (
     <main className="page startupShell">
       <section className="unsupported startupCard">
-        <div className="startupLoading" role="status" aria-live="polite" aria-label="読み込み中">
+        <div className="startupLoading" role="status" aria-live="polite" aria-label={t('common.loading')}>
           <span className="startupLoadingSpinner" aria-hidden="true" />
         </div>
       </section>
@@ -362,40 +366,41 @@ function SetupLoadingScreen(): JSX.Element {
 }
 
 function ServiceWorkerFailureScreen(props: ServiceWorkerFailureScreenProps): JSX.Element {
+  const { t } = useTranslation();
   const [guideOpen, setGuideOpen] = React.useState(false);
 
   const failureHint =
     props.reason === 'unsupported'
-      ? 'このブラウザは Service Worker に対応していません。'
+      ? t('common.service_worker_failure.reason.unsupported')
       : props.reason === 'register_error'
-        ? 'Service Worker の登録処理でエラーが発生しました。'
-        : '一定時間待っても Service Worker がページを制御できませんでした。';
+        ? t('common.service_worker_failure.reason.register_error')
+        : t('common.service_worker_failure.reason.controller_timeout');
 
   return (
     <main className="page startupShell">
       <section className="unsupported startupCard">
-        <h1>Service Worker を有効化できませんでした</h1>
-        <p>初回セットアップを完了できませんでした。</p>
+        <h1>{t('common.service_worker_failure.title')}</h1>
+        <p>{t('common.service_worker_failure.description')}</p>
         <p className="errorText">{failureHint}</p>
-        {props.errorMessage ? <p className="hintText">詳細: {props.errorMessage}</p> : null}
+        {props.errorMessage ? <p className="hintText">{t('common.detail_with_value', { value: props.errorMessage })}</p> : null}
         <ul>
-          <li>ブラウザがSWに非対応</li>
-          <li>プライベートモード/制限</li>
-          <li>キャッシュ破損</li>
+          <li>{t('common.service_worker_failure.checklist.unsupported')}</li>
+          <li>{t('common.service_worker_failure.checklist.private_mode')}</li>
+          <li>{t('common.service_worker_failure.checklist.cache_corruption')}</li>
         </ul>
         <div className="actions startupActionRow">
           <button type="button" onClick={() => window.location.reload()}>
-            再読み込み
+            {t('common.reload')}
           </button>
           <button type="button" onClick={() => setGuideOpen((current) => !current)}>
-            データ/キャッシュ削除案内
+            {t('common.service_worker_failure.guide_toggle')}
           </button>
         </div>
         {guideOpen ? (
           <ol className="startupGuide">
-            <li>ブラウザ設定でこのサイトのデータ・キャッシュを削除する</li>
-            <li>プライベートモードを終了し通常モードで開き直す</li>
-            <li>それでも改善しない場合はブラウザを再起動して再アクセスする</li>
+            <li>{t('common.service_worker_failure.guide_steps.clear_site_data')}</li>
+            <li>{t('common.service_worker_failure.guide_steps.exit_private_mode')}</li>
+            <li>{t('common.service_worker_failure.guide_steps.restart_browser')}</li>
           </ol>
         ) : null}
       </section>
@@ -404,15 +409,17 @@ function ServiceWorkerFailureScreen(props: ServiceWorkerFailureScreenProps): JSX
 }
 
 function InvalidImportLinkScreen(props: InvalidImportLinkScreenProps): JSX.Element {
+  const { t } = useTranslation();
+
   return (
     <main className="page startupShell">
       <section className="warningBox startupCard">
-        <h1>取り込みリンクを処理できません</h1>
+        <h1>{t('common.invalid_import_link.title')}</h1>
         <p className="importConfirmErrorCode">{props.code}</p>
         <p>{props.message}</p>
         <div className="actions startupActionRow">
           <button type="button" className="primaryActionButton" onClick={navigateToHome}>
-            アプリを開く
+            {t('common.open_app')}
           </button>
         </div>
       </section>
@@ -421,6 +428,7 @@ function InvalidImportLinkScreen(props: InvalidImportLinkScreenProps): JSX.Eleme
 }
 
 function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element {
+  const { t } = useTranslation();
   const senderTabIdRef = React.useRef<string>(crypto.randomUUID());
   const [state, setState] = React.useState<ImportDelegationState>('sending');
   const [attemptCount, setAttemptCount] = React.useState(0);
@@ -439,8 +447,8 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
         setState('success');
         setStatusHint(
           result.via === 'broadcast'
-            ? '既存タブから受領応答を確認しました。'
-            : '既存タブから受領応答を確認しました（storageフォールバック）。',
+            ? t('common.import_delegation.status.ack_broadcast')
+            : t('common.import_delegation.status.ack_storage'),
         );
         window.setTimeout(() => {
           tryCloseTab();
@@ -453,15 +461,15 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
     return () => {
       cancelled = true;
     };
-  }, [attemptCount, props.rawPayloadParam]);
+  }, [attemptCount, props.rawPayloadParam, t]);
 
   if (state === 'sending') {
     return (
       <main className="page startupShell">
         <section className="unsupported startupCard">
-          <h1>既存タブに送信中...</h1>
-          <p>取り込み要求を送信しています。しばらくお待ちください。</p>
-          <div className="startupLoading" role="status" aria-live="polite" aria-label="送信中">
+          <h1>{t('common.import_delegation.sending.title')}</h1>
+          <p>{t('common.import_delegation.sending.description')}</p>
+          <div className="startupLoading" role="status" aria-live="polite" aria-label={t('common.import_delegation.sending.aria_label')}>
             <span className="startupLoadingSpinner" aria-hidden="true" />
           </div>
         </section>
@@ -473,12 +481,12 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
     return (
       <main className="page startupShell">
         <section className="unsupported startupCard">
-          <h1>既存タブに送信しました</h1>
-          <p>既存タブに送信しました。そちらをご確認ください。</p>
+          <h1>{t('common.import_delegation.success.title')}</h1>
+          <p>{t('common.import_delegation.success.description')}</p>
           {statusHint ? <p className="hintText">{statusHint}</p> : null}
           <div className="actions startupActionRow">
             <button type="button" className="primaryActionButton" onClick={tryCloseTab}>
-              このタブを閉じる
+              {t('common.close_this_tab')}
             </button>
           </div>
         </section>
@@ -489,21 +497,24 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
   return (
     <main className="page startupShell">
       <section className="warningBox startupCard">
-        <h1>既存タブが見つかりませんでした</h1>
-        <p>既存タブが起動していないか、この環境ではタブ間通信が利用できませんでした。</p>
+        <h1>{t('common.import_delegation.failed.title')}</h1>
+        <p>{t('common.import_delegation.failed.description')}</p>
         <section className="detailCard">
-          <h2>取り込み内容プレビュー</h2>
-          <p>大会名: {props.payloadPreview.name}</p>
-          <p>開催者: {props.payloadPreview.owner}</p>
+          <h2>{t('common.import_delegation.preview.title')}</h2>
+          <p>{t('common.import_delegation.preview.tournament_name', { value: props.payloadPreview.name })}</p>
+          <p>{t('common.import_delegation.preview.owner', { value: props.payloadPreview.owner })}</p>
           <p>
-            期間: {props.payloadPreview.start} 〜 {props.payloadPreview.end}
+            {t('common.import_delegation.preview.period', {
+              start: props.payloadPreview.start,
+              end: props.payloadPreview.end,
+            })}
           </p>
-          <p>譜面数: {props.payloadPreview.charts.length}</p>
-          <p className="hintText">このタブでは確定保存できません。既存タブへの送信またはアプリ本体での取り込みが必要です。</p>
+          <p>{t('common.import_delegation.preview.chart_count', { count: props.payloadPreview.charts.length })}</p>
+          <p className="hintText">{t('common.import_delegation.preview.hint')}</p>
         </section>
         <div className="actions startupActionRow">
           <button type="button" className="primaryActionButton" onClick={navigateToHome}>
-            アプリを開く
+            {t('common.open_app')}
           </button>
           <button
             type="button"
@@ -511,7 +522,7 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
               setAttemptCount((current) => current + 1);
             }}
           >
-            もう一度送信を試す
+            {t('common.import_delegation.retry')}
           </button>
         </div>
       </section>
@@ -544,9 +555,11 @@ async function waitForLocalConsent(root: ReturnType<typeof ReactDOM.createRoot>)
 }
 
 async function bootstrap(): Promise<void> {
+  await ensureI18n();
+
   const rootElement = document.getElementById('root');
   if (!rootElement) {
-    throw new Error('root element is missing');
+    throw new Error(i18n.t('common.bootstrap.root_missing'));
   }
 
   const root = ReactDOM.createRoot(rootElement);
@@ -591,7 +604,7 @@ async function bootstrap(): Promise<void> {
           <AppFallbackUnsupported
             reasons={[
               'Cross-Origin-Isolation (COOP/COEP)',
-              '初回導入後も crossOriginIsolated が有効になりませんでした。',
+              i18n.t('common.bootstrap.cross_origin_isolated_unavailable_after_setup'),
             ]}
           />
         </React.StrictMode>,
@@ -652,7 +665,7 @@ async function bootstrap(): Promise<void> {
     }
     root.render(
       <React.StrictMode>
-        <AppFallbackUnsupported reasons={['別タブで既に起動中です。']} />
+        <AppFallbackUnsupported reasons={[i18n.t('common.bootstrap.already_running_in_other_tab')]} />
       </React.StrictMode>,
     );
     return;
@@ -662,7 +675,7 @@ async function bootstrap(): Promise<void> {
     const services = await Promise.race([
       createAppServices(),
       new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error('初期化がタイムアウトしました。')), 20000);
+        window.setTimeout(() => reject(new Error(i18n.t('common.bootstrap.initialization_timeout'))), 20000);
       }),
     ]);
     const persistedLanguage = await services.appDb.getSetting(APP_LANGUAGE_SETTING_KEY).catch(() => null);
@@ -686,8 +699,8 @@ async function bootstrap(): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const reason = message.includes('no such vfs: opfs')
-      ? 'OPFS VFS(opfs)が初期化できません。COOP/COEPヘッダーを確認してください。'
-      : `初期化エラー: ${message}`;
+      ? i18n.t('common.bootstrap.opfs_vfs_init_failed')
+      : i18n.t('common.bootstrap.initialization_error', { message });
 
     root.render(
       <React.StrictMode>
