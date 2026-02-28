@@ -1,4 +1,5 @@
 import { remainingDaysUntilEnd } from '@iidx/shared';
+import i18n from '../i18n';
 
 export type TournamentStatus =
   | 'upcoming'
@@ -22,7 +23,7 @@ export function resolveTournamentCardStatus(
   if (todayDate < startDate) {
     return {
       status: 'upcoming',
-      label: '未開催',
+      label: i18n.t('tournament_detail.status.upcoming'),
       daysLeft: null,
     };
   }
@@ -30,7 +31,7 @@ export function resolveTournamentCardStatus(
   if (todayDate > endDate) {
     return {
       status: 'ended',
-      label: '終了',
+      label: i18n.t('tournament_detail.status.ended'),
       daysLeft: null,
     };
   }
@@ -39,27 +40,27 @@ export function resolveTournamentCardStatus(
   if (daysLeft === 0) {
     return {
       status: 'active-today',
-      label: '今日まで',
+      label: i18n.t('tournament_detail.status.active_today'),
       daysLeft,
     };
   }
   if (daysLeft <= 2) {
     return {
       status: 'active-danger',
-      label: `残り${daysLeft}日`,
+      label: i18n.t('tournament_detail.status.active_remaining_days', { count: daysLeft }),
       daysLeft,
     };
   }
   if (daysLeft <= 7) {
     return {
       status: 'active-warning',
-      label: `残り${daysLeft}日`,
+      label: i18n.t('tournament_detail.status.active_remaining_days', { count: daysLeft }),
       daysLeft,
     };
   }
   return {
     status: 'active-normal',
-    label: `残り${daysLeft}日`,
+    label: i18n.t('tournament_detail.status.active_remaining_days', { count: daysLeft }),
     daysLeft,
   };
 }
