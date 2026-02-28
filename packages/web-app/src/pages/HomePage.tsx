@@ -1,5 +1,6 @@
 import React from 'react';
 import type { TournamentListItem, TournamentTab } from '@iidx/db';
+import { useTranslation } from 'react-i18next';
 
 import { resolveTournamentCardStatus } from '../utils/tournament-status';
 
@@ -14,25 +15,25 @@ interface HomePageProps {
 type DeadlineTone = 'normal' | 'warning' | 'urgent';
 
 interface TournamentStateBadge {
-  label: '開催中' | '開催前' | '終了';
+  labelKey: 'home.state.active' | 'home.state.upcoming' | 'home.state.ended';
   className: 'statusBadge-ended';
 }
 
 function resolveTournamentStateBadge(tab: TournamentTab): TournamentStateBadge {
   if (tab === 'upcoming') {
     return {
-      label: '開催前',
+      labelKey: 'home.state.upcoming',
       className: 'statusBadge-ended',
     };
   }
   if (tab === 'ended') {
     return {
-      label: '終了',
+      labelKey: 'home.state.ended',
       className: 'statusBadge-ended',
     };
   }
   return {
-    label: '開催中',
+    labelKey: 'home.state.active',
     className: 'statusBadge-ended',
   };
 }
@@ -48,26 +49,27 @@ function resolveDeadlineTone(daysLeft: number): DeadlineTone {
 }
 
 type ProgressStateBadge =
-  | { className: 'sendWaitingBadge'; label: string }
-  | { className: 'pendingBadge'; label: '未登録あり' }
-  | { className: 'completedBadge'; label: '全て登録済'; showCheck: true };
+  | { className: 'sendWaitingBadge'; labelKey: 'home.progress.badge.send_waiting'; labelOptions: { count: number } }
+  | { className: 'pendingBadge'; labelKey: 'home.progress.badge.pending' }
+  | { className: 'completedBadge'; labelKey: 'home.progress.badge.completed'; showCheck: true };
 
 function resolveProgressStateBadge(item: TournamentListItem): ProgressStateBadge {
   if (item.sendWaitingCount > 0) {
     return {
       className: 'sendWaitingBadge',
-      label: `送信待ち ${item.sendWaitingCount}件`,
+      labelKey: 'home.progress.badge.send_waiting',
+      labelOptions: { count: item.sendWaitingCount },
     };
   }
   if (item.submittedCount < item.chartCount) {
     return {
       className: 'pendingBadge',
-      label: '未登録あり',
+      labelKey: 'home.progress.badge.pending',
     };
   }
   return {
     className: 'completedBadge',
-    label: '全て登録済',
+    labelKey: 'home.progress.badge.completed',
     showCheck: true,
   };
 }
@@ -106,16 +108,17 @@ export function sortForActiveTab(a: TournamentListItem, b: TournamentListItem): 
 }
 
 export function HomePage(props: HomePageProps): JSX.Element {
+  const { t } = useTranslation();
   const stateBadge = React.useMemo(() => resolveTournamentStateBadge(props.state), [props.state]);
 
   return (
     <div className="page tournamentListPage">
       {props.items.length === 0 ? (
         <div className="emptyState">
-          <p className="emptyText">表示できる大会がありません。</p>
+          <p className="emptyText">{t('home.empty.text')}</p>
           {props.onOpenFilterInEmpty ? (
             <button type="button" className="emptyResetButton" onClick={props.onOpenFilterInEmpty}>
-              フィルタを開く
+              {t('home.empty.action.open_filter')}
             </button>
           ) : null}
         </div>
@@ -132,9 +135,11 @@ export function HomePage(props: HomePageProps): JSX.Element {
               <li key={item.tournamentUuid}>
                 <button className="tournamentCard" onClick={() => props.onOpenDetail(item.tournamentUuid)}>
                   <div className="tournamentCardStatusRow">
-                    <span className={`statusBadge ${stateBadge.className}`}>{stateBadge.label}</span>
+                    <span className={`statusBadge ${stateBadge.className}`}>{t(stateBadge.labelKey)}</span>
                     {showRemainingDays && deadlineTone ? (
-                      <span className={`remainingDays remainingDays-${deadlineTone}`}>残{statusInfo.daysLeft}日</span>
+                      <span className={`remainingDays remainingDays-${deadlineTone}`}>
+                        {t('home.remaining_days', { days: statusInfo.daysLeft })}
+                      </span>
                     ) : null}
                   </div>
                   <div className="tournamentCardHeader">
@@ -145,19 +150,21 @@ export function HomePage(props: HomePageProps): JSX.Element {
                   </div>
                   <div className="progressSummaryRow">
                     <div className="progressLine">
-                      登録 {item.submittedCount} / {item.chartCount}
-                      <span className="progressPercent">({progress}%)</span>
+                      {t('home.progress.summary', { submitted: item.submittedCount, total: item.chartCount })}
+                      <span className="progressPercent">{t('home.progress.percent', { percent: progress })}</span>
                     </div>
                     <span className={progressBadge.className}>
                       {'showCheck' in progressBadge ? <span aria-hidden>✓</span> : null}
-                      {progressBadge.label}
+                      {'labelOptions' in progressBadge
+                        ? t(progressBadge.labelKey, progressBadge.labelOptions)
+                        : t(progressBadge.labelKey)}
                     </span>
                   </div>
                   <div className="progressBar" aria-hidden>
                     <span style={{ width: `${progress}%` }} />
                   </div>
                   <div className="cardNavigationHint">
-                    <span>詳細を見る</span>
+                    <span>{t('home.action.view_detail')}</span>
                     <span className="cardArrow" aria-hidden>
                       →
                     </span>

@@ -235,6 +235,32 @@
       "description": "Tournament data and images will be deleted and cannot be restored."
     }
   },
+  "home": {
+    "state": {
+      "active": "Ongoing",
+      "upcoming": "Upcoming",
+      "ended": "Ended"
+    },
+    "empty": {
+      "text": "No tournaments available to display.",
+      "action": {
+        "open_filter": "Open filters"
+      }
+    },
+    "remaining_days": "{{days}} days left",
+    "progress": {
+      "summary": "Registered {{submitted}} / {{total}}",
+      "percent": "({{percent}}%)",
+      "badge": {
+        "send_waiting": "Waiting to send {{count}}",
+        "pending": "Unsubmitted entries",
+        "completed": "All submitted"
+      }
+    },
+    "action": {
+      "view_detail": "View details"
+    }
+  },
   "settings": {
     "title": "Settings",
     "language": {

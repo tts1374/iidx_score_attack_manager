@@ -235,6 +235,32 @@
       "description": "대회 데이터와 이미지는 삭제되며 복원할 수 없습니다."
     }
   },
+  "home": {
+    "state": {
+      "active": "진행 중",
+      "upcoming": "시작 전",
+      "ended": "종료"
+    },
+    "empty": {
+      "text": "표시할 수 있는 대회가 없습니다.",
+      "action": {
+        "open_filter": "필터 열기"
+      }
+    },
+    "remaining_days": "{{days}}일 남음",
+    "progress": {
+      "summary": "등록 {{submitted}} / {{total}}",
+      "percent": "({{percent}}%)",
+      "badge": {
+        "send_waiting": "전송 대기 {{count}}건",
+        "pending": "미등록 있음",
+        "completed": "모두 등록됨"
+      }
+    },
+    "action": {
+      "view_detail": "상세 보기"
+    }
+  },
   "settings": {
     "title": "설정",
     "language": {
