@@ -178,7 +178,7 @@ const HOME_SORT_SETTING_KEY = 'home.sort';
 type HomeFilterCategory = 'none' | 'pending' | 'completed';
 type HomeFilterAttr = 'send-waiting' | 'imported' | 'created';
 type HomeSort = 'default' | 'deadline' | 'progress-low' | 'send-waiting-high' | 'name';
-type HomeFilterSheetFocusSection = 'state' | 'category' | 'type' | 'attrs' | 'sort' | null;
+type HomeFilterSheetFocusSection = 'state' | 'category' | 'type' | 'attrs' | null;
 
 interface HomeSortOption {
   value: HomeSort;
@@ -731,6 +731,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   );
   const [fatalError, setFatalError] = React.useState<string | null>(null);
   const [homeMenuAnchorEl, setHomeMenuAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [homeSortMenuAnchorEl, setHomeSortMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [detailMenuAnchorEl, setDetailMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [deleteTournamentDialogOpen, setDeleteTournamentDialogOpen] = React.useState(false);
   const [deleteTournamentBusy, setDeleteTournamentBusy] = React.useState(false);
@@ -752,7 +753,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeCategorySectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeTypeSectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeAttrsSectionRef = React.useRef<HTMLDivElement | null>(null);
-  const homeSortSectionRef = React.useRef<HTMLDivElement | null>(null);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
@@ -851,6 +851,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeSearchChip = homeHasSearchQuery ? truncateSearchChipText(homeNormalizedSearch) : '';
   const homeTypeAttr = resolveHomeTypeAttr(homeQuery.attrs);
   const homeNonMajorChipCount = homeQuery.attrs.includes('send-waiting') ? 1 : 0;
+  const homeSortLabelText = homeSortLabel(homeQuery.sort, t);
   const rawWhatsNewItems = t('whats_new.items', { returnObjects: true }) as unknown;
   const whatsNewItems =
     Array.isArray(rawWhatsNewItems) ? rawWhatsNewItems.filter((value): value is string => typeof value === 'string') : [];
@@ -864,6 +865,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       setHomeFilterFocusSection(focusSection);
       setHomeFilterSheetOpen(true);
       setHomeSearchMode(false);
+      setHomeSortMenuAnchorEl(null);
     },
     [homeQuery],
   );
@@ -890,6 +892,36 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setHomeQuery((previous) => createDefaultHomeFilterState(previous.sort));
     setHomeFilterDraft((previous) => createDefaultHomeFilterState(previous.sort));
     setHomeSearchMode(false);
+  }, []);
+
+  const openHomeSortMenu = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    setHomeSortMenuAnchorEl(event.currentTarget);
+    setHomeSearchMode(false);
+  }, []);
+
+  const closeHomeSortMenu = React.useCallback(() => {
+    setHomeSortMenuAnchorEl(null);
+  }, []);
+
+  const setHomeSort = React.useCallback((sort: HomeSort) => {
+    setHomeQuery((previous) => {
+      if (previous.sort === sort) {
+        return previous;
+      }
+      return {
+        ...previous,
+        sort,
+      };
+    });
+    setHomeFilterDraft((previous) => {
+      if (previous.sort === sort) {
+        return previous;
+      }
+      return {
+        ...previous,
+        sort,
+      };
+    });
   }, []);
 
   const setHomeSearchText = React.useCallback((value: string) => {
@@ -958,6 +990,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       return;
     }
     setHomeMenuAnchorEl(null);
+    setHomeSortMenuAnchorEl(null);
   }, [homeSearchMode]);
 
   React.useEffect(() => {
@@ -967,6 +1000,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setHomeSearchMode(false);
     setHomeFilterSheetOpen(false);
     setHomeFilterFocusSection(null);
+    setHomeSortMenuAnchorEl(null);
   }, [isHomeRoute]);
 
   React.useEffect(() => {
@@ -978,11 +1012,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         ? homeStateSectionRef
         : homeFilterFocusSection === 'category'
           ? homeCategorySectionRef
-          : homeFilterFocusSection === 'type'
-            ? homeTypeSectionRef
-          : homeFilterFocusSection === 'attrs'
-            ? homeAttrsSectionRef
-            : homeSortSectionRef;
+        : homeFilterFocusSection === 'type'
+          ? homeTypeSectionRef
+          : homeAttrsSectionRef;
     sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [homeFilterFocusSection, homeFilterSheetOpen]);
 
@@ -1911,6 +1943,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [appDb, busy, pushToast, refreshSettingsSnapshot, refreshTournamentList, resetRoute, t]);
 
   const homeMenuOpen = homeMenuAnchorEl !== null;
+  const homeSortMenuOpen = homeSortMenuAnchorEl !== null;
   const detailMenuOpen = detailMenuAnchorEl !== null;
   const canGoBack = route.name !== 'home' && routeStack.length > 1;
 
@@ -2155,6 +2188,39 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 {t('common.clear_all')}
               </Button>
             </section>
+            <section className="homeSubheaderRow" aria-label="home-list-subheader">
+              <Typography variant="body2" className="homeSubheaderCount">
+                {homeQueryReady
+                  ? t('common.home.list_count', { count: homeVisibleItems.length })
+                  : t('common.home.list_count_loading')}
+              </Typography>
+              <button
+                type="button"
+                className="homeSubheaderSortButton"
+                aria-haspopup="menu"
+                aria-expanded={homeSortMenuOpen ? 'true' : undefined}
+                onClick={openHomeSortMenu}
+              >
+                <span>{homeSortLabelText}</span>
+                <span className="homeSubheaderSortButtonArrow" aria-hidden>
+                  ▾
+                </span>
+              </button>
+              <Menu anchorEl={homeSortMenuAnchorEl} open={homeSortMenuOpen} onClose={closeHomeSortMenu}>
+                {HOME_SORT_OPTIONS.map((option) => (
+                  <MenuItem
+                    key={option.value}
+                    selected={homeQuery.sort === option.value}
+                    onClick={() => {
+                      setHomeSort(option.value);
+                      closeHomeSortMenu();
+                    }}
+                  >
+                    {t(option.labelKey)}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </section>
             <HomePage
               todayDate={todayDate}
               state={homeQuery.state}
@@ -2374,34 +2440,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     label={t('common.home_filter.attr.send_waiting')}
                   />
                 </FormGroup>
-              </div>
-              <Divider />
-              <div className="homeFilterSection" ref={homeSortSectionRef}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  {t('common.home_filter.section.sort')}
-                </Typography>
-                <ToggleButtonGroup
-                  value={homeFilterDraft.sort}
-                  exclusive
-                  size="small"
-                  orientation="vertical"
-                  fullWidth
-                  onChange={(_event, value: HomeSort | null) => {
-                    if (!value) {
-                      return;
-                    }
-                    setHomeFilterDraft((previous) => ({
-                      ...previous,
-                      sort: value,
-                    }));
-                  }}
-                >
-                  <ToggleButton value="default">{t('common.home_filter.sort.default')}</ToggleButton>
-                  <ToggleButton value="deadline">{t('common.home_filter.sort.deadline')}</ToggleButton>
-                  <ToggleButton value="progress-low">{t('common.home_filter.sort.progress_low')}</ToggleButton>
-                  <ToggleButton value="send-waiting-high">{t('common.home_filter.sort.send_waiting_high')}</ToggleButton>
-                  <ToggleButton value="name">{t('common.home_filter.sort.name')}</ToggleButton>
-                </ToggleButtonGroup>
               </div>
               <Divider />
               <Typography variant="body2" className="homeFilterResultCount">

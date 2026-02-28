@@ -263,6 +263,46 @@ label {
   flex-shrink: 0;
 }
 
+.homeSubheaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 2px 12px;
+}
+
+.homeSubheaderCount {
+  color: #475569;
+}
+
+.homeSubheaderSortButton {
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 2px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.homeSubheaderSortButton:hover {
+  color: #1d4ed8;
+}
+
+.homeSubheaderSortButton:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.homeSubheaderSortButtonArrow {
+  font-size: 12px;
+}
+
 .homeFilterSheet {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
