@@ -82,9 +82,9 @@ function todayJst(): string {
   return jst.toISOString().slice(0, 10);
 }
 
-function formatByteSize(rawBytes: number | null): string {
+function formatByteSize(rawBytes: number | null, unknownLabel: string): string {
   if (rawBytes === null || !Number.isFinite(rawBytes) || rawBytes < 0) {
-    return '不明';
+    return unknownLabel;
   }
   const bytes = rawBytes;
   const gb = 1024 ** 3;
@@ -453,31 +453,31 @@ function normalizeHomeAttrs(attrs: readonly HomeFilterAttr[]): HomeFilterAttr[] 
   return [...HOME_FILTER_ATTR_VALUES.filter((value) => deduped.has(value))];
 }
 
-function homeStateLabel(state: TournamentTab): string {
+function homeStateLabel(state: TournamentTab, t: (key: string) => string): string {
   if (state === 'upcoming') {
-    return '開催前';
+    return t('common.home_filter.state.upcoming');
   }
   if (state === 'ended') {
-    return '終了';
+    return t('common.home_filter.state.ended');
   }
-  return '開催中';
+  return t('common.home_filter.state.active');
 }
 
-function homeCategoryLabel(category: HomeFilterCategory): string {
+function homeCategoryLabel(category: HomeFilterCategory, t: (key: string) => string): string {
   if (category === 'pending') {
-    return '未登録あり';
+    return t('common.home_filter.category.pending');
   }
-  return '全登録済み';
+  return t('common.home_filter.category.completed');
 }
 
-function homeAttrLabel(attr: HomeFilterAttr): string {
+function homeAttrLabel(attr: HomeFilterAttr, t: (key: string) => string): string {
   if (attr === 'send-waiting') {
-    return '送信待ちあり';
+    return t('common.home_filter.attr.send_waiting');
   }
   if (attr === 'imported') {
-    return '取り込み';
+    return t('common.home_filter.type.imported');
   }
-  return '作成';
+  return t('common.home_filter.type.created');
 }
 
 function resolveHomeTypeAttr(attrs: readonly HomeFilterAttr[]): 'imported' | 'created' | null {
@@ -490,20 +490,20 @@ function resolveHomeTypeAttr(attrs: readonly HomeFilterAttr[]): 'imported' | 'cr
   return null;
 }
 
-function homeSortLabel(sort: HomeSort): string {
+function homeSortLabel(sort: HomeSort, t: (key: string) => string): string {
   if (sort === 'deadline') {
-    return '期日が近い順';
+    return t('common.home_filter.sort.deadline');
   }
   if (sort === 'progress-low') {
-    return '進捗が低い順';
+    return t('common.home_filter.sort.progress_low');
   }
   if (sort === 'send-waiting-high') {
-    return '送信待ちが多い順';
+    return t('common.home_filter.sort.send_waiting_high');
   }
   if (sort === 'name') {
-    return '名前順';
+    return t('common.home_filter.sort.name');
   }
-  return 'デフォルト';
+  return t('common.home_filter.sort.default');
 }
 
 function truncateSearchChipText(searchText: string): string {
@@ -562,15 +562,15 @@ interface RuntimeLogEntry {
   detail?: string;
 }
 
-function resolveWebLocksReason(status: AppInfoCardData['webLocksStatus']): string | null {
+function resolveWebLocksReason(status: AppInfoCardData['webLocksStatus'], t: (key: string) => string): string | null {
   switch (status) {
     case 'acquired':
       return null;
     case 'unsupported':
-      return 'ブラウザが Web Locks API に未対応です。';
+      return t('settings.technical.web_locks_reason.unsupported');
     case 'not_acquired':
     default:
-      return '別タブで稼働中の可能性があります。';
+      return t('settings.technical.web_locks_reason.not_acquired');
   }
 }
 
@@ -706,7 +706,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     appDbSizeBytes: null,
     appDbIntegrityCheck: null,
     webLocksStatus: resolveWebLocksStatus(webLockAcquired),
-    webLocksReason: resolveWebLocksReason(resolveWebLocksStatus(webLockAcquired)),
+    webLocksReason: resolveWebLocksReason(resolveWebLocksStatus(webLockAcquired), t),
     opfsStatus: 'unsupported',
     storageUsageBytes: null,
     storageQuotaBytes: null,
@@ -1033,10 +1033,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setDebugModeEnabled((current) => {
       const next = !current;
       writeDebugMode(next);
-      pushToast(next ? 'デバッグモードを有効にしました。' : 'デバッグモードを無効にしました。');
+      pushToast(next ? t('common.debug_mode.enabled') : t('common.debug_mode.disabled'));
       return next;
     });
-  }, [pushToast]);
+  }, [pushToast, t]);
   const closeCreateFabTooltip = React.useCallback(() => {
     setShowCreateFabTooltip(false);
   }, []);
@@ -1167,12 +1167,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       appDbSizeBytes,
       appDbIntegrityCheck,
       webLocksStatus,
-      webLocksReason: resolveWebLocksReason(webLocksStatus),
+      webLocksReason: resolveWebLocksReason(webLocksStatus, t),
       opfsStatus,
       storageUsageBytes: storageEstimate.usageBytes,
       storageQuotaBytes: storageEstimate.quotaBytes,
     };
-  }, [appDb, hasSwController, webLockAcquired]);
+  }, [appDb, hasSwController, t, webLockAcquired]);
 
   const updateSongMaster = React.useCallback(
     async (force: boolean): Promise<SongMasterActionResult> => {
@@ -1190,7 +1190,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           checkedAt,
         };
         if (!result.ok) {
-          const message = result.message ?? '曲マスタ更新に失敗しました。';
+          const message = result.message ?? t('common.song_master.update_failed');
           if (result.source !== 'local_cache') {
             setFatalError(message);
           }
@@ -1198,7 +1198,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           appendRuntimeLog({
             level: result.source === 'local_cache' ? 'warn' : 'error',
             category: 'song-master',
-            message: force ? '再取得（キャッシュ破棄）に失敗しました。' : '更新確認に失敗しました。',
+            message: force ? t('common.song_master.refetch_failed') : t('common.song_master.update_check_failed'),
             detail: message,
             timestamp: checkedAt,
           });
@@ -1207,13 +1207,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
         if (result.source === 'github_download' || result.source === 'initial_download') {
           if (snapshot.songReady && snapshot.songMeta.song_master_file_name) {
-            pushToast('曲マスタを更新しました。');
+            pushToast(t('common.song_master.updated'));
           } else {
-            pushToast('曲マスタ更新後の確認に失敗しました。');
+            pushToast(t('common.song_master.post_update_check_failed'));
           }
         }
         if (result.source === 'up_to_date') {
-          pushToast('曲マスタは最新です。');
+          pushToast(t('common.song_master.up_to_date'));
         }
         if (result.message) {
           pushToast(result.message);
@@ -1223,10 +1223,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           category: 'song-master',
           message:
             result.source === 'up_to_date'
-              ? '曲データは最新です。'
+              ? t('common.song_data.up_to_date')
               : force
-                ? '曲データを再取得しました。'
-                : '曲データの更新確認を実行しました。',
+                ? t('common.song_data.refetched')
+                : t('common.song_data.update_check_executed'),
           ...(result.message ? { detail: result.message } : {}),
           timestamp: checkedAt,
         });
@@ -1240,7 +1240,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         appendRuntimeLog({
           level: 'error',
           category: 'song-master',
-          message: force ? '再取得（キャッシュ破棄）で例外が発生しました。' : '更新確認で例外が発生しました。',
+          message: force ? t('common.song_master.refetch_exception') : t('common.song_master.update_check_exception'),
           detail: message,
           timestamp: checkedAt,
         });
@@ -1256,7 +1256,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         setBusy(false);
       }
     },
-    [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, songMasterService],
+    [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, songMasterService, t],
   );
 
   React.useEffect(() => {
@@ -1296,7 +1296,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       appendRuntimeLog({
         level: 'error',
         category: 'runtime',
-        message: '未処理の例外が発生しました。',
+        message: t('common.runtime.unhandled_exception'),
         detail: event.error instanceof Error ? event.error.message : event.message,
       });
     };
@@ -1304,7 +1304,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       appendRuntimeLog({
         level: 'error',
         category: 'runtime',
-        message: '未処理の Promise rejection が発生しました。',
+        message: t('common.runtime.unhandled_promise_rejection'),
         detail:
           event.reason instanceof Error
             ? event.reason.message
@@ -1319,7 +1319,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       window.removeEventListener('error', onError);
       window.removeEventListener('unhandledrejection', onUnhandledRejection);
     };
-  }, [appendRuntimeLog]);
+  }, [appendRuntimeLog, t]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -1332,7 +1332,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           appendRuntimeLog({
             level: 'info',
             category: 'storage',
-            message: `起動時の自動削除で ${purged} 件の画像を削除しました。`,
+            message: t('common.storage.startup_auto_purge_log', { count: purged }),
           });
         }
         await refreshSettingsSnapshot();
@@ -1373,7 +1373,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           appendRuntimeLog({
             level: 'error',
             category: 'bootstrap',
-            message: '起動処理でエラーが発生しました。',
+            message: t('common.bootstrap.error_log'),
             detail: message,
           });
         }
@@ -1385,7 +1385,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     return () => {
       mounted = false;
     };
-  }, [appDb, appendRuntimeLog, loadHomeQueryState, pushToast, refreshSettingsSnapshot, refreshTournamentList]);
+  }, [appDb, appendRuntimeLog, loadHomeQueryState, pushToast, refreshSettingsSnapshot, refreshTournamentList, t]);
 
   React.useEffect(() => {
     if (route.name !== 'settings') {
@@ -1441,18 +1441,18 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const importFromPayload = React.useCallback(
     async (raw: string) => {
       if (!songMasterReady) {
-        pushToast('曲マスタが未取得のため、大会作成/取込は利用できません。');
+        pushToast(t('common.import.require_song_master'));
         return;
       }
 
       const rawPayloadParam = resolveRawImportPayloadParam(raw, true);
       if (rawPayloadParam === null && raw.trim().length === 0) {
-        pushToast('取込データを認識できません。');
+        pushToast(t('common.import.unrecognized_data'));
         return;
       }
       openImportConfirm(rawPayloadParam);
     },
-    [openImportConfirm, pushToast, songMasterReady],
+    [openImportConfirm, pushToast, songMasterReady, t],
   );
 
   const importFromFile = React.useCallback(
@@ -1461,7 +1461,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         if (file.type.startsWith('image/')) {
           const qrText = await extractQrTextFromImage(file);
           if (!qrText) {
-            pushToast('画像内にQRコードが見つかりませんでした。');
+            pushToast(t('common.import.qr_not_found'));
             return;
           }
           await importFromPayload(qrText);
@@ -1474,20 +1474,20 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         pushToast(error instanceof Error ? error.message : String(error));
       }
     },
-    [importFromPayload, pushToast],
+    [importFromPayload, pushToast, t],
   );
 
   const importFromQrScan = React.useCallback(
     async (qrText: string) => {
       if (!songMasterReady) {
-        pushToast('曲マスタが未取得のため、大会作成/取込は利用できません。');
+        pushToast(t('common.import.require_song_master'));
         return;
       }
 
       const rawPayloadParam = resolveRawImportPayloadParam(qrText, false);
       openImportConfirm(rawPayloadParam);
     },
-    [openImportConfirm, pushToast, songMasterReady],
+    [openImportConfirm, pushToast, songMasterReady, t],
   );
 
   const closeQrImportDialog = React.useCallback(() => {
@@ -1511,15 +1511,15 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     async (payload: TournamentPayload) => {
       const result = await appDb.importTournament(payload);
       if (result.status === 'incompatible') {
-        pushToast('既存大会と開催期間が矛盾するため取り込みできません。');
+        pushToast(t('common.import.incompatible_period'));
         return;
       }
 
       await refreshTournamentList();
       if (result.status === 'unchanged') {
-        pushToast('変更なし');
+        pushToast(t('common.import.no_change'));
       } else {
-        pushToast('取り込みました');
+        pushToast(t('common.import.completed'));
       }
 
       const loaded = await reloadDetail(result.tournamentUuid);
@@ -1529,21 +1529,21 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       }
       replaceRoute({ name: 'detail', tournamentUuid: result.tournamentUuid });
     },
-    [appDb, pushToast, refreshTournamentList, reloadDetail, replaceRoute, resetRoute],
+    [appDb, pushToast, refreshTournamentList, reloadDetail, replaceRoute, resetRoute, t],
   );
 
   const processDelegatedImport = React.useCallback(
     async (requestId: string, rawPayloadParam: string, via: 'broadcast' | 'storage') => {
       openImportConfirm(rawPayloadParam);
-      pushToast('別タブから取り込み要求を受信しました。確認画面を開きました。');
+      pushToast(t('common.import.delegation.received_and_opened'));
       appendRuntimeLog({
         level: 'info',
         category: 'import-delegation',
-        message: '別タブからの取り込み要求を確認画面へ委譲しました。',
+        message: t('common.import.delegation.delegated_to_confirm'),
         detail: `requestId=${requestId}, via=${via}`,
       });
     },
-    [appendRuntimeLog, openImportConfirm, pushToast],
+    [appendRuntimeLog, openImportConfirm, pushToast, t],
   );
 
   React.useEffect(() => {
@@ -1652,7 +1652,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
     const validation = resolveCreateTournamentValidation(createDraft, todayDate);
     if (!validation.canProceed) {
-      setCreateSaveError('入力内容を確認してください。');
+      setCreateSaveError(t('common.validation.check_input'));
       return;
     }
 
@@ -1661,7 +1661,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     try {
       const input = buildCreateTournamentInput(createDraft, validation.selectedChartIds);
       await appDb.createTournament(input);
-      pushToast('保存しました。');
+      pushToast(t('common.saved'));
       await refreshTournamentList();
       setCreateDraft(null);
       resetRoute({ name: 'home' });
@@ -1670,7 +1670,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     } finally {
       setCreateSaving(false);
     }
-  }, [appDb, createDraft, createSaving, pushToast, refreshTournamentList, resetRoute, todayDate]);
+  }, [appDb, createDraft, createSaving, pushToast, refreshTournamentList, resetRoute, t, todayDate]);
 
   const saveAutoDelete = React.useCallback(
     async (enabled: boolean, days: number) => {
@@ -1679,10 +1679,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       appendRuntimeLog({
         level: 'info',
         category: 'storage',
-        message: `画像自動削除設定を更新しました。（${enabled ? '有効' : '無効'} / ${days}日）`,
+        message: t('common.storage.auto_delete_config_updated', {
+          status: enabled ? t('common.enabled') : t('common.disabled'),
+          days,
+        }),
       });
     },
-    [appDb, appendRuntimeLog, refreshSettingsSnapshot],
+    [appDb, appendRuntimeLog, refreshSettingsSnapshot, t],
   );
 
   const changeLanguage = React.useCallback(
@@ -1710,16 +1713,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       await refreshTournamentList();
       await refreshSettingsSnapshot();
       setLastCleanupResult(result);
-      const releasedText = formatByteSize(result.releasedBytes);
-      pushToast(`${result.deletedImageCount}件の画像を削除（解放 ${releasedText}）`);
+      const releasedText = formatByteSize(result.releasedBytes, t('common.unknown'));
+      pushToast(t('common.storage.cleanup_toast', { count: result.deletedImageCount, released: releasedText }));
       appendRuntimeLog({
         level: 'info',
         category: 'storage',
-        message: `容量整理を実行しました。（画像 ${result.deletedImageCount} 件 / 解放 ${releasedText}）`,
+        message: t('common.storage.cleanup_log', { count: result.deletedImageCount, released: releasedText }),
       });
       return result;
     },
-    [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, refreshTournamentList],
+    [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, refreshTournamentList, t],
   );
 
   const submitChart =
@@ -1730,17 +1733,17 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const pageTitle = React.useMemo(() => {
     switch (route.name) {
       case 'home':
-        return '大会一覧';
+        return t('common.page_title.home');
       case 'import':
-        return '大会取込';
+        return t('common.page_title.import');
       case 'import-confirm':
-        return '取り込み確認';
+        return t('common.page_title.import_confirm');
       case 'create':
-        return '大会作成';
+        return t('common.page_title.create');
       case 'detail':
-        return '大会詳細';
+        return t('common.page_title.detail');
       case 'submit':
-        return 'スコア提出';
+        return t('common.page_title.submit');
       case 'settings':
         return t('settings.title');
       default:
@@ -1750,18 +1753,18 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
   const openCreatePage = React.useCallback(() => {
     if (!songMasterReady) {
-      pushToast('曲マスタが未取得のため大会作成は利用できません。');
+      pushToast(t('common.create.require_song_master'));
       return;
     }
     setCreateDraft(createInitialTournamentDraft(todayDate));
     setCreateSaving(false);
     setCreateSaveError(null);
     pushRoute({ name: 'create' });
-  }, [pushRoute, pushToast, songMasterReady, todayDate]);
+  }, [pushRoute, pushToast, songMasterReady, t, todayDate]);
 
   const openImportPage = React.useCallback(() => {
     if (!songMasterReady) {
-      pushToast('曲マスタが未取得のため大会取込は利用できません。');
+      pushToast(t('common.import.page_require_song_master'));
       return;
     }
     if (canUseQrImport) {
@@ -1769,7 +1772,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       return;
     }
     pushRoute({ name: 'import' });
-  }, [canUseQrImport, pushRoute, pushToast, songMasterReady]);
+  }, [canUseQrImport, pushRoute, pushToast, songMasterReady, t]);
 
   const openSettingsPage = React.useCallback(() => {
     if (route.name === 'settings') {
@@ -1785,10 +1788,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     appendRuntimeLog({
       level: 'info',
       category: 'pwa',
-      message: 'アプリ更新を適用します。',
+      message: t('common.pwa.apply_update_log'),
     });
     applyPwaUpdate(pwaUpdate);
-  }, [appendRuntimeLog, pwaUpdate]);
+  }, [appendRuntimeLog, pwaUpdate, t]);
 
   const openHomeMenu = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
     setHomeMenuAnchorEl(event.currentTarget);
@@ -1824,11 +1827,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         throw new Error('clipboard unavailable');
       }
       await navigator.clipboard.writeText(detailTechnicalLogText);
-      pushToast('技術ログをコピーしました。');
+      pushToast(t('common.technical_log.copied'));
     } catch {
-      pushToast('技術ログのコピーに失敗しました。');
+      pushToast(t('common.technical_log.copy_failed'));
     }
-  }, [detailTechnicalLogText, pushToast]);
+  }, [detailTechnicalLogText, pushToast, t]);
 
   const openDeleteTournamentDialog = React.useCallback(() => {
     closeDetailMenu();
@@ -1849,7 +1852,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setDeleteTournamentBusy(true);
     try {
       await appDb.deleteTournament(detail.tournamentUuid);
-      pushToast('大会を削除しました。');
+      pushToast(t('common.tournament.deleted'));
       setDetail(null);
       setDeleteTournamentDialogOpen(false);
       closeDetailMenu();
@@ -1860,7 +1863,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     } finally {
       setDeleteTournamentBusy(false);
     }
-  }, [appDb, closeDetailMenu, deleteTournamentBusy, detail, pushToast, refreshTournamentList, resetRoute]);
+  }, [appDb, closeDetailMenu, deleteTournamentBusy, detail, pushToast, refreshTournamentList, resetRoute, t]);
 
   const resetLocalData = React.useCallback(async () => {
     if (busy) {
@@ -1882,13 +1885,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       resetRoute({ name: 'home' });
       await refreshTournamentList();
       await refreshSettingsSnapshot();
-      pushToast('ローカル初期化を実行しました。');
+      pushToast(t('common.local_reset.executed'));
     } catch (error) {
       pushToast(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
-  }, [appDb, busy, pushToast, refreshSettingsSnapshot, refreshTournamentList, resetRoute]);
+  }, [appDb, busy, pushToast, refreshSettingsSnapshot, refreshTournamentList, resetRoute, t]);
 
   const homeMenuOpen = homeMenuAnchorEl !== null;
   const detailMenuOpen = detailMenuAnchorEl !== null;
@@ -1912,7 +1915,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [debugModeEnabled]);
 
   if (fatalError) {
-    return <UnsupportedScreen title="曲マスタ起動エラー" reasons={[fatalError]} />;
+    return <UnsupportedScreen title={t('common.song_master.startup_error_title')} reasons={[fatalError]} />;
   }
 
   return (
@@ -1941,7 +1944,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   <InputBase
                     inputRef={homeSearchInputRef}
                     value={homeQuery.searchText}
-                    placeholder="大会名 / 開催者 / ハッシュタグ"
+                    placeholder={t('common.home.search_placeholder')}
                     onChange={(event) => setHomeSearchText(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Escape') {
@@ -2036,11 +2039,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       <Menu anchorEl={detailMenuAnchorEl} open={detailMenuOpen} onClose={closeDetailMenu}>
                         {debugModeEnabled ? (
                           <MenuItem onClick={openDetailTechnicalDialog}>
-                            技術情報
+                            {t('common.technical_info')}
                           </MenuItem>
                         ) : null}
                         <MenuItem disabled={deleteTournamentBusy} onClick={openDeleteTournamentDialog}>
-                          削除
+                          {t('common.delete')}
                         </MenuItem>
                       </Menu>
                     </>
@@ -2055,8 +2058,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       <div className="appRoot">
         {pwaUpdate && route.name !== 'settings' ? (
           <div className="updateBanner">
-            <span>更新があります。</span>
-            <button onClick={applyPendingAppUpdate}>更新適用</button>
+            <span>{t('common.update_available')}</span>
+            <button onClick={applyPendingAppUpdate}>{t('common.apply_update')}</button>
           </div>
         ) : null}
 
@@ -2078,7 +2081,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     size="small"
                     clickable
                     color="default"
-                    label={homeStateLabel(homeQuery.state)}
+                    label={homeStateLabel(homeQuery.state, t)}
                     onClick={() => openHomeFilterSheet('state')}
                   />
                   {homeQuery.category !== 'none' ? (
@@ -2086,7 +2089,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       size="small"
                       clickable
                       color="primary"
-                      label={homeCategoryLabel(homeQuery.category)}
+                      label={homeCategoryLabel(homeQuery.category, t)}
                       onClick={() => openHomeFilterSheet('category')}
                       onDelete={clearHomeCategory}
                     />
@@ -2096,7 +2099,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       size="small"
                       clickable
                       color="primary"
-                      label={homeAttrLabel(homeTypeAttr)}
+                      label={homeAttrLabel(homeTypeAttr, t)}
                       onClick={() => openHomeFilterSheet('type')}
                       onDelete={clearHomeTypeAttr}
                     />
@@ -2106,7 +2109,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       size="small"
                       clickable
                       color="primary"
-                      label={`検索: "${homeSearchChip}"`}
+                      label={t('common.home.search_chip', { value: homeSearchChip })}
                       onClick={() => setHomeSearchMode(true)}
                       onDelete={clearHomeSearchText}
                     />
@@ -2132,7 +2135,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 onClick={clearAllHomeQuery}
                 disabled={!homeHasNonDefaultQuery}
               >
-                すべて解除
+                {t('common.clear_all')}
               </Button>
             </section>
             <HomePage
@@ -2154,7 +2157,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         {route.name === 'import' && (
           <ImportTournamentPage
             songMasterReady={songMasterReady}
-            songMasterMessage={songMasterMeta.song_master_downloaded_at ? null : '曲マスタ未取得'}
+            songMasterMessage={songMasterMeta.song_master_downloaded_at ? null : t('common.song_master.unavailable')}
             busy={busy}
             onImportPayload={importFromPayload}
             onImportFile={importFromFile}
@@ -2262,7 +2265,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             <div className="homeFilterSheetFixed">
               <div className="homeFilterSection" ref={homeStateSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  状態
+                  {t('common.home_filter.section.state')}
                 </Typography>
                 <ToggleButtonGroup
                   value={homeFilterDraft.state}
@@ -2279,9 +2282,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     }));
                   }}
                 >
-                  <ToggleButton value="active">開催中</ToggleButton>
-                  <ToggleButton value="upcoming">開催前</ToggleButton>
-                  <ToggleButton value="ended">終了</ToggleButton>
+                  <ToggleButton value="active">{t('common.home_filter.state.active')}</ToggleButton>
+                  <ToggleButton value="upcoming">{t('common.home_filter.state.upcoming')}</ToggleButton>
+                  <ToggleButton value="ended">{t('common.home_filter.state.ended')}</ToggleButton>
                 </ToggleButtonGroup>
               </div>
               <Divider />
@@ -2289,7 +2292,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             <Box className="homeFilterSheetBody">
               <div className="homeFilterSection" ref={homeCategorySectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  カテゴリ
+                  {t('common.home_filter.section.category')}
                 </Typography>
                 <ToggleButtonGroup
                   value={homeFilterDraft.category === 'none' ? null : homeFilterDraft.category}
@@ -2303,14 +2306,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     }));
                   }}
                 >
-                  <ToggleButton value="pending">未登録あり</ToggleButton>
-                  <ToggleButton value="completed">全登録済み</ToggleButton>
+                  <ToggleButton value="pending">{t('common.home_filter.category.pending')}</ToggleButton>
+                  <ToggleButton value="completed">{t('common.home_filter.category.completed')}</ToggleButton>
                 </ToggleButtonGroup>
               </div>
               <Divider />
               <div className="homeFilterSection" ref={homeTypeSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  種別
+                  {t('common.home_filter.section.type')}
                 </Typography>
                 <ToggleButtonGroup
                   value={homeFilterDraft.attrs.includes('imported') ? 'imported' : homeFilterDraft.attrs.includes('created') ? 'created' : null}
@@ -2327,14 +2330,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     });
                   }}
                 >
-                  <ToggleButton value="imported">取り込み</ToggleButton>
-                  <ToggleButton value="created">作成</ToggleButton>
+                  <ToggleButton value="imported">{t('common.home_filter.type.imported')}</ToggleButton>
+                  <ToggleButton value="created">{t('common.home_filter.type.created')}</ToggleButton>
                 </ToggleButtonGroup>
               </div>
               <Divider />
               <div className="homeFilterSection" ref={homeAttrsSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  属性
+                  {t('common.home_filter.section.attr')}
                 </Typography>
                 <FormGroup>
                   <FormControlLabel
@@ -2351,14 +2354,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                         }}
                       />
                     }
-                    label="送信待ちあり"
+                    label={t('common.home_filter.attr.send_waiting')}
                   />
                 </FormGroup>
               </div>
               <Divider />
               <div className="homeFilterSection" ref={homeSortSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  ソート
+                  {t('common.home_filter.section.sort')}
                 </Typography>
                 <ToggleButtonGroup
                   value={homeFilterDraft.sort}
@@ -2376,24 +2379,24 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     }));
                   }}
                 >
-                  <ToggleButton value="default">デフォルト</ToggleButton>
-                  <ToggleButton value="deadline">期日が近い順</ToggleButton>
-                  <ToggleButton value="progress-low">進捗が低い順</ToggleButton>
-                  <ToggleButton value="send-waiting-high">送信待ちが多い順</ToggleButton>
-                  <ToggleButton value="name">名前順</ToggleButton>
+                  <ToggleButton value="default">{t('common.home_filter.sort.default')}</ToggleButton>
+                  <ToggleButton value="deadline">{t('common.home_filter.sort.deadline')}</ToggleButton>
+                  <ToggleButton value="progress-low">{t('common.home_filter.sort.progress_low')}</ToggleButton>
+                  <ToggleButton value="send-waiting-high">{t('common.home_filter.sort.send_waiting_high')}</ToggleButton>
+                  <ToggleButton value="name">{t('common.home_filter.sort.name')}</ToggleButton>
                 </ToggleButtonGroup>
               </div>
               <Divider />
               <Typography variant="body2" className="homeFilterResultCount">
-                現在の結果: {homeDraftResultCount}件
+                {t('common.home_filter.result_count', { count: homeDraftResultCount })}
               </Typography>
             </Box>
             <Box className="homeFilterSheetActions">
               <Button variant="text" onClick={resetHomeFilterSheet}>
-                リセット
+                {t('common.reset')}
               </Button>
               <Button variant="contained" onClick={applyHomeFilterSheet}>
-                適用
+                {t('common.apply')}
               </Button>
             </Box>
           </Box>
@@ -2401,7 +2404,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
         {isHomeRoute ? (
           <Tooltip
-            title="大会を作成"
+            title={t('common.tournament.create')}
             placement="left"
             arrow
             open={showCreateFabTooltip && !speedDialOpen}
@@ -2411,7 +2414,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           >
             <Box sx={{ position: 'fixed', right: 24, bottom: 24, zIndex: 30 }} onClick={closeCreateFabTooltip}>
               <SpeedDial
-                ariaLabel="大会アクション"
+                ariaLabel={t('common.tournament.actions')}
                 icon={<AddIcon />}
                 direction="up"
                 open={speedDialOpen}
@@ -2424,7 +2427,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               >
                 <SpeedDialAction
                   icon={<PostAddIcon />}
-                  tooltipTitle="大会作成"
+                  tooltipTitle={t('common.tournament.create')}
                   FabProps={{ disabled: !songMasterReady || busy }}
                   onClick={() => {
                     closeCreateFabTooltip();
@@ -2434,7 +2437,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 />
                 <SpeedDialAction
                   icon={<FileDownloadIcon />}
-                  tooltipTitle="大会取込"
+                  tooltipTitle={t('common.page_title.import')}
                   FabProps={{ disabled: !songMasterReady || busy }}
                   onClick={() => {
                     closeCreateFabTooltip();
@@ -2470,7 +2473,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           </DialogContent>
           <DialogActions>
             <Button variant="contained" onClick={closeWhatsNewDialog}>
-              閉じる
+              {t('common.close')}
             </Button>
           </DialogActions>
         </Dialog>
@@ -2481,36 +2484,44 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           fullWidth
           maxWidth="sm"
         >
-          <DialogTitle>技術情報</DialogTitle>
+          <DialogTitle>{t('common.technical_info')}</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 1.25 }}>
             {detailTechnicalInfo ? (
               <>
-                <Typography variant="body2">tournament_uuid: {detailTechnicalInfo.tournament_uuid}</Typography>
                 <Typography variant="body2">
-                  source_tournament_uuid: {detailTechnicalInfo.source_tournament_uuid ?? '-'}
+                  {t('common.technical_info_tournament_uuid', { value: detailTechnicalInfo.tournament_uuid })}
                 </Typography>
-                <Typography variant="body2">def_hash: {detailTechnicalInfo.def_hash}</Typography>
-                <Typography variant="body2">共有ペイロードサイズ: {detailTechnicalInfo.payload_size_bytes} bytes</Typography>
-                <Typography variant="body2">直近エラー: {detailTechnicalInfo.last_error ?? '-'}</Typography>
+                <Typography variant="body2">
+                  {t('common.technical_info_source_tournament_uuid', {
+                    value: detailTechnicalInfo.source_tournament_uuid ?? t('common.not_available'),
+                  })}
+                </Typography>
+                <Typography variant="body2">{t('common.technical_info_def_hash', { value: detailTechnicalInfo.def_hash })}</Typography>
+                <Typography variant="body2">
+                  {t('common.technical_info_payload_size', { size: detailTechnicalInfo.payload_size_bytes })}
+                </Typography>
+                <Typography variant="body2">
+                  {t('common.technical_info_recent_error', { error: detailTechnicalInfo.last_error ?? '-' })}
+                </Typography>
                 <Button variant="outlined" size="small" onClick={() => void copyDetailTechnicalLog()}>
-                  ログコピー
+                  {t('common.copy_logs')}
                 </Button>
               </>
             ) : null}
           </DialogContent>
           <DialogActions>
-            <Button onClick={closeDetailTechnicalDialog}>閉じる</Button>
+            <Button onClick={closeDetailTechnicalDialog}>{t('common.close')}</Button>
           </DialogActions>
         </Dialog>
 
         <Dialog open={deleteTournamentDialogOpen} onClose={closeDeleteTournamentDialog} fullWidth maxWidth="xs">
-          <DialogTitle>大会を削除しますか？</DialogTitle>
+          <DialogTitle>{t('common.delete_tournament_confirm.title')}</DialogTitle>
           <DialogContent>
-            <Typography variant="body2">大会データと画像は削除され、復元できません</Typography>
+            <Typography variant="body2">{t('common.delete_tournament_confirm.description')}</Typography>
           </DialogContent>
           <DialogActions>
             <Button onClick={closeDeleteTournamentDialog} disabled={deleteTournamentBusy}>
-              キャンセル
+              {t('common.cancel')}
             </Button>
             <Button
               color="error"
@@ -2518,7 +2529,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               onClick={() => void deleteCurrentTournament()}
               disabled={deleteTournamentBusy}
             >
-              削除
+              {t('common.delete')}
             </Button>
           </DialogActions>
         </Dialog>
@@ -2530,5 +2541,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 }
 
 export function AppFallbackUnsupported({ reasons }: { reasons: string[] }): JSX.Element {
-  return <UnsupportedScreen title="非対応ブラウザ" reasons={reasons} />;
+  const { t } = useTranslation();
+  return <UnsupportedScreen title={t('common.unsupported_browser_title')} reasons={reasons} />;
 }

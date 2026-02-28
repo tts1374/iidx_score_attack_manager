@@ -8,7 +8,232 @@
     "next": "次へ",
     "execute": "実行",
     "not_available": "-",
-    "unknown": "不明"
+    "unknown": "不明",
+    "loading": "読み込み中",
+    "reload": "再読み込み",
+    "open_app": "アプリを開く",
+    "close_this_tab": "このタブを閉じる",
+    "detail_with_value": "詳細: {{value}}",
+    "delete": "削除",
+    "update_available": "更新があります。",
+    "apply_update": "更新適用",
+    "clear_all": "すべて解除",
+    "reset": "リセット",
+    "apply": "適用",
+    "enabled": "有効",
+    "disabled": "無効",
+    "saved": "保存しました。",
+    "technical_info": "技術情報",
+    "technical_info_payload_size": "共有ペイロードサイズ: {{size}} bytes",
+    "technical_info_recent_error": "直近エラー: {{error}}",
+    "technical_info_tournament_uuid": "tournament_uuid: {{value}}",
+    "technical_info_source_tournament_uuid": "source_tournament_uuid: {{value}}",
+    "technical_info_def_hash": "def_hash: {{value}}",
+    "copy_logs": "ログコピー",
+    "unsupported_browser_title": "非対応ブラウザ",
+    "unsupported_browser_environment_message": "このブラウザ環境では起動できません。",
+    "local_consent": {
+      "app_name": "スコアタログ",
+      "welcome": "ようこそ！このアプリはbeatmania IIDXのスコアタの管理をするアプリです！",
+      "data_title": "このアプリのデータについて",
+      "items": {
+        "saved_in_browser": "データはご利用中のブラウザ内に保存されます",
+        "no_auto_sync": "サーバーへの自動同期は行われません",
+        "may_be_lost": "端末変更やブラウザデータ削除で消える場合があります",
+        "import_available": "QRコードやURLアクセスで大会をインポートすることができます",
+        "consider_backup": "必要に応じてバックアップをご検討ください"
+      },
+      "understood": "上記を理解しました",
+      "start": "はじめる"
+    },
+    "service_worker_failure": {
+      "title": "Service Worker を有効化できませんでした",
+      "description": "初回セットアップを完了できませんでした。",
+      "reason": {
+        "unsupported": "このブラウザは Service Worker に対応していません。",
+        "register_error": "Service Worker の登録処理でエラーが発生しました。",
+        "controller_timeout": "一定時間待っても Service Worker がページを制御できませんでした。"
+      },
+      "checklist": {
+        "unsupported": "ブラウザがSWに非対応",
+        "private_mode": "プライベートモード/制限",
+        "cache_corruption": "キャッシュ破損"
+      },
+      "guide_toggle": "データ/キャッシュ削除案内",
+      "guide_steps": {
+        "clear_site_data": "ブラウザ設定でこのサイトのデータ・キャッシュを削除する",
+        "exit_private_mode": "プライベートモードを終了し通常モードで開き直す",
+        "restart_browser": "それでも改善しない場合はブラウザを再起動して再アクセスする"
+      }
+    },
+    "invalid_import_link": {
+      "title": "取り込みリンクを処理できません"
+    },
+    "import_delegation": {
+      "status": {
+        "ack_broadcast": "既存タブから受領応答を確認しました。",
+        "ack_storage": "既存タブから受領応答を確認しました（storageフォールバック）。"
+      },
+      "sending": {
+        "title": "既存タブに送信中...",
+        "description": "取り込み要求を送信しています。しばらくお待ちください。",
+        "aria_label": "送信中"
+      },
+      "success": {
+        "title": "既存タブに送信しました",
+        "description": "既存タブに送信しました。そちらをご確認ください。"
+      },
+      "failed": {
+        "title": "既存タブが見つかりませんでした",
+        "description": "既存タブが起動していないか、この環境ではタブ間通信が利用できませんでした。"
+      },
+      "preview": {
+        "title": "取り込み内容プレビュー",
+        "tournament_name": "大会名: {{value}}",
+        "owner": "開催者: {{value}}",
+        "period": "期間: {{start}} 〜 {{end}}",
+        "chart_count": "譜面数: {{count}}",
+        "hint": "このタブでは確定保存できません。既存タブへの送信またはアプリ本体での取り込みが必要です。"
+      },
+      "retry": "もう一度送信を試す"
+    },
+    "import_qr_dialog": {
+      "title": "QR読み取り",
+      "description": "QRコードをカメラにかざしてください。",
+      "starting": "カメラ起動中...",
+      "action": {
+        "text_import": "テキスト取込"
+      },
+      "error": {
+        "unavailable": "この端末ではQR読み取りを利用できません。",
+        "preview_init_failed": "カメラプレビューの初期化に失敗しました。",
+        "camera_start_failed_prefix": "カメラを起動できませんでした。",
+        "camera_start_failed": "カメラを起動できませんでした。{{reason}}"
+      }
+    },
+    "debug_mode": {
+      "enabled": "デバッグモードを有効にしました。",
+      "disabled": "デバッグモードを無効にしました。"
+    },
+    "song_master": {
+      "update_failed": "曲マスタ更新に失敗しました。",
+      "update_check_failed": "更新確認に失敗しました。",
+      "refetch_failed": "再取得（キャッシュ破棄）に失敗しました。",
+      "updated": "曲マスタを更新しました。",
+      "post_update_check_failed": "曲マスタ更新後の確認に失敗しました。",
+      "up_to_date": "曲マスタは最新です。",
+      "refetch_exception": "再取得（キャッシュ破棄）で例外が発生しました。",
+      "update_check_exception": "更新確認で例外が発生しました。",
+      "startup_error_title": "曲マスタ起動エラー",
+      "unavailable": "曲マスタ未取得"
+    },
+    "song_data": {
+      "up_to_date": "曲データは最新です。",
+      "refetched": "曲データを再取得しました。",
+      "update_check_executed": "曲データの更新確認を実行しました。"
+    },
+    "runtime": {
+      "unhandled_exception": "未処理の例外が発生しました。",
+      "unhandled_promise_rejection": "未処理の Promise rejection が発生しました。"
+    },
+    "bootstrap": {
+      "error_log": "起動処理でエラーが発生しました。",
+      "root_missing": "root要素が見つかりません。",
+      "cross_origin_isolated_unavailable_after_setup": "初回導入後も crossOriginIsolated が有効になりませんでした。",
+      "already_running_in_other_tab": "別タブで既に起動中です。",
+      "initialization_timeout": "初期化がタイムアウトしました。",
+      "opfs_vfs_init_failed": "OPFS VFS(opfs)が初期化できません。COOP/COEPヘッダーを確認してください。",
+      "initialization_error": "初期化エラー: {{message}}"
+    },
+    "import": {
+      "require_song_master": "曲マスタが未取得のため、大会作成/取込は利用できません。",
+      "page_require_song_master": "曲マスタが未取得のため大会取込は利用できません。",
+      "unrecognized_data": "取込データを認識できません。",
+      "qr_not_found": "画像内にQRコードが見つかりませんでした。",
+      "incompatible_period": "既存大会と開催期間が矛盾するため取り込みできません。",
+      "no_change": "変更なし",
+      "completed": "取り込みました",
+      "delegation": {
+        "received_and_opened": "別タブから取り込み要求を受信しました。確認画面を開きました。",
+        "delegated_to_confirm": "別タブからの取り込み要求を確認画面へ委譲しました。"
+      }
+    },
+    "validation": {
+      "check_input": "入力内容を確認してください。"
+    },
+    "storage": {
+      "startup_auto_purge_log": "起動時の自動削除で {{count}} 件の画像を削除しました。",
+      "auto_delete_config_updated": "画像自動削除設定を更新しました。（{{status}} / {{days}}日）",
+      "cleanup_toast": "{{count}}件の画像を削除（解放 {{released}}）",
+      "cleanup_log": "容量整理を実行しました。（画像 {{count}} 件 / 解放 {{released}}）"
+    },
+    "page_title": {
+      "home": "大会一覧",
+      "import": "大会取込",
+      "import_confirm": "取り込み確認",
+      "create": "大会作成",
+      "detail": "大会詳細",
+      "submit": "スコア提出"
+    },
+    "create": {
+      "require_song_master": "曲マスタが未取得のため大会作成は利用できません。"
+    },
+    "pwa": {
+      "apply_update_log": "アプリ更新を適用します。"
+    },
+    "technical_log": {
+      "copied": "技術ログをコピーしました。",
+      "copy_failed": "技術ログのコピーに失敗しました。"
+    },
+    "tournament": {
+      "create": "大会を作成",
+      "actions": "大会アクション",
+      "deleted": "大会を削除しました。"
+    },
+    "local_reset": {
+      "executed": "ローカル初期化を実行しました。"
+    },
+    "home": {
+      "search_placeholder": "大会名 / 開催者 / ハッシュタグ",
+      "search_chip": "検索: \"{{value}}\""
+    },
+    "home_filter": {
+      "section": {
+        "state": "状態",
+        "category": "カテゴリ",
+        "type": "種別",
+        "attr": "属性",
+        "sort": "ソート"
+      },
+      "state": {
+        "active": "開催中",
+        "upcoming": "開催前",
+        "ended": "終了"
+      },
+      "category": {
+        "pending": "未登録あり",
+        "completed": "全登録済み"
+      },
+      "type": {
+        "imported": "取り込み",
+        "created": "作成"
+      },
+      "attr": {
+        "send_waiting": "送信待ちあり"
+      },
+      "sort": {
+        "default": "デフォルト",
+        "deadline": "期日が近い順",
+        "progress_low": "進捗が低い順",
+        "send_waiting_high": "送信待ちが多い順",
+        "name": "名前順"
+      },
+      "result_count": "現在の結果: {{count}}件"
+    },
+    "delete_tournament_confirm": {
+      "title": "大会を削除しますか？",
+      "description": "大会データと画像は削除され、復元できません"
+    }
   },
   "settings": {
     "title": "設定",

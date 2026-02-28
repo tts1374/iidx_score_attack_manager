@@ -8,7 +8,232 @@
     "next": "Next",
     "execute": "Run",
     "not_available": "-",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "loading": "Loading",
+    "reload": "Reload",
+    "open_app": "Open app",
+    "close_this_tab": "Close this tab",
+    "detail_with_value": "Details: {{value}}",
+    "delete": "Delete",
+    "update_available": "An update is available.",
+    "apply_update": "Apply update",
+    "clear_all": "Clear all",
+    "reset": "Reset",
+    "apply": "Apply",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "saved": "Saved.",
+    "technical_info": "Technical info",
+    "technical_info_payload_size": "Shared payload size: {{size}} bytes",
+    "technical_info_recent_error": "Recent error: {{error}}",
+    "technical_info_tournament_uuid": "tournament_uuid: {{value}}",
+    "technical_info_source_tournament_uuid": "source_tournament_uuid: {{value}}",
+    "technical_info_def_hash": "def_hash: {{value}}",
+    "copy_logs": "Copy logs",
+    "unsupported_browser_title": "Unsupported browser",
+    "unsupported_browser_environment_message": "This browser environment is not supported.",
+    "local_consent": {
+      "app_name": "Score Attack Log",
+      "welcome": "Welcome! This app helps manage beatmania IIDX score attacks.",
+      "data_title": "About this app data",
+      "items": {
+        "saved_in_browser": "Data is stored in your browser.",
+        "no_auto_sync": "No automatic server sync is performed.",
+        "may_be_lost": "Changing devices or clearing browser data may erase data.",
+        "import_available": "You can import tournaments via QR code or URL.",
+        "consider_backup": "Consider backups when needed."
+      },
+      "understood": "I understand the above",
+      "start": "Start"
+    },
+    "service_worker_failure": {
+      "title": "Failed to enable Service Worker",
+      "description": "Initial setup could not be completed.",
+      "reason": {
+        "unsupported": "This browser does not support Service Worker.",
+        "register_error": "An error occurred while registering Service Worker.",
+        "controller_timeout": "Service Worker could not control this page in time."
+      },
+      "checklist": {
+        "unsupported": "Browser does not support SW",
+        "private_mode": "Private mode or restrictions",
+        "cache_corruption": "Cache corruption"
+      },
+      "guide_toggle": "How to clear data/cache",
+      "guide_steps": {
+        "clear_site_data": "Delete site data and cache in browser settings",
+        "exit_private_mode": "Exit private mode and reopen in normal mode",
+        "restart_browser": "If still unresolved, restart your browser and access again"
+      }
+    },
+    "invalid_import_link": {
+      "title": "Cannot process import link"
+    },
+    "import_delegation": {
+      "status": {
+        "ack_broadcast": "Acknowledgement received from existing tab.",
+        "ack_storage": "Acknowledgement received from existing tab (storage fallback)."
+      },
+      "sending": {
+        "title": "Sending to existing tab...",
+        "description": "Sending import request. Please wait.",
+        "aria_label": "Sending"
+      },
+      "success": {
+        "title": "Sent to existing tab",
+        "description": "The request was sent to the existing tab. Please check that tab."
+      },
+      "failed": {
+        "title": "Existing tab was not found",
+        "description": "No existing tab is running, or inter-tab communication is unavailable in this environment."
+      },
+      "preview": {
+        "title": "Import preview",
+        "tournament_name": "Tournament: {{value}}",
+        "owner": "Owner: {{value}}",
+        "period": "Period: {{start}} to {{end}}",
+        "chart_count": "Charts: {{count}}",
+        "hint": "This tab cannot finalize save. Send to an existing tab or import in the main app."
+      },
+      "retry": "Try sending again"
+    },
+    "import_qr_dialog": {
+      "title": "QR scan",
+      "description": "Hold the QR code in front of the camera.",
+      "starting": "Starting camera...",
+      "action": {
+        "text_import": "Text import"
+      },
+      "error": {
+        "unavailable": "QR scanning is not available on this device.",
+        "preview_init_failed": "Failed to initialize camera preview.",
+        "camera_start_failed_prefix": "Could not start camera.",
+        "camera_start_failed": "Could not start camera.{{reason}}"
+      }
+    },
+    "debug_mode": {
+      "enabled": "Debug mode enabled.",
+      "disabled": "Debug mode disabled."
+    },
+    "song_master": {
+      "update_failed": "Failed to update song master.",
+      "update_check_failed": "Failed to check updates.",
+      "refetch_failed": "Refetch (discard cache) failed.",
+      "updated": "Song master updated.",
+      "post_update_check_failed": "Post-update verification failed.",
+      "up_to_date": "Song master is up to date.",
+      "refetch_exception": "Exception occurred during refetch (discard cache).",
+      "update_check_exception": "Exception occurred during update check.",
+      "startup_error_title": "Song master startup error",
+      "unavailable": "Song master not fetched"
+    },
+    "song_data": {
+      "up_to_date": "Song data is up to date.",
+      "refetched": "Song data was refetched.",
+      "update_check_executed": "Song data update check executed."
+    },
+    "runtime": {
+      "unhandled_exception": "An unhandled exception occurred.",
+      "unhandled_promise_rejection": "An unhandled promise rejection occurred."
+    },
+    "bootstrap": {
+      "error_log": "An error occurred during startup.",
+      "root_missing": "Root element is missing.",
+      "cross_origin_isolated_unavailable_after_setup": "crossOriginIsolated is still unavailable after initial setup.",
+      "already_running_in_other_tab": "Already running in another tab.",
+      "initialization_timeout": "Initialization timed out.",
+      "opfs_vfs_init_failed": "Failed to initialize OPFS VFS (opfs). Check COOP/COEP headers.",
+      "initialization_error": "Initialization error: {{message}}"
+    },
+    "import": {
+      "require_song_master": "Song master is not available, so create/import cannot be used.",
+      "page_require_song_master": "Song master is not available, so tournament import cannot be used.",
+      "unrecognized_data": "Could not recognize import data.",
+      "qr_not_found": "No QR code found in the image.",
+      "incompatible_period": "Import failed because tournament period conflicts with existing tournaments.",
+      "no_change": "No changes",
+      "completed": "Imported",
+      "delegation": {
+        "received_and_opened": "Received import request from another tab and opened confirmation.",
+        "delegated_to_confirm": "Delegated import request from another tab to confirmation screen."
+      }
+    },
+    "validation": {
+      "check_input": "Please check your input."
+    },
+    "storage": {
+      "startup_auto_purge_log": "Startup auto-delete removed {{count}} images.",
+      "auto_delete_config_updated": "Auto-delete settings updated. ({{status}} / {{days}} days)",
+      "cleanup_toast": "Deleted {{count}} images (freed {{released}})",
+      "cleanup_log": "Storage cleanup executed. (Images {{count}} / Freed {{released}})"
+    },
+    "page_title": {
+      "home": "Tournament list",
+      "import": "Tournament import",
+      "import_confirm": "Import confirmation",
+      "create": "Create tournament",
+      "detail": "Tournament detail",
+      "submit": "Submit score"
+    },
+    "create": {
+      "require_song_master": "Song master is not available, so tournament creation cannot be used."
+    },
+    "pwa": {
+      "apply_update_log": "Applying app update."
+    },
+    "technical_log": {
+      "copied": "Technical log copied.",
+      "copy_failed": "Failed to copy technical log."
+    },
+    "tournament": {
+      "create": "Create tournament",
+      "actions": "Tournament actions",
+      "deleted": "Tournament deleted."
+    },
+    "local_reset": {
+      "executed": "Local reset executed."
+    },
+    "home": {
+      "search_placeholder": "Tournament / Owner / Hashtag",
+      "search_chip": "Search: \"{{value}}\""
+    },
+    "home_filter": {
+      "section": {
+        "state": "State",
+        "category": "Category",
+        "type": "Type",
+        "attr": "Attribute",
+        "sort": "Sort"
+      },
+      "state": {
+        "active": "Active",
+        "upcoming": "Upcoming",
+        "ended": "Ended"
+      },
+      "category": {
+        "pending": "Pending entries",
+        "completed": "Completed entries"
+      },
+      "type": {
+        "imported": "Imported",
+        "created": "Created"
+      },
+      "attr": {
+        "send_waiting": "Waiting to send"
+      },
+      "sort": {
+        "default": "Default",
+        "deadline": "Nearest deadline",
+        "progress_low": "Lowest progress",
+        "send_waiting_high": "Most send-waiting",
+        "name": "Name"
+      },
+      "result_count": "Current results: {{count}}"
+    },
+    "delete_tournament_confirm": {
+      "title": "Delete this tournament?",
+      "description": "Tournament data and images will be deleted and cannot be restored."
+    }
   },
   "settings": {
     "title": "Settings",
