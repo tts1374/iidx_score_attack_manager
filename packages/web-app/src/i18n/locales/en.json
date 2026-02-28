@@ -327,6 +327,65 @@
       }
     }
   },
+  "error": {
+    "title": {
+      "generic": "An error occurred"
+    },
+    "description": {
+      "generic": "The operation failed. Please try again later.",
+      "with_detail": "The operation failed. {{message}}"
+    },
+    "unknown": "An unexpected error occurred.",
+    "import": {
+      "url_invalid": "The import URL is invalid.",
+      "payload_invalid": "Failed to parse import data.",
+      "payload_too_large": "Import data size exceeds the limit.",
+      "unsupported_version": "This data version is not supported."
+    },
+    "storage": {
+      "opfs_unavailable": "Storage features are not available in this environment.",
+      "quota_exceeded": "Not enough storage space to complete this operation."
+    },
+    "network": {
+      "offline": "You are offline, so this operation cannot be completed."
+    },
+    "clipboard": {
+      "unavailable": "Clipboard is not available."
+    },
+    "image": {
+      "canvas_context_unavailable": "Failed to initialize image processing.",
+      "jpeg_encode_failed": "Failed to convert image to JPEG.",
+      "evidence_not_found": "No image found for submission."
+    }
+  },
+  "validation": {
+    "required": "Please fill in required fields.",
+    "invalid_format": "The input format is invalid.",
+    "too_short": "The input is too short.",
+    "too_long": "The input is too long.",
+    "out_of_range": "The input is out of range.",
+    "check_input": "Please check your input.",
+    "tournament": {
+      "name_required": "Please enter a tournament name.",
+      "name_too_long": "Tournament name must be {{max}} characters or fewer.",
+      "owner_required": "Please enter an organizer.",
+      "owner_too_long": "Organizer must be {{max}} characters or fewer.",
+      "hashtag_required": "Please enter a hashtag.",
+      "start_date_invalid_format": "Start date must be in YYYY-MM-DD format.",
+      "end_date_invalid_format": "End date must be in YYYY-MM-DD format.",
+      "date_range_invalid": "Start date must be on or before end date.",
+      "past_date_not_allowed": "Cannot register a tournament that has already ended.",
+      "chart_required": "Select at least one chart.",
+      "chart_too_many": "You can select up to {{max}} charts.",
+      "chart_duplicate": "Duplicate charts cannot be registered."
+    }
+  },
+  "notify": {
+    "copied": "Copied.",
+    "saved": "Saved.",
+    "deleted": "Deleted.",
+    "updated": "Updated."
+  },
   "create_tournament": {
     "wizard": {
       "aria_label": "Tournament definition wizard",

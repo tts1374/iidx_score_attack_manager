@@ -32,21 +32,21 @@ function bytesToBase64(bytes: Uint8Array): string {
 function base64ToBytes(base64: string): Uint8Array {
   const normalized = base64.trim();
   if (!/^[A-Za-z0-9+/=]+$/.test(normalized)) {
-    throw new PayloadBase64DecodeError('base64 decode failed');
+    throw new PayloadBase64DecodeError();
   }
 
   try {
     if (typeof Buffer !== 'undefined') {
       const nodeDecoded = Buffer.from(normalized, 'base64');
       if (nodeDecoded.length === 0 && normalized.length > 0) {
-        throw new PayloadBase64DecodeError('base64 decode failed');
+        throw new PayloadBase64DecodeError();
       }
       return Uint8Array.from(nodeDecoded);
     }
     const decoded = atob(normalized);
     return Uint8Array.from(decoded, (c) => c.charCodeAt(0));
   } catch {
-    throw new PayloadBase64DecodeError('base64 decode failed');
+    throw new PayloadBase64DecodeError();
   }
 }
 
@@ -55,7 +55,11 @@ export function encodeTournamentPayload(payload: TournamentPayload): string {
   const json = JSON.stringify(normalized);
   const compressed = gzip(utf8Encode(json));
   if (compressed.byteLength > ENCODED_PAYLOAD_MAX_BYTES) {
-    throw new PayloadSizeError('encoded payload exceeds max bytes');
+    throw new PayloadSizeError({
+      reason: 'encoded',
+      limit: ENCODED_PAYLOAD_MAX_BYTES,
+      actual: compressed.byteLength,
+    });
   }
   return bytesToBase64(compressed);
 }
@@ -70,7 +74,7 @@ export function decodeTournamentPayload(
   options: TournamentPayloadNormalizationOptions = {},
 ): DecodeTournamentPayloadResult {
   if (!encoded || typeof encoded !== 'string') {
-    throw new PayloadValidationError('payload string is required');
+    throw new PayloadValidationError({ reason: 'PAYLOAD_REQUIRED' });
   }
 
   const compressed = base64ToBytes(encoded);
@@ -78,11 +82,15 @@ export function decodeTournamentPayload(
   try {
     unzipped = ungzip(compressed);
   } catch {
-    throw new PayloadGzipDecodeError('gzip decode failed');
+    throw new PayloadGzipDecodeError();
   }
 
   if (unzipped.byteLength > DECOMPRESSED_PAYLOAD_MAX_BYTES) {
-    throw new PayloadSizeError('decompressed payload exceeds max bytes');
+    throw new PayloadSizeError({
+      reason: 'decompressed',
+      limit: DECOMPRESSED_PAYLOAD_MAX_BYTES,
+      actual: unzipped.byteLength,
+    });
   }
 
   let rawJson = '';
@@ -91,7 +99,7 @@ export function decodeTournamentPayload(
     rawJson = utf8Decode(unzipped);
     parsed = JSON.parse(rawJson);
   } catch {
-    throw new PayloadJsonParseError('json parse failed');
+    throw new PayloadJsonParseError();
   }
 
   const payload = normalizeTournamentPayload(parsed, options);

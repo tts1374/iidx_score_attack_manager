@@ -327,6 +327,65 @@
       }
     }
   },
+  "error": {
+    "title": {
+      "generic": "오류가 발생했습니다"
+    },
+    "description": {
+      "generic": "처리에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      "with_detail": "처리에 실패했습니다. {{message}}"
+    },
+    "unknown": "예상치 못한 오류가 발생했습니다.",
+    "import": {
+      "url_invalid": "가져오기 URL이 올바르지 않습니다.",
+      "payload_invalid": "가져오기 데이터 해석에 실패했습니다.",
+      "payload_too_large": "가져오기 데이터 크기가 제한을 초과했습니다.",
+      "unsupported_version": "지원하지 않는 데이터 버전입니다."
+    },
+    "storage": {
+      "opfs_unavailable": "이 환경에서는 저장소 기능을 사용할 수 없습니다.",
+      "quota_exceeded": "저장 공간이 부족하여 처리를 완료할 수 없습니다."
+    },
+    "network": {
+      "offline": "오프라인 상태라 처리를 완료할 수 없습니다."
+    },
+    "clipboard": {
+      "unavailable": "클립보드를 사용할 수 없습니다."
+    },
+    "image": {
+      "canvas_context_unavailable": "이미지 처리를 초기화하지 못했습니다.",
+      "jpeg_encode_failed": "이미지를 JPEG로 변환하지 못했습니다.",
+      "evidence_not_found": "제출할 이미지를 찾을 수 없습니다."
+    }
+  },
+  "validation": {
+    "required": "필수 항목을 입력해 주세요.",
+    "invalid_format": "입력 형식이 올바르지 않습니다.",
+    "too_short": "입력 값이 너무 짧습니다.",
+    "too_long": "입력 값이 너무 깁니다.",
+    "out_of_range": "입력 범위가 올바르지 않습니다.",
+    "check_input": "입력 내용을 확인해 주세요.",
+    "tournament": {
+      "name_required": "대회명을 입력해 주세요.",
+      "name_too_long": "대회명은 {{max}}자 이하로 입력해 주세요.",
+      "owner_required": "개최자를 입력해 주세요.",
+      "owner_too_long": "개최자는 {{max}}자 이하로 입력해 주세요.",
+      "hashtag_required": "해시태그를 입력해 주세요.",
+      "start_date_invalid_format": "시작일은 YYYY-MM-DD 형식으로 입력해 주세요.",
+      "end_date_invalid_format": "종료일은 YYYY-MM-DD 형식으로 입력해 주세요.",
+      "date_range_invalid": "시작일은 종료일 이전(또는 동일)이어야 합니다.",
+      "past_date_not_allowed": "이미 종료된 대회는 등록할 수 없습니다.",
+      "chart_required": "보면을 1개 이상 선택해 주세요.",
+      "chart_too_many": "보면은 최대 {{max}}개까지 선택할 수 있습니다.",
+      "chart_duplicate": "동일한 보면은 중복 등록할 수 없습니다."
+    }
+  },
+  "notify": {
+    "copied": "복사했습니다.",
+    "saved": "저장했습니다.",
+    "deleted": "삭제했습니다.",
+    "updated": "업데이트했습니다."
+  },
   "create_tournament": {
     "wizard": {
       "aria_label": "대회 정의 마법사",

@@ -72,6 +72,7 @@ import {
   buildImportConfirmPath,
   resolveRawImportPayloadParam,
 } from './utils/payload-url';
+import { resolveErrorMessage } from './utils/error-i18n';
 import { consumeWhatsNewVisibility } from './utils/whats-new';
 import { CURRENT_VERSION } from './version';
 import { WHATS_NEW_LINES, WHATS_NEW_MODAL_DESCRIPTION, WHATS_NEW_MODAL_TITLE } from './whats-new-content';
@@ -1232,7 +1233,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         });
         return actionResult;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = resolveErrorMessage(t, error, 'error.description.generic');
         if (!(await appDb.hasSongMaster())) {
           setFatalError(message);
         }
@@ -1368,13 +1369,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         }
       } catch (error) {
         if (mounted) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message = resolveErrorMessage(t, error, 'error.description.generic');
+          const detail = error instanceof Error ? error.message : String(error);
           pushToast(message);
           appendRuntimeLog({
             level: 'error',
             category: 'bootstrap',
             message: t('common.bootstrap.error_log'),
-            detail: message,
+            detail,
           });
         }
       }
@@ -1471,7 +1473,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         const text = await file.text();
         await importFromPayload(text);
       } catch (error) {
-        pushToast(error instanceof Error ? error.message : String(error));
+        pushToast(resolveErrorMessage(t, error, 'error.import.payload_invalid'));
       }
     },
     [importFromPayload, pushToast, t],
@@ -1661,12 +1663,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     try {
       const input = buildCreateTournamentInput(createDraft, validation.selectedChartIds);
       await appDb.createTournament(input);
-      pushToast(t('common.saved'));
+      pushToast(t('notify.saved'));
       await refreshTournamentList();
       setCreateDraft(null);
       resetRoute({ name: 'home' });
     } catch (error) {
-      setCreateSaveError(error instanceof Error ? error.message : String(error));
+      setCreateSaveError(resolveErrorMessage(t, error, 'error.description.generic'));
     } finally {
       setCreateSaving(false);
     }
@@ -1827,7 +1829,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         throw new Error('clipboard unavailable');
       }
       await navigator.clipboard.writeText(detailTechnicalLogText);
-      pushToast(t('common.technical_log.copied'));
+      pushToast(t('notify.copied'));
     } catch {
       pushToast(t('common.technical_log.copy_failed'));
     }
@@ -1852,14 +1854,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setDeleteTournamentBusy(true);
     try {
       await appDb.deleteTournament(detail.tournamentUuid);
-      pushToast(t('common.tournament.deleted'));
+      pushToast(t('notify.deleted'));
       setDetail(null);
       setDeleteTournamentDialogOpen(false);
       closeDetailMenu();
       resetRoute({ name: 'home' });
       await refreshTournamentList();
     } catch (error) {
-      pushToast(error instanceof Error ? error.message : String(error));
+      pushToast(resolveErrorMessage(t, error, 'error.description.generic'));
     } finally {
       setDeleteTournamentBusy(false);
     }
@@ -1887,7 +1889,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       await refreshSettingsSnapshot();
       pushToast(t('common.local_reset.executed'));
     } catch (error) {
-      pushToast(error instanceof Error ? error.message : String(error));
+      pushToast(resolveErrorMessage(t, error, 'error.description.generic'));
     } finally {
       setBusy(false);
     }

@@ -172,7 +172,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       if (error.code === 'UNSUPPORTED_VERSION') {
         return t('import.error.unsupported_version');
       }
-      return error.message;
+      return error.message ?? t('error.description.generic');
     },
     [t],
   );

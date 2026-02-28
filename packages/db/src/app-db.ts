@@ -1,4 +1,5 @@
 import {
+  AppError,
   PAYLOAD_VERSION,
   TournamentPayload,
   buildEvidenceFileName,
@@ -360,7 +361,7 @@ export class AppDatabase {
   }
 
   async createTournament(input: CreateTournamentInput): Promise<string> {
-    const errors = validateTournamentInput(
+    const issues = validateTournamentInput(
       {
         tournamentName: input.tournamentName,
         owner: input.owner,
@@ -371,8 +372,14 @@ export class AppDatabase {
       },
       this.clock.todayJst(),
     );
-    if (errors.length > 0) {
-      throw new Error(errors[0]);
+    if (issues.length > 0) {
+      throw new AppError('TOURNAMENT_VALIDATION_FAILED', {
+        message: 'tournament validation failed',
+        params: {
+          issue: issues[0],
+          issues,
+        },
+      });
     }
 
     const tournamentUuid = input.tournamentUuid ?? this.idFactory.uuid();

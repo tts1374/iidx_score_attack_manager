@@ -327,6 +327,65 @@
       }
     }
   },
+  "error": {
+    "title": {
+      "generic": "エラーが発生しました"
+    },
+    "description": {
+      "generic": "処理に失敗しました。時間をおいて再試行してください。",
+      "with_detail": "処理に失敗しました。{{message}}"
+    },
+    "unknown": "予期しないエラーが発生しました。",
+    "import": {
+      "url_invalid": "取り込みURLが不正です。",
+      "payload_invalid": "取り込みデータの解析に失敗しました。",
+      "payload_too_large": "取り込みデータサイズが上限を超えています。",
+      "unsupported_version": "対応していないデータバージョンです。"
+    },
+    "storage": {
+      "opfs_unavailable": "この環境ではストレージ機能を利用できません。",
+      "quota_exceeded": "保存容量が不足しているため処理を完了できません。"
+    },
+    "network": {
+      "offline": "オフラインのため処理できません。"
+    },
+    "clipboard": {
+      "unavailable": "クリップボードが利用できません。"
+    },
+    "image": {
+      "canvas_context_unavailable": "画像処理の初期化に失敗しました。",
+      "jpeg_encode_failed": "画像のJPEG変換に失敗しました。",
+      "evidence_not_found": "提出対象の画像が見つかりません。"
+    }
+  },
+  "validation": {
+    "required": "必須項目を入力してください。",
+    "invalid_format": "入力形式が正しくありません。",
+    "too_short": "入力が短すぎます。",
+    "too_long": "入力が長すぎます。",
+    "out_of_range": "入力範囲が正しくありません。",
+    "check_input": "入力内容を確認してください。",
+    "tournament": {
+      "name_required": "大会名を入力してください。",
+      "name_too_long": "大会名は{{max}}文字以内で入力してください。",
+      "owner_required": "開催者を入力してください。",
+      "owner_too_long": "開催者は{{max}}文字以内で入力してください。",
+      "hashtag_required": "ハッシュタグを入力してください。",
+      "start_date_invalid_format": "開始日はYYYY-MM-DD形式で入力してください。",
+      "end_date_invalid_format": "終了日はYYYY-MM-DD形式で入力してください。",
+      "date_range_invalid": "開始日は終了日以前を指定してください。",
+      "past_date_not_allowed": "過去に終了した大会は登録できません。",
+      "chart_required": "譜面を1件以上選択してください。",
+      "chart_too_many": "譜面は最大{{max}}件です。",
+      "chart_duplicate": "同一譜面を重複登録できません。"
+    }
+  },
+  "notify": {
+    "copied": "コピーしました。",
+    "saved": "保存しました。",
+    "deleted": "削除しました。",
+    "updated": "更新しました。"
+  },
   "create_tournament": {
     "wizard": {
       "aria_label": "大会定義ウィザード",

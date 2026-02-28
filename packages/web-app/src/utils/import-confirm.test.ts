@@ -36,13 +36,13 @@ describe('import confirm utility', () => {
   });
 
   it('maps unsupported version to UNSUPPORTED_VERSION', () => {
-    const error = new PayloadValidationError('unsupported payload version: 2');
+    const error = new PayloadValidationError({ reason: 'UNSUPPORTED_VERSION', version: 2 });
     const classified = classifyImportDecodeError(error);
     expect(classified.code).toBe('UNSUPPORTED_VERSION');
   });
 
   it('maps empty payload validation to INVALID_PARAM', () => {
-    const error = new PayloadValidationError('payload string is required');
+    const error = new PayloadValidationError({ reason: 'PAYLOAD_REQUIRED' });
     const classified = classifyImportDecodeError(error);
     expect(classified.code).toBe('INVALID_PARAM');
   });

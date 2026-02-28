@@ -1,4 +1,5 @@
 import jsQR from 'jsqr';
+import { AppError } from '@iidx/shared';
 
 export interface EncodedImageResult {
   bytes: Uint8Array;
@@ -19,7 +20,9 @@ export async function reencodeImageToJpeg(file: File | Blob, quality = 0.92): Pr
 
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    throw new Error('2Dコンテキストの取得に失敗しました。');
+    throw new AppError('IMAGE_CANVAS_CONTEXT_UNAVAILABLE', {
+      message: 'canvas 2d context unavailable',
+    });
   }
 
   ctx.drawImage(bitmap, 0, 0);
@@ -32,7 +35,11 @@ export async function reencodeImageToJpeg(file: File | Blob, quality = 0.92): Pr
           resolve(value);
           return;
         }
-        reject(new Error('JPEG変換に失敗しました。'));
+        reject(
+          new AppError('IMAGE_JPEG_ENCODE_FAILED', {
+            message: 'jpeg encode failed',
+          }),
+        );
       },
       'image/jpeg',
       quality,
@@ -57,7 +64,9 @@ export async function extractQrTextFromImage(file: File): Promise<string | null>
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     bitmap.close();
-    throw new Error('2Dコンテキストの取得に失敗しました。');
+    throw new AppError('IMAGE_CANVAS_CONTEXT_UNAVAILABLE', {
+      message: 'canvas 2d context unavailable',
+    });
   }
 
   ctx.drawImage(bitmap, 0, 0);
