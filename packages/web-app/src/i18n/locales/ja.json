@@ -257,12 +257,11 @@
     },
     "remaining_days": "残{{days}}日",
     "progress": {
-      "summary": "登録 {{submitted}} / {{total}}",
-      "percent": "({{percent}}%)",
+      "send_waiting_count": "未共有 {{count}}",
       "badge": {
-        "send_waiting": "送信待ち {{count}}件",
-        "pending": "未登録あり",
-        "completed": "全て登録済"
+        "send_waiting": "未共有",
+        "pending": "未登録",
+        "completed": "共有済"
       }
     },
     "action": {

@@ -257,12 +257,11 @@
     },
     "remaining_days": "{{days}}일 남음",
     "progress": {
-      "summary": "등록 {{submitted}} / {{total}}",
-      "percent": "({{percent}}%)",
+      "send_waiting_count": "미공유 {{count}}",
       "badge": {
-        "send_waiting": "전송 대기 {{count}}건",
-        "pending": "미등록 있음",
-        "completed": "모두 등록됨"
+        "send_waiting": "미공유",
+        "pending": "미등록",
+        "completed": "공유 완료"
       }
     },
     "action": {

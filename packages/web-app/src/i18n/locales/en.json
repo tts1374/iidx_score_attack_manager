@@ -257,12 +257,11 @@
     },
     "remaining_days": "{{days}} days left",
     "progress": {
-      "summary": "Registered {{submitted}} / {{total}}",
-      "percent": "({{percent}}%)",
+      "send_waiting_count": "Unshared {{count}}",
       "badge": {
-        "send_waiting": "Waiting to send {{count}}",
-        "pending": "Unsubmitted entries",
-        "completed": "All submitted"
+        "send_waiting": "Unshared",
+        "pending": "Unregistered",
+        "completed": "Shared"
       }
     },
     "action": {
