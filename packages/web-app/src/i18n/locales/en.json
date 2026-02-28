@@ -42,7 +42,7 @@
         "saved_in_browser": "Data is stored in your browser.",
         "no_auto_sync": "No automatic server sync is performed.",
         "may_be_lost": "Changing devices or clearing browser data may erase data.",
-        "import_available": "You can import tournaments via QR code or URL.",
+        "import_available": "You can import Score Attacks via QR code or URL.",
         "consider_backup": "Consider backups when needed."
       },
       "understood": "I understand the above",
@@ -91,7 +91,7 @@
       },
       "preview": {
         "title": "Import preview",
-        "tournament_name": "Tournament: {{value}}",
+        "tournament_name": "Score Attack: {{value}}",
         "owner": "Owner: {{value}}",
         "period": "Period: {{start}} to {{end}}",
         "chart_count": "Charts: {{count}}",
@@ -149,10 +149,10 @@
     },
     "import": {
       "require_song_master": "Song master is not available, so create/import cannot be used.",
-      "page_require_song_master": "Song master is not available, so tournament import cannot be used.",
+      "page_require_song_master": "Song master is not available, so Score Attack import cannot be used.",
       "unrecognized_data": "Could not recognize import data.",
       "qr_not_found": "No QR code found in the image.",
-      "incompatible_period": "Import failed because tournament period conflicts with existing tournaments.",
+      "incompatible_period": "Import failed because Score Attack period conflicts with existing Score Attacks.",
       "no_change": "No changes",
       "completed": "Imported",
       "delegation": {
@@ -170,15 +170,15 @@
       "cleanup_log": "Storage cleanup executed. (Images {{count}} / Freed {{released}})"
     },
     "page_title": {
-      "home": "Tournament list",
-      "import": "Tournament import",
+      "home": "Score Attack list",
+      "import": "Score Attack import",
       "import_confirm": "Import confirmation",
-      "create": "Create tournament",
-      "detail": "Tournament detail",
+      "create": "Create Score Attack",
+      "detail": "Score Attack detail",
       "submit": "Submit score"
     },
     "create": {
-      "require_song_master": "Song master is not available, so tournament creation cannot be used."
+      "require_song_master": "Song master is not available, so Score Attack creation cannot be used."
     },
     "pwa": {
       "apply_update_log": "Applying app update."
@@ -188,15 +188,15 @@
       "copy_failed": "Failed to copy technical log."
     },
     "tournament": {
-      "create": "Create tournament",
-      "actions": "Tournament actions",
-      "deleted": "Tournament deleted."
+      "create": "Create Score Attack",
+      "actions": "Score Attack actions",
+      "deleted": "Score Attack deleted."
     },
     "local_reset": {
       "executed": "Local reset executed."
     },
     "home": {
-      "search_placeholder": "Tournament / Owner / Hashtag",
+      "search_placeholder": "Score Attack / Owner / Hashtag",
       "search_chip": "Search: \"{{value}}\""
     },
     "tournament_status": {
@@ -236,8 +236,8 @@
       "result_count": "Current results: {{count}}"
     },
     "delete_tournament_confirm": {
-      "title": "Delete this tournament?",
-      "description": "Tournament data and images will be deleted and cannot be restored."
+      "title": "Delete this Score Attack?",
+      "description": "Score Attack data and images will be deleted and cannot be restored."
     }
   },
   "home": {
@@ -247,7 +247,7 @@
       "ended": "Ended"
     },
     "empty": {
-      "text": "No tournaments available to display.",
+      "text": "No Score Attacks available to display.",
       "action": {
         "open_filter": "Open filters"
       }
@@ -267,10 +267,10 @@
     }
   },
   "import": {
-    "title": "Import tournament",
+    "title": "Import Score Attack",
     "description": "You can import from a URL or image/text files.",
     "warning": {
-      "song_master_unavailable": "Tournament import is unavailable because song master data is missing.",
+      "song_master_unavailable": "Score Attack import is unavailable because song master data is missing.",
       "song_master_action": "Check updates in the \"Song data\" section on the settings screen."
     },
     "input": {
@@ -294,17 +294,17 @@
       "json_error": "Failed to parse the payload JSON.",
       "schema_error": "Required fields or types in import data are invalid.",
       "too_large": "Import data size exceeds the limit.",
-      "expired": "Ended tournaments cannot be imported.",
+      "expired": "Ended Score Attacks cannot be imported.",
       "master_missing": "Cannot validate because song master data is missing.",
       "chart_not_found": "Charts not found in song master data: {{chartIds}}",
       "unsupported_version": "This data version is not supported.",
-      "period_conflict": "Import failed because the existing tournament with the same UUID has a conflicting period.",
+      "period_conflict": "Import failed because the existing Score Attack with the same UUID has a conflicting period.",
       "unexpected": "Unexpected error: {{message}}"
     },
     "confirm": {
       "section": {
         "charts": "Target charts",
-        "merge": "Existing tournament found (same UUID)",
+        "merge": "Existing Score Attack found (same UUID)",
         "caution": "Caution"
       },
       "status": {
@@ -322,11 +322,11 @@
         "mode": "Apply mode: Merge (charts only)",
         "added_charts": "Charts to add: {{count}}",
         "same_charts": "Charts already existing: {{count}}",
-        "note": "Tournament name/owner/period/hashtag will not be updated."
+        "note": "Score Attack name/owner/period/hashtag will not be updated."
       },
       "caution": {
         "self_responsibility": "Use imported data at your own risk.",
-        "uuid_conflict": "When UUIDs conflict, tournament info is kept and only chart differences are applied."
+        "uuid_conflict": "When UUIDs conflict, Score Attack info is kept and only chart differences are applied."
       }
     }
   },
@@ -369,15 +369,15 @@
     "out_of_range": "The input is out of range.",
     "check_input": "Please check your input.",
     "tournament": {
-      "name_required": "Please enter a tournament name.",
-      "name_too_long": "Tournament name must be {{max}} characters or fewer.",
+      "name_required": "Please enter a Score Attack name.",
+      "name_too_long": "Score Attack name must be {{max}} characters or fewer.",
       "owner_required": "Please enter an organizer.",
       "owner_too_long": "Organizer must be {{max}} characters or fewer.",
       "hashtag_required": "Please enter a hashtag.",
       "start_date_invalid_format": "Start date must be in YYYY-MM-DD format.",
       "end_date_invalid_format": "End date must be in YYYY-MM-DD format.",
       "date_range_invalid": "Start date must be on or before end date.",
-      "past_date_not_allowed": "Cannot register a tournament that has already ended.",
+      "past_date_not_allowed": "Cannot register a Score Attack that has already ended.",
       "chart_required": "Select at least one chart.",
       "chart_too_many": "You can select up to {{max}} charts.",
       "chart_duplicate": "Duplicate charts cannot be registered."
@@ -391,7 +391,7 @@
   },
   "create_tournament": {
     "wizard": {
-      "aria_label": "Tournament definition wizard",
+      "aria_label": "Score Attack definition wizard",
       "step": {
         "basic": "Basic info",
         "charts": "Charts",
@@ -400,14 +400,14 @@
       "nav_item": "{{index}}. {{label}}"
     },
     "step": {
-      "basic_title": "1) Basic tournament info",
+      "basic_title": "1) Basic Score Attack info",
       "charts_title": "2) Target charts ({{current}} / {{max}})",
       "confirm_title": "3) Confirm"
     },
     "field": {
       "name": {
-        "label": "Tournament name *",
-        "label_plain": "Tournament name",
+        "label": "Score Attack name *",
+        "label_plain": "Score Attack name",
         "placeholder": "e.g.) Score Attack 2026"
       },
       "owner": {
@@ -460,7 +460,7 @@
       "set_next_month": "Next month (1st to end of month)",
       "next_with_step": "{{action}} ({{step}})",
       "back_with_step": "{{action}} ({{step}})",
-      "create": "Create tournament",
+      "create": "Create Score Attack",
       "creating": "Creating..."
     },
     "progress": {
@@ -475,7 +475,7 @@
       "selection_delete_aria": "Remove selection {{index}}"
     },
     "validation": {
-      "name_required": "Enter a tournament name.",
+      "name_required": "Enter a Score Attack name.",
       "owner_required": "Enter an organizer.",
       "hashtag_required": "Enter a hashtag.",
       "start_date_required": "Select a start date.",
@@ -684,7 +684,7 @@
       "auto_delete": {
         "enable": "Enable automatic image deletion",
         "days_label": "Delete images N days after end",
-        "helper": "Tournament data remains; only images are deleted (not restorable)."
+        "helper": "Score Attack data remains; only images are deleted (not restorable)."
       },
       "detail": {
         "last_run_at": "Last run",
@@ -695,7 +695,7 @@
       "cleanup_dialog": {
         "title": "Clean up storage",
         "loading": "Loading estimate...",
-        "target_tournament_count": "Target tournaments to delete: {{value}}",
+        "target_tournament_count": "Target Score Attacks to delete: {{value}}",
         "target_image_count": "Target images to delete: {{value}}",
         "estimated_release": "Estimated release size: {{size}}",
         "not_restorable": "Not restorable",
@@ -780,7 +780,7 @@
       "title": "Danger zone",
       "description": "Running local reset deletes the following items.",
       "items": {
-        "tournament": "Tournament data",
+        "tournament": "Score Attack data",
         "images": "Submitted images",
         "song_data": "Song data"
       },
@@ -810,7 +810,7 @@
   },
   "tournament_detail": {
     "action": {
-      "share_tournament": "Share tournament",
+      "share_tournament": "Share Score Attack",
       "open_settings": "Settings",
       "register": "Register",
       "replace": "Replace",
@@ -859,7 +859,7 @@
     },
     "share_dialog": {
       "close_aria_label": "Close share dialog",
-      "definition_only": "Only tournament definition is shared (images are not included).",
+      "definition_only": "Only Score Attack definition is shared (images are not included).",
       "preview_title": "Preview",
       "preview_image_size": "Generated image (1080x1920)",
       "preview_alt": "Shared image preview",

@@ -42,7 +42,7 @@
         "saved_in_browser": "데이터는 현재 사용 중인 브라우저 안에 저장됩니다",
         "no_auto_sync": "서버로 자동 동기화되지 않습니다",
         "may_be_lost": "기기 변경이나 브라우저 데이터 삭제 시 사라질 수 있습니다",
-        "import_available": "QR 코드나 URL 접근으로 대회를 가져올 수 있습니다",
+        "import_available": "QR 코드나 URL 접근으로 스코어 어택을 가져올 수 있습니다",
         "consider_backup": "필요하면 백업을 권장합니다"
       },
       "understood": "위 내용을 이해했습니다",
@@ -91,7 +91,7 @@
       },
       "preview": {
         "title": "가져오기 내용 미리보기",
-        "tournament_name": "대회명: {{value}}",
+        "tournament_name": "스코어 어택명: {{value}}",
         "owner": "주최자: {{value}}",
         "period": "기간: {{start}} ~ {{end}}",
         "chart_count": "채보 수: {{count}}",
@@ -148,11 +148,11 @@
       "initialization_error": "초기화 오류: {{message}}"
     },
     "import": {
-      "require_song_master": "곡 마스터가 없어 대회 생성/가져오기를 사용할 수 없습니다.",
-      "page_require_song_master": "곡 마스터가 없어 대회 가져오기를 사용할 수 없습니다.",
+      "require_song_master": "곡 마스터가 없어 스코어 어택 생성/가져오기를 사용할 수 없습니다.",
+      "page_require_song_master": "곡 마스터가 없어 스코어 어택 가져오기를 사용할 수 없습니다.",
       "unrecognized_data": "가져오기 데이터를 인식할 수 없습니다.",
       "qr_not_found": "이미지에서 QR 코드를 찾지 못했습니다.",
-      "incompatible_period": "기존 대회와 기간이 충돌하여 가져올 수 없습니다.",
+      "incompatible_period": "기존 스코어 어택과 기간이 충돌하여 가져올 수 없습니다.",
       "no_change": "변경 없음",
       "completed": "가져왔습니다",
       "delegation": {
@@ -170,15 +170,15 @@
       "cleanup_log": "용량 정리를 실행했습니다. (이미지 {{count}}건 / 해제 {{released}})"
     },
     "page_title": {
-      "home": "대회 목록",
-      "import": "대회 가져오기",
+      "home": "스코어 어택 목록",
+      "import": "스코어 어택 가져오기",
       "import_confirm": "가져오기 확인",
-      "create": "대회 생성",
-      "detail": "대회 상세",
+      "create": "스코어 어택 생성",
+      "detail": "스코어 어택 상세",
       "submit": "점수 제출"
     },
     "create": {
-      "require_song_master": "곡 마스터가 없어 대회 생성을 사용할 수 없습니다."
+      "require_song_master": "곡 마스터가 없어 스코어 어택 생성을 사용할 수 없습니다."
     },
     "pwa": {
       "apply_update_log": "앱 업데이트를 적용합니다."
@@ -188,15 +188,15 @@
       "copy_failed": "기술 로그 복사에 실패했습니다."
     },
     "tournament": {
-      "create": "대회 생성",
-      "actions": "대회 작업",
-      "deleted": "대회를 삭제했습니다."
+      "create": "스코어 어택 생성",
+      "actions": "스코어 어택 작업",
+      "deleted": "스코어 어택을 삭제했습니다."
     },
     "local_reset": {
       "executed": "로컬 초기화를 실행했습니다."
     },
     "home": {
-      "search_placeholder": "대회명 / 주최자 / 해시태그",
+      "search_placeholder": "스코어 어택명 / 주최자 / 해시태그",
       "search_chip": "검색: \"{{value}}\""
     },
     "tournament_status": {
@@ -236,8 +236,8 @@
       "result_count": "현재 결과: {{count}}건"
     },
     "delete_tournament_confirm": {
-      "title": "이 대회를 삭제할까요?",
-      "description": "대회 데이터와 이미지는 삭제되며 복원할 수 없습니다."
+      "title": "이 스코어 어택을 삭제할까요?",
+      "description": "스코어 어택 데이터와 이미지는 삭제되며 복원할 수 없습니다."
     }
   },
   "home": {
@@ -247,7 +247,7 @@
       "ended": "종료"
     },
     "empty": {
-      "text": "표시할 수 있는 대회가 없습니다.",
+      "text": "표시할 수 있는 스코어 어택이 없습니다.",
       "action": {
         "open_filter": "필터 열기"
       }
@@ -267,10 +267,10 @@
     }
   },
   "import": {
-    "title": "대회 가져오기",
+    "title": "스코어 어택 가져오기",
     "description": "URL 또는 이미지/텍스트 파일에서 가져올 수 있습니다.",
     "warning": {
-      "song_master_unavailable": "곡 마스터 데이터가 없어 대회 가져오기를 사용할 수 없습니다.",
+      "song_master_unavailable": "곡 마스터 데이터가 없어 스코어 어택 가져오기를 사용할 수 없습니다.",
       "song_master_action": "설정 화면의 \"곡 데이터\" 섹션에서 업데이트를 확인하세요."
     },
     "input": {
@@ -294,17 +294,17 @@
       "json_error": "페이로드 JSON 파싱에 실패했습니다.",
       "schema_error": "가져오기 데이터의 필수 항목 또는 타입이 올바르지 않습니다.",
       "too_large": "가져오기 데이터 크기가 제한을 초과했습니다.",
-      "expired": "종료된 대회는 가져올 수 없습니다.",
+      "expired": "종료된 스코어 어택은 가져올 수 없습니다.",
       "master_missing": "곡 마스터 데이터가 없어 검증할 수 없습니다.",
       "chart_not_found": "곡 마스터 데이터에 없는 보면이 있습니다: {{chartIds}}",
       "unsupported_version": "지원하지 않는 데이터 버전입니다.",
-      "period_conflict": "같은 UUID의 기존 대회와 기간이 충돌하여 가져올 수 없습니다.",
+      "period_conflict": "같은 UUID의 기존 스코어 어택과 기간이 충돌하여 가져올 수 없습니다.",
       "unexpected": "예기치 않은 오류: {{message}}"
     },
     "confirm": {
       "section": {
         "charts": "대상 보면",
-        "merge": "기존 대회를 찾았습니다(UUID 일치)",
+        "merge": "기존 스코어 어택을 찾았습니다(UUID 일치)",
         "caution": "주의"
       },
       "status": {
@@ -322,11 +322,11 @@
         "mode": "적용 방식: 병합(보면만)",
         "added_charts": "추가되는 보면 수: {{count}}",
         "same_charts": "기존과 동일한 보면 수: {{count}}",
-        "note": "대회명/개최자/기간/해시태그는 업데이트되지 않습니다."
+        "note": "스코어 어택명/개최자/기간/해시태그는 업데이트되지 않습니다."
       },
       "caution": {
         "self_responsibility": "가져온 데이터는 본인 책임으로 사용하세요.",
-        "uuid_conflict": "UUID가 충돌하면 대회 정보는 유지하고 보면 차이만 적용합니다."
+        "uuid_conflict": "UUID가 충돌하면 스코어 어택 정보는 유지하고 보면 차이만 적용합니다."
       }
     }
   },
@@ -369,15 +369,15 @@
     "out_of_range": "입력 범위가 올바르지 않습니다.",
     "check_input": "입력 내용을 확인해 주세요.",
     "tournament": {
-      "name_required": "대회명을 입력해 주세요.",
-      "name_too_long": "대회명은 {{max}}자 이하로 입력해 주세요.",
+      "name_required": "스코어 어택명을 입력해 주세요.",
+      "name_too_long": "스코어 어택명은 {{max}}자 이하로 입력해 주세요.",
       "owner_required": "개최자를 입력해 주세요.",
       "owner_too_long": "개최자는 {{max}}자 이하로 입력해 주세요.",
       "hashtag_required": "해시태그를 입력해 주세요.",
       "start_date_invalid_format": "시작일은 YYYY-MM-DD 형식으로 입력해 주세요.",
       "end_date_invalid_format": "종료일은 YYYY-MM-DD 형식으로 입력해 주세요.",
       "date_range_invalid": "시작일은 종료일 이전(또는 동일)이어야 합니다.",
-      "past_date_not_allowed": "이미 종료된 대회는 등록할 수 없습니다.",
+      "past_date_not_allowed": "이미 종료된 스코어 어택은 등록할 수 없습니다.",
       "chart_required": "보면을 1개 이상 선택해 주세요.",
       "chart_too_many": "보면은 최대 {{max}}개까지 선택할 수 있습니다.",
       "chart_duplicate": "동일한 보면은 중복 등록할 수 없습니다."
@@ -391,7 +391,7 @@
   },
   "create_tournament": {
     "wizard": {
-      "aria_label": "대회 정의 마법사",
+      "aria_label": "스코어 어택 정의 마법사",
       "step": {
         "basic": "기본 정보",
         "charts": "채보",
@@ -400,14 +400,14 @@
       "nav_item": "{{index}}. {{label}}"
     },
     "step": {
-      "basic_title": "1) 대회 기본 정보",
+      "basic_title": "1) 스코어 어택 기본 정보",
       "charts_title": "2) 대상 채보 ({{current}} / {{max}})",
       "confirm_title": "3) 확인"
     },
     "field": {
       "name": {
-        "label": "대회명 *",
-        "label_plain": "대회명",
+        "label": "스코어 어택명 *",
+        "label_plain": "스코어 어택명",
         "placeholder": "예) 스코어어택 2026"
       },
       "owner": {
@@ -460,7 +460,7 @@
       "set_next_month": "다음 달 (1일~말일)",
       "next_with_step": "{{action}} ({{step}})",
       "back_with_step": "{{action}} ({{step}})",
-      "create": "대회 만들기",
+      "create": "스코어 어택 만들기",
       "creating": "생성 중..."
     },
     "progress": {
@@ -475,7 +475,7 @@
       "selection_delete_aria": "선곡 {{index}} 삭제"
     },
     "validation": {
-      "name_required": "대회명을 입력해 주세요.",
+      "name_required": "스코어 어택명을 입력해 주세요.",
       "owner_required": "주최자를 입력해 주세요.",
       "hashtag_required": "해시태그를 입력해 주세요.",
       "start_date_required": "시작일을 선택해 주세요.",
@@ -684,7 +684,7 @@
       "auto_delete": {
         "enable": "이미지 자동 삭제를 활성화합니다",
         "days_label": "종료 후 N일 뒤 이미지 삭제",
-        "helper": "대회 데이터는 유지되고 이미지만 삭제됩니다(복원 불가)."
+        "helper": "스코어 어택 데이터는 유지되고 이미지만 삭제됩니다(복원 불가)."
       },
       "detail": {
         "last_run_at": "최근 실행 시각",
@@ -695,7 +695,7 @@
       "cleanup_dialog": {
         "title": "저장 공간 정리",
         "loading": "예상치를 가져오는 중...",
-        "target_tournament_count": "삭제 대상 대회 수: {{value}}",
+        "target_tournament_count": "삭제 대상 스코어 어택 수: {{value}}",
         "target_image_count": "삭제 대상 이미지 수: {{value}}",
         "estimated_release": "예상 해제 용량: {{size}}",
         "not_restorable": "복원할 수 없습니다",
@@ -780,7 +780,7 @@
       "title": "위험 작업",
       "description": "로컬 초기화를 실행하면 아래 항목을 삭제합니다.",
       "items": {
-        "tournament": "대회 데이터",
+        "tournament": "스코어 어택 데이터",
         "images": "제출 이미지",
         "song_data": "곡 데이터"
       },
@@ -810,7 +810,7 @@
   },
   "tournament_detail": {
     "action": {
-      "share_tournament": "대회 공유",
+      "share_tournament": "스코어 어택 공유",
       "open_settings": "설정",
       "register": "등록",
       "replace": "교체",
@@ -859,7 +859,7 @@
     },
     "share_dialog": {
       "close_aria_label": "공유 대화상자 닫기",
-      "definition_only": "공유되는 것은 대회 정의만이며(이미지는 포함되지 않음)",
+      "definition_only": "공유되는 것은 스코어 어택 정의만이며(이미지는 포함되지 않음)",
       "preview_title": "미리보기",
       "preview_image_size": "생성 이미지(1080x1920)",
       "preview_alt": "공유 이미지 미리보기",
