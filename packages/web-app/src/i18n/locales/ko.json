@@ -10,6 +10,70 @@
     "not_available": "-",
     "unknown": "알 수 없음"
   },
+  "import": {
+    "title": "대회 가져오기",
+    "description": "URL 또는 이미지/텍스트 파일에서 가져올 수 있습니다.",
+    "warning": {
+      "song_master_unavailable": "곡 마스터 데이터가 없어 대회 가져오기를 사용할 수 없습니다.",
+      "song_master_action": "설정 화면의 \"곡 데이터\" 섹션에서 업데이트를 확인하세요."
+    },
+    "input": {
+      "url_placeholder": "URL 붙여넣기"
+    },
+    "action": {
+      "import_text": "텍스트 가져오기",
+      "import_file": "파일 가져오기",
+      "open_settings": "설정 열기",
+      "import": "가져오기",
+      "importing": "가져오는 중..."
+    },
+    "state": {
+      "loading": "가져오기 데이터를 검증하는 중..."
+    },
+    "error": {
+      "none": "URL 가져오기 링크를 인식하지 못했습니다.",
+      "invalid_param": "URL 파라미터가 올바르지 않습니다.",
+      "decode_error": "페이로드 디코딩에 실패했습니다.",
+      "decompress_error": "페이로드 gzip 압축 해제에 실패했습니다.",
+      "json_error": "페이로드 JSON 파싱에 실패했습니다.",
+      "schema_error": "가져오기 데이터의 필수 항목 또는 타입이 올바르지 않습니다.",
+      "too_large": "가져오기 데이터 크기가 제한을 초과했습니다.",
+      "expired": "종료된 대회는 가져올 수 없습니다.",
+      "master_missing": "곡 마스터 데이터가 없어 검증할 수 없습니다.",
+      "chart_not_found": "곡 마스터 데이터에 없는 보면이 있습니다: {{chartIds}}",
+      "unsupported_version": "지원하지 않는 데이터 버전입니다.",
+      "period_conflict": "같은 UUID의 기존 대회와 기간이 충돌하여 가져올 수 없습니다.",
+      "unexpected": "예기치 않은 오류: {{message}}"
+    },
+    "confirm": {
+      "section": {
+        "charts": "대상 보면",
+        "merge": "기존 대회를 찾았습니다(UUID 일치)",
+        "caution": "주의"
+      },
+      "status": {
+        "upcoming": "개최 전",
+        "active": "개최 중",
+        "ended": "종료"
+      },
+      "value": {
+        "period": "{{from}} ~ {{to}}",
+        "chart_id": "chart:{{chartId}}",
+        "chart_detail": "{{playStyle}} {{difficulty}} Lv{{level}}"
+      },
+      "chart_missing": "곡 마스터 불일치 (chart:{{chartId}})",
+      "merge": {
+        "mode": "적용 방식: 병합(보면만)",
+        "added_charts": "추가되는 보면 수: {{count}}",
+        "same_charts": "기존과 동일한 보면 수: {{count}}",
+        "note": "대회명/개최자/기간/해시태그는 업데이트되지 않습니다."
+      },
+      "caution": {
+        "self_responsibility": "가져온 데이터는 본인 책임으로 사용하세요.",
+        "uuid_conflict": "UUID가 충돌하면 대회 정보는 유지하고 보면 차이만 적용합니다."
+      }
+    }
+  },
   "settings": {
     "title": "설정",
     "language": {
