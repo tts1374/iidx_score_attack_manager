@@ -60,7 +60,7 @@ describe('misc utilities', () => {
       },
       '2026-01-01',
     );
-    expect(errors).toContain('ハッシュタグを入力してください。');
+    expect(errors).toContainEqual({ code: 'TOURNAMENT_HASHTAG_REQUIRED' });
   });
 
   it('normalizes search text with replacement table', () => {

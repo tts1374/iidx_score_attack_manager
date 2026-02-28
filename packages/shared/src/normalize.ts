@@ -18,14 +18,14 @@ const CONTROL_CHAR_RE = /[\u0000-\u001F\u007F]/gu;
 
 function normalizeText(input: unknown, field: string): string {
   if (typeof input !== 'string') {
-    throw new PayloadValidationError(`${field} must be string`);
+    throw new PayloadValidationError({ reason: 'FIELD_TYPE', field });
   }
   const normalized = input.trim().normalize('NFC');
   if (normalized.length === 0) {
-    throw new PayloadValidationError(`${field} is required`);
+    throw new PayloadValidationError({ reason: 'FIELD_REQUIRED', field });
   }
   if (normalized.length > TOURNAMENT_TEXT_MAX) {
-    throw new PayloadValidationError(`${field} exceeds max length`);
+    throw new PayloadValidationError({ reason: 'FIELD_TOO_LONG', field, max: TOURNAMENT_TEXT_MAX });
   }
   return normalized;
 }
@@ -54,50 +54,50 @@ export function formatHashtagForDisplay(value: string): string {
 
 function normalizeHashtagField(input: unknown, field: string): string {
   if (typeof input !== 'string') {
-    throw new PayloadValidationError(`${field} must be string`);
+    throw new PayloadValidationError({ reason: 'FIELD_TYPE', field });
   }
   const normalized = normalizeHashtag(input);
   if (normalized.length === 0) {
-    throw new PayloadValidationError(`${field} is required`);
+    throw new PayloadValidationError({ reason: 'FIELD_REQUIRED', field });
   }
   return normalized;
 }
 
 function normalizeDate(input: unknown, field: string): string {
   if (typeof input !== 'string' || !ISO_DATE_RE.test(input)) {
-    throw new PayloadValidationError(`${field} must be YYYY-MM-DD`);
+    throw new PayloadValidationError({ reason: 'DATE_FORMAT', field });
   }
   return input;
 }
 
 function normalizeUuid(input: unknown): string {
   if (typeof input !== 'string' || !UUID_RE.test(input)) {
-    throw new PayloadValidationError('uuid is invalid');
+    throw new PayloadValidationError({ reason: 'UUID_INVALID', field: 'uuid' });
   }
   return input.toLowerCase();
 }
 
 function normalizeCharts(input: unknown): number[] {
   if (!Array.isArray(input)) {
-    throw new PayloadValidationError('charts must be array');
+    throw new PayloadValidationError({ reason: 'CHARTS_TYPE', field: 'charts' });
   }
   if (input.length === 0) {
-    throw new PayloadValidationError('charts is required');
+    throw new PayloadValidationError({ reason: 'CHARTS_REQUIRED', field: 'charts' });
   }
   if (input.length > TOURNAMENT_MAX_CHARTS) {
-    throw new PayloadValidationError('charts exceeds max size');
+    throw new PayloadValidationError({ reason: 'CHARTS_TOO_MANY', field: 'charts', max: TOURNAMENT_MAX_CHARTS });
   }
 
   const normalized = input.map((v) => {
     if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0) {
-      throw new PayloadValidationError('chart id must be positive integer');
+      throw new PayloadValidationError({ reason: 'CHART_ID_INVALID', field: 'charts' });
     }
     return v;
   });
 
   const uniqueChartIds = new Set(normalized);
   if (uniqueChartIds.size !== normalized.length) {
-    throw new PayloadValidationError('charts contains duplicates');
+    throw new PayloadValidationError({ reason: 'CHARTS_DUPLICATE', field: 'charts' });
   }
   return normalized;
 }
@@ -107,22 +107,22 @@ export function normalizeTournamentPayload(
   options: TournamentPayloadNormalizationOptions = {},
 ): TournamentPayload {
   if (typeof payload !== 'object' || payload === null) {
-    throw new PayloadValidationError('payload must be object');
+    throw new PayloadValidationError({ reason: 'PAYLOAD_TYPE' });
   }
 
   const raw = payload as Record<string, unknown>;
   const version = raw.v;
   if (version !== PAYLOAD_VERSION) {
-    throw new PayloadValidationError(`unsupported payload version: ${version}`);
+    throw new PayloadValidationError({ reason: 'UNSUPPORTED_VERSION', version });
   }
 
   const start = normalizeDate(raw.start, 'start');
   const end = normalizeDate(raw.end, 'end');
   if (start > end) {
-    throw new PayloadValidationError('start must be <= end');
+    throw new PayloadValidationError({ reason: 'DATE_RANGE_INVALID' });
   }
   if (options.nowDate && end < options.nowDate) {
-    throw new PayloadValidationError('past tournament is not allowed');
+    throw new PayloadValidationError({ reason: 'PAST_TOURNAMENT' });
   }
 
   return {

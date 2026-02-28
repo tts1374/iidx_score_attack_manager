@@ -45,12 +45,12 @@ export function isImportConfirmPath(pathname: string): boolean {
 function normalizeBase64Input(value: string): string {
   const normalized = value.trim().replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
   if (normalized.length === 0) {
-    throw new PayloadValidationError('payload string is required');
+    throw new PayloadValidationError({ reason: 'PAYLOAD_REQUIRED' });
   }
 
   const remainder = normalized.length % 4;
   if (remainder === 1) {
-    throw new PayloadBase64DecodeError('base64 decode failed');
+    throw new PayloadBase64DecodeError();
   }
   if (remainder === 0) {
     return normalized;
@@ -77,7 +77,7 @@ export function resolveImportPayloadFromLocation(locationLike: {
       status: 'invalid',
       error: {
         code: 'INVALID_PARAM',
-        message: 'URLパラメータ p が見つからないか空です。',
+        message: 'invalid_param',
       },
     };
   }
@@ -101,54 +101,55 @@ export function classifyImportDecodeError(error: unknown): ImportConfirmError {
   if (error instanceof PayloadBase64DecodeError) {
     return {
       code: 'DECODE_ERROR',
-      message: 'ペイロードのbase64デコードに失敗しました。',
+      message: 'decode_error',
     };
   }
   if (error instanceof PayloadGzipDecodeError) {
     return {
       code: 'DECOMPRESS_ERROR',
-      message: 'ペイロードのgzip展開に失敗しました。',
+      message: 'decompress_error',
     };
   }
   if (error instanceof PayloadJsonParseError) {
     return {
       code: 'JSON_ERROR',
-      message: 'ペイロードJSONの解析に失敗しました。',
+      message: 'json_error',
     };
   }
   if (error instanceof PayloadSizeError) {
     return {
       code: 'TOO_LARGE',
-      message: '取り込みデータサイズが上限を超えています。',
+      message: 'too_large',
     };
   }
   if (error instanceof PayloadValidationError) {
-    if (error.message.includes('payload string is required')) {
+    const reason = typeof error.params?.reason === 'string' ? error.params.reason : null;
+    if (reason === 'PAYLOAD_REQUIRED') {
       return {
         code: 'INVALID_PARAM',
-        message: 'URLパラメータ p が空です。',
+        message: 'invalid_param',
       };
     }
-    if (error.message.includes('unsupported payload version')) {
+    if (reason === 'UNSUPPORTED_VERSION') {
       return {
         code: 'UNSUPPORTED_VERSION',
-        message: '対応していないデータバージョンです。',
+        message: 'unsupported_version',
       };
     }
     return {
       code: 'SCHEMA_ERROR',
-      message: '取り込みデータの必須項目または型が不正です。',
+      message: 'schema_error',
     };
   }
   if (error instanceof URIError) {
     return {
       code: 'DECODE_ERROR',
-      message: 'URLパラメータのデコードに失敗しました。',
+      message: 'decode_error',
     };
   }
   return {
     code: 'SCHEMA_ERROR',
-    message: '取り込みデータの検証に失敗しました。',
+    message: 'schema_error',
   };
 }
 

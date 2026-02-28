@@ -31,6 +31,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { AppLanguage } from '../i18n';
 import { resolveSongMasterRuntimeConfig } from '../services/song-master-config';
+import { resolveErrorMessage } from '../utils/error-i18n';
 
 export type AppSwStatus = 'update_available' | 'enabled' | 'unregistered';
 
@@ -508,12 +509,12 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       try {
         await props.onAutoDeleteConfigChange(nextEnabled, nextDays);
       } catch (error) {
-        setAutoDeleteError(error instanceof Error ? error.message : String(error));
+        setAutoDeleteError(resolveErrorMessage(t, error, 'error.description.generic'));
       } finally {
         setSavingAutoDelete(false);
       }
     },
-    [props],
+    [props, t],
   );
 
   const changeLanguage = React.useCallback(
@@ -584,9 +585,9 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
     void props
       .onEstimateStorageCleanup(days)
       .then((v) => setCleanupEstimate(v))
-      .catch((e) => setCleanupError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setCleanupError(resolveErrorMessage(t, e, 'error.description.generic')))
       .finally(() => setCleanupLoading(false));
-  }, [days, props]);
+  }, [days, props, t]);
 
   const runCleanup = React.useCallback(async () => {
     setCleanupRunning(true);
@@ -596,11 +597,11 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       setCleanupConfirmOpen(false);
       setCleanupDialogOpen(false);
     } catch (error) {
-      setCleanupError(error instanceof Error ? error.message : String(error));
+      setCleanupError(resolveErrorMessage(t, error, 'error.description.generic'));
     } finally {
       setCleanupRunning(false);
     }
-  }, [days, props]);
+  }, [days, props, t]);
 
   const runRefetch = React.useCallback(async () => {
     setRefetchConfirmOpen(false);
@@ -626,7 +627,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       }
       setRefetchPhase('complete');
     } catch (error) {
-      setRefetchError(error instanceof Error ? error.message : String(error));
+      setRefetchError(resolveErrorMessage(t, error, 'error.description.generic'));
       setRefetchPhase('failed');
     }
   }, [props, t]);
@@ -688,7 +689,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       setResetFinalDialogOpen(false);
       setResetConfirmText('');
     } catch (error) {
-      setResetError(error instanceof Error ? error.message : String(error));
+      setResetError(resolveErrorMessage(t, error, 'error.description.generic'));
     } finally {
       setResetRunning(false);
     }
