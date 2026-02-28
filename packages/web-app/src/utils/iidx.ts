@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 export const DIFFICULTY_COLORS: Record<string, string> = {
   BEGINNER: '#79D100',
   NORMAL: '#20A8FF',
@@ -65,18 +67,18 @@ export function versionLabel(version: unknown): string {
 export function statusLabel(status: 'active' | 'upcoming' | 'ended', days?: number): string {
   if (status === 'active') {
     if (days !== undefined && days <= 0) {
-      return '本日まで';
+      return i18n.t('tournament_detail.status.active_today');
     }
     if (days !== undefined) {
-      return `残り${days}日`;
+      return i18n.t('tournament_detail.status.active_remaining_days', { count: days });
     }
-    return '開催中';
+    return i18n.t('home.state.active');
   }
   if (status === 'upcoming') {
     if (days !== undefined) {
-      return `あと${days}日`;
+      return i18n.t('common.tournament_status.days_until_start', { count: days });
     }
-    return '開催前';
+    return i18n.t('home.state.upcoming');
   }
-  return '終了';
+  return i18n.t('home.state.ended');
 }

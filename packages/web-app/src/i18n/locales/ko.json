@@ -199,6 +199,9 @@
       "search_placeholder": "대회명 / 주최자 / 해시태그",
       "search_chip": "검색: \"{{value}}\""
     },
+    "tournament_status": {
+      "days_until_start": "시작까지 {{count}}일"
+    },
     "home_filter": {
       "section": {
         "state": "상태",
@@ -919,5 +922,15 @@
         "no_sendable_images": "전송할 수 있는 전송 대기 이미지가 없습니다."
       }
     }
+  },
+  "whats_new": {
+    "modal": {
+      "title": "업데이트 소식(v0.1.3)",
+      "description": "이번 업데이트 내용:"
+    },
+    "items": [
+      "홈 목록의 검색과 필터 동선을 더 사용하기 쉽게 개선했어요.",
+      "칩 표시와 조작 주변을 정리해 보기 쉽게 만들었어요."
+    ]
   }
 }

@@ -75,7 +75,6 @@ import {
 import { resolveErrorMessage } from './utils/error-i18n';
 import { consumeWhatsNewVisibility } from './utils/whats-new';
 import { CURRENT_VERSION } from './version';
-import { WHATS_NEW_LINES, WHATS_NEW_MODAL_DESCRIPTION, WHATS_NEW_MODAL_TITLE } from './whats-new-content';
 
 function todayJst(): string {
   const now = new Date();
@@ -839,6 +838,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeTypeAttr = resolveHomeTypeAttr(homeQuery.attrs);
   const homeNonMajorChipCount =
     (homeQuery.attrs.includes('send-waiting') ? 1 : 0) + (homeQuery.sort === 'default' ? 0 : 1);
+  const rawWhatsNewItems = t('whats_new.items', { returnObjects: true }) as unknown;
+  const whatsNewItems =
+    Array.isArray(rawWhatsNewItems) ? rawWhatsNewItems.filter((value): value is string => typeof value === 'string') : [];
 
   const openHomeFilterSheet = React.useCallback(
     (focusSection: HomeFilterSheetFocusSection = null) => {
@@ -2460,15 +2462,15 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         />
 
         <Dialog open={whatsNewDialogOpen} onClose={closeWhatsNewDialog} fullWidth maxWidth="sm">
-          <DialogTitle>{WHATS_NEW_MODAL_TITLE}</DialogTitle>
+          <DialogTitle>{t('whats_new.modal.title')}</DialogTitle>
           <DialogContent>
             <Typography variant="body2" sx={{ mb: 1.5 }}>
-              {WHATS_NEW_MODAL_DESCRIPTION}
+              {t('whats_new.modal.description')}
             </Typography>
             <Box component="ul" sx={{ margin: 0, paddingLeft: 3, display: 'grid', gap: 1 }}>
-              {WHATS_NEW_LINES.map((line) => (
-                <Typography key={line} component="li" variant="body2">
-                  {line}
+              {whatsNewItems.map((text, index) => (
+                <Typography key={index} component="li" variant="body2">
+                  {text}
                 </Typography>
               ))}
             </Box>
