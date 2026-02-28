@@ -114,65 +114,49 @@ Current product invariant: single-tab operation via Web Locks.
 
 ------------------------------------------------------------------------
 
-## 10. READ / WRITE Protocol (Windows UTF-8 strict)
+## 10. READ / WRITE Protocol (Windows: UTF-8 strict)
 
-### 10.1 READ (UTF-8 no BOM, line-numbered)
+目的: Windows起因の文字化け（UTF-16/CP932混入、BOM、改行コード揺れ）を作業プロセスで封じる。
 
--   必ず UTF-8 (no BOM) として読む。
--   行番号付きで確認する。
--   BOMは除去して扱う。
+### 10.1 Canonical Encoding Rules（このリポジトリの正解）
 
-```bash
-bash -lc 'powershell -NoLogo -Command "
-$OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false);
-Set-Location -LiteralPath (Convert-Path .);
-function Get-Lines { param([string]$Path,[int]$Skip=0,[int]$First=40)
-  $enc=[Text.UTF8Encoding]::new($false)
-  $text=[IO.File]::ReadAllText($Path,$enc)
-  if($text.Length -gt 0 -and $text[0] -eq [char]0xFEFF){ $text=$text.Substring(1) }
-  $ls=$text -split "`r?`n"
-  for($i=$Skip; $i -lt [Math]::Min($Skip+$First,$ls.Length); $i++){ "{0:D4}: {1}" -f ($i+1), $ls[$i] }
-}
-Get-Lines -Path "path/to/file.ext" -First 120 -Skip 0
-"'
-```
+- テキストは **UTF-8（BOMなし）** が唯一の許容形式。
+- 改行は **LF** が正。CRLFは例外扱い（許可する場合は対象ファイルを明記）。
+- **UTF-16（LE/BE）禁止**。PowerShell既定動作で混入しやすいので特に警戒する。
+- **CP932/Shift_JIS禁止**。ローカルIMEや古いツール由来の混入を想定する。
 
-### 10.2 WRITE (UTF-8 no BOM, atomic replace)
+### 10.2 READ（読む時の原則）
 
--   UTF-8 no BOM 固定。
--   一時ファイル経由で原子的置換。
--   追記ではなく完全内容を書き直す。
--   書き込み後は必ず diff 確認。
+- 読み取りは「UTF-8（BOMなし）」を前提に扱う。  
+  表示が崩れる場合は、まず **BOM/UTF-16/CP932** の混入を疑い、エンコーディングを確定してから処理する。
+- “BOMがあったら除去して読めばよい” を標準運用にしない。  
+  **BOM/UTF-16の存在自体を不具合**とみなし、原因側（生成元）を潰す。
 
-```bash
-bash -lc 'powershell -NoLogo -Command "
-$OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false);
-Set-Location -LiteralPath (Convert-Path .);
-function Write-Utf8NoBom {
-  param([string]$Path,[string]$Content)
-  $dir = Split-Path -Parent $Path
-  if (-not (Test-Path $dir)) {
-    New-Item -ItemType Directory -Path $dir -Force | Out-Null
-  }
-  $tmp = [IO.Path]::GetTempFileName()
-  try {
-    $enc = [Text.UTF8Encoding]::new($false)
-    [IO.File]::WriteAllText($tmp,$Content,$enc)
-    Move-Item $tmp $Path -Force
-  }
-  finally {
-    if (Test-Path $tmp) {
-      Remove-Item $tmp -Force -ErrorAction SilentlyContinue
-    }
-  }
-}
-Write-Utf8NoBom -Path "path/to/file.ext" -Content "NEW_CONTENT_HERE"
-"'
-```
+確認観点（手順ではなく判定基準）:
+- 先頭に不可視文字が入る / 先頭行だけ崩れる → BOM疑い
+- 全文が「□」や記号になる → UTF-16/CP932疑い
+- diffで全行変更になる → CRLF/LF揺れ疑い
 
-### 10.3 禁止事項
+### 10.3 WRITE（書く時の原則）
 
--   UTF-16保存
--   BOM付き保存
--   エディタ依存の自動整形保存
--   CRLF/LFを無断変更
+- 書き込みは常に **UTF-8（BOMなし）** を明示する（既定値に依存しない）。
+- 変更は「部分追記」より「全体再生成」を優先する（混在エンコーディングを避ける）。
+- 保存は原子的（テンポラリ→置換）で行い、生成途中の破損を残さない。
+- 書き込み後は必ず `git diff` で確認し、意図しない **改行/エンコーディング** の全体変化がないことを保証する。
+
+### 10.4 Windows / PowerShell の注意（最小知識）
+
+- PowerShellはコマンドやバージョンによって **既定エンコーディングがUTF-16寄り**になり得る。  
+  したがって「エンコーディング指定なしの書き込み」を禁止する。
+- 文字列→ファイル生成は、言語/ツール側で **encoding指定可能なAPI** を使うこと。
+
+（例示は最小限。手順書ではない）
+- PowerShell: `Set-Content` / `Out-File` は **必ず UTF-8 指定**
+- Node/Python: `writeFile(..., "utf8")` / `open(..., encoding="utf-8")` のように明示
+
+### 10.5 禁止事項（Violation = 修正してからコミット）
+
+- UTF-16保存（LE/BE問わず）
+- BOM付きUTF-8保存
+- エンコーディング/改行を暗黙に変える保存（エディタの自動判定任せ）
+- CRLF/LFの無断変更（必要なら対象と理由をPRに明記）
