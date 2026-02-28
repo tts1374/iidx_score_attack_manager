@@ -813,7 +813,7 @@
   },
   "tournament_detail": {
     "action": {
-      "share_tournament": "스코어 어택 공유",
+      "share_tournament": "대회를 공유(QR)",
       "open_settings": "설정",
       "register": "등록",
       "replace": "교체",
@@ -822,8 +822,8 @@
       "copy_text": "텍스트 복사",
       "copy_logs": "로그 복사",
       "save_to_device": "기기에 저장",
-      "mark_send_completed": "전송 완료로 표시",
-      "submit": "전송"
+      "mark_send_completed": "삭제",
+      "submit": "공유하기"
     },
     "status": {
       "upcoming": "미개최",
@@ -835,6 +835,7 @@
       "period": "{{start}}〜{{end}}",
       "period_with_space": "{{start}} 〜 {{end}}",
       "progress": "등록 {{submitted}} / {{total}}",
+      "state_counts": "공유 완료 {{shared}} ・ 미공유 {{unshared}} ・ 미등록 {{unregistered}}",
       "last_updated": "최종 업데이트: {{date}}"
     },
     "chart": {
@@ -843,8 +844,11 @@
       "status": {
         "error": "오류",
         "pending": "미등록",
-        "submitted": "등록됨",
-        "send_pending": "전송 대기"
+        "submitted": "공유 완료",
+        "send_pending": "미공유",
+        "unregistered": "미등록",
+        "unshared": "미공유",
+        "shared": "공유 완료"
       },
       "resolve_issue": {
         "mismatch": "일부 채보가 곡 데이터와 일치하지 않습니다.",
@@ -862,7 +866,7 @@
     },
     "share_dialog": {
       "close_aria_label": "공유 대화상자 닫기",
-      "definition_only": "공유되는 것은 스코어 어택 정의만이며(이미지는 포함되지 않음)",
+      "definition_only": "대회 정보만 공유합니다",
       "preview_title": "미리보기",
       "preview_image_size": "생성 이미지(1080x1920)",
       "preview_alt": "공유 이미지 미리보기",
@@ -896,16 +900,19 @@
       }
     },
     "submit_bar": {
-      "summary": "전송 대기 {{count}}건"
+      "summary": "미공유 {{count}}건",
+      "cta": "공유하기({{count}})"
     },
     "submit_dialog": {
-      "title": "전송",
+      "title": "공유",
+      "confirm_message": "미공유 곡을 공유합니다({{count}}건)",
       "images_title": "전송할 이미지",
       "images_description": "이미지가 기기 외부로 공유됩니다",
-      "target_count": "전송 대상: {{count}}건",
+      "target_count": "미공유 대상: {{count}}건",
       "message_title": "전송할 메시지",
       "complete_title": "전송 완료로 표시",
       "complete_description": "공유 성공 여부는 자동 판정할 수 없습니다. 상대에게 도달했는지 확인한 뒤 실행하세요.",
+      "undo_action": "되돌리기",
       "notice": {
         "saved_images_count": "{{count}}건의 이미지를 저장했습니다.",
         "save_images_failed": "이미지 저장에 실패했습니다.",
@@ -917,12 +924,16 @@
         "message_share_unsupported": "이 환경에서는 메시지 공유를 지원하지 않습니다.",
         "message_shared": "전송할 메시지를 공유했습니다.",
         "message_share_failed": "메시지 공유에 실패했습니다.",
-        "no_pending": "전송 대기가 없습니다.",
+        "no_pending": "미공유가 없습니다.",
+        "marked_shared": "공유 완료로 처리했습니다.",
+        "fallback_copy_failed": "이미지는 저장했지만 메시지 복사에 실패했습니다.",
+        "undo_applied": "미공유로 되돌렸습니다.",
+        "undo_failed": "되돌리기에 실패했습니다.",
         "completed_count": "{{count}}건을 전송 완료로 처리했습니다.",
         "mark_completed_failed": "전송 완료 상태 업데이트에 실패했습니다."
       },
       "error": {
-        "no_sendable_images": "전송할 수 있는 전송 대기 이미지가 없습니다."
+        "no_sendable_images": "공유할 수 있는 미공유 이미지가 없습니다."
       }
     }
   },

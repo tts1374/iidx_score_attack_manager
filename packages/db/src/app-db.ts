@@ -1422,4 +1422,23 @@ export class AppDatabase {
       [tournamentUuid, ...ids],
     );
   }
+
+  async markEvidenceSendPending(tournamentUuid: string, chartIds: number[]): Promise<void> {
+    const ids = chartIds
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0);
+    if (ids.length === 0) {
+      return;
+    }
+    const placeholders = ids.map(() => '?').join(', ');
+    await this.exec(
+      `UPDATE evidences
+       SET needs_send = 1
+       WHERE tournament_uuid = ?
+         AND file_deleted = 0
+         AND update_seq > 0
+         AND chart_id IN (${placeholders})`,
+      [tournamentUuid, ...ids],
+    );
+  }
 }

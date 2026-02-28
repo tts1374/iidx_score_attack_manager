@@ -1039,6 +1039,41 @@ label {
   gap: 10px;
 }
 
+.detailStateProgressBar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+  display: flex;
+}
+
+.detailStateProgressSegment {
+  height: 100%;
+  min-width: 0;
+}
+
+.detailStateProgressSegment-shared {
+  background: #9fd4ac;
+}
+
+.detailStateProgressSegment-unshared {
+  background: #f2d3a2;
+}
+
+.detailStateProgressSegment-unregistered {
+  background: #cfd8e3;
+}
+
+.detailStateProgressSummary {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .detailRemainingBadge {
   display: inline-flex;
   align-items: center;
@@ -1069,12 +1104,25 @@ label {
   background: #e2e8f0;
 }
 
+.detailShareArea {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  min-width: 180px;
+}
+
 .detailShareButton {
-  min-width: 120px;
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1e40af;
+  min-width: 168px;
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #334155;
   font-weight: 700;
+}
+
+.detailShareHint {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .detailLastUpdated {
@@ -1141,43 +1189,33 @@ label {
   gap: 6px;
   flex-wrap: nowrap;
   overflow: hidden;
-}
-
-.chartPlayStyleText,
-.chartDifficultyTag,
-.chartLevelTag {
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .chartPlayStyleText {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
   color: #334155;
   white-space: nowrap;
 }
 
-.chartDifficultyTag {
-  border-radius: 999px;
-  border: 2px solid #cbd5e1;
-  border-width: 2px;
-  padding: 4px 8px;
-  text-transform: uppercase;
+.chartMetaSeparator {
+  color: #94a3b8;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.chartLevelTag {
-  border-radius: 999px;
-  border: 1px solid #cbd5e1;
-  padding: 4px 8px;
-  color: #0f172a;
-  background: #e2e8f0;
+.chartDifficultyLevelText {
+  font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.chartSubmitLabel {
-  min-width: 56px;
+.chartStateBadge {
+  min-width: 64px;
   text-align: center;
   border-radius: 999px;
   font-size: 12px;
@@ -1185,37 +1223,25 @@ label {
   padding: 4px 8px;
 }
 
-.chartSubmitLabel.pending {
-  color: #334155;
+.chartStateBadge-unregistered {
+  color: #475569;
   background: #e2e8f0;
 }
 
-.chartSubmitLabel.submitted {
-  color: #166534;
-  background: #dcfce7;
+.chartStateBadge-unshared {
+  color: #9a3412;
+  background: #ffedd5;
 }
 
-.chartSubmitLabel.error {
-  color: #b91c1c;
-  background: #fee2e2;
+.chartStateBadge-shared {
+  color: #166534;
+  background: #dcfce7;
 }
 
 .chartStatusLine {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.chartSendPendingBadge {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #9a3412;
-  background: #ffedd5;
-  white-space: nowrap;
 }
 
 .chartActions {
@@ -1723,6 +1749,11 @@ label {
   .tournamentDetailHeader {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .detailShareArea {
+    justify-items: stretch;
+    min-width: 0;
   }
 
   .detailShareButton {

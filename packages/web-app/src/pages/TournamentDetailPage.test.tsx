@@ -1,42 +1,33 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { TournamentDetailItem } from '@iidx/db';
 
 import { TournamentDetailPage } from './TournamentDetailPage';
 
+const serviceMocks = vi.hoisted(() => ({
+  appDb: {
+    getEvidenceRecord: vi.fn(),
+    getEvidenceRelativePath: vi.fn(),
+    markEvidenceSendCompleted: vi.fn(),
+    markEvidenceSendPending: vi.fn(),
+  },
+  opfs: {
+    readFile: vi.fn(),
+  },
+}));
+
 vi.mock('../services/context', () => ({
-  useAppServices: () => ({
-    appDb: {
-      getEvidenceRecord: vi.fn(),
-      getEvidenceRelativePath: vi.fn(),
-      markEvidenceSendCompleted: vi.fn(),
-    },
-    opfs: {
-      readFile: vi.fn(),
-    },
-  }),
+  useAppServices: () => serviceMocks,
 }));
 
 const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
-
-beforeEach(() => {
-  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
-    configurable: true,
-    writable: true,
-    value: vi.fn(() => null),
-  });
-});
-
-afterEach(() => {
-  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
-    configurable: true,
-    writable: true,
-    value: originalCanvasGetContext,
-  });
-  cleanup();
-});
+const originalCreateObjectUrl = URL.createObjectURL;
+const originalRevokeObjectUrl = URL.revokeObjectURL;
+const originalNavigatorClipboard = Object.getOwnPropertyDescriptor(window.navigator, 'clipboard');
+const originalNavigatorShare = Object.getOwnPropertyDescriptor(window.navigator, 'share');
+const originalNavigatorCanShare = Object.getOwnPropertyDescriptor(window.navigator, 'canShare');
 
 const detail: TournamentDetailItem = {
   tournamentUuid: '11111111-1111-4111-8111-111111111111',
@@ -49,9 +40,9 @@ const detail: TournamentDetailItem = {
   endDate: '2026-02-12',
   isImported: false,
   chartCount: 3,
-  submittedCount: 1,
+  submittedCount: 2,
   sendWaitingCount: 1,
-  pendingCount: 2,
+  pendingCount: 1,
   lastSubmittedAt: '2026-02-10T12:00:00.000Z',
   charts: [
     {
@@ -84,9 +75,9 @@ const detail: TournamentDetailItem = {
       playStyle: 'DP',
       difficulty: 'NORMAL',
       level: '8',
-      resolveIssue: 'CHART_NOT_FOUND' as const,
-      submitted: false,
-      updateSeq: 0,
+      resolveIssue: null,
+      submitted: true,
+      updateSeq: 1,
       needsSend: false,
       fileDeleted: false,
     },
@@ -101,183 +92,200 @@ function buildDetail(overrides: Partial<TournamentDetailItem> = {}): TournamentD
   };
 }
 
+function renderPage(overrides: Partial<TournamentDetailItem> = {}, todayDate = '2026-02-10'): void {
+  render(
+    <TournamentDetailPage
+      detail={buildDetail(overrides)}
+      todayDate={todayDate}
+      onOpenSubmit={() => undefined}
+      onUpdated={() => undefined}
+      onOpenSettings={() => undefined}
+      debugModeEnabled={false}
+      debugLastError={null}
+      onReportDebugError={() => undefined}
+    />,
+  );
+}
+
+function mockWebShareAvailable(): { share: ReturnType<typeof vi.fn>; canShare: ReturnType<typeof vi.fn> } {
+  const share = vi.fn().mockResolvedValue(undefined);
+  const canShare = vi.fn().mockReturnValue(true);
+  Object.defineProperty(window.navigator, 'share', {
+    configurable: true,
+    value: share,
+  });
+  Object.defineProperty(window.navigator, 'canShare', {
+    configurable: true,
+    value: canShare,
+  });
+  return { share, canShare };
+}
+
 describe('TournamentDetailPage', () => {
-  it('shows active tournament actions and hashtag-only send message', async () => {
-    render(
-      <TournamentDetailPage
-        detail={buildDetail()}
-        todayDate="2026-02-10"
-        onOpenSubmit={() => undefined}
-        onUpdated={() => undefined}
-        onOpenSettings={() => undefined}
-        debugModeEnabled={false}
-        debugLastError={null}
-        onReportDebugError={() => undefined}
-      />,
-    );
+  beforeEach(() => {
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => null),
+    });
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => 'blob:mock'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+    Object.defineProperty(window.navigator, 'share', {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window.navigator, 'canShare', {
+      configurable: true,
+      value: undefined,
+    });
 
-    expect(screen.getByTestId('tournament-detail-share-button')).toBeTruthy();
-    const submitButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
-    expect(submitButton.disabled).toBe(false);
-    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
-    expect(screen.getAllByTestId('tournament-detail-chart-submit-button').length).toBeGreaterThan(0);
-    const submittedLabels = screen
-      .getAllByTestId('tournament-detail-chart-status-label')
-      .filter((element) => element.getAttribute('data-chart-status') === 'submitted');
-    expect(submittedLabels.length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('tournament-detail-chart-send-pending-badge').length).toBe(1);
-
-    await userEvent.click(submitButton);
-    const submitMessageInput = screen.getByTestId('tournament-detail-submit-message-input') as HTMLInputElement;
-    expect(submitMessageInput.value).toBe('#SCOREATTACK ');
-    expect(screen.getByTestId('tournament-detail-mark-send-completed-button')).toBeTruthy();
+    vi.clearAllMocks();
+    serviceMocks.appDb.getEvidenceRecord.mockResolvedValue({ fileDeleted: false });
+    serviceMocks.appDb.getEvidenceRelativePath.mockResolvedValue('evidences/mock/1.jpg');
+    serviceMocks.appDb.markEvidenceSendCompleted.mockResolvedValue(undefined);
+    serviceMocks.appDb.markEvidenceSendPending.mockResolvedValue(undefined);
+    serviceMocks.opfs.readFile.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
   });
 
-  it('normalizes japanese hashtag for submit message', async () => {
-    render(
-      <TournamentDetailPage
-        detail={buildDetail({ hashtag: '  ＃スコア タ  ' })}
-        todayDate="2026-02-10"
-        onOpenSubmit={() => undefined}
-        onUpdated={() => undefined}
-        onOpenSettings={() => undefined}
-        debugModeEnabled={false}
-        debugLastError={null}
-        onReportDebugError={() => undefined}
-      />,
-    );
+  afterEach(() => {
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      configurable: true,
+      writable: true,
+      value: originalCanvasGetContext,
+    });
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: originalCreateObjectUrl,
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      writable: true,
+      value: originalRevokeObjectUrl,
+    });
+    if (originalNavigatorClipboard) {
+      Object.defineProperty(window.navigator, 'clipboard', originalNavigatorClipboard);
+    }
+    if (originalNavigatorShare) {
+      Object.defineProperty(window.navigator, 'share', originalNavigatorShare);
+    }
+    if (originalNavigatorCanShare) {
+      Object.defineProperty(window.navigator, 'canShare', originalNavigatorCanShare);
+    }
+    vi.restoreAllMocks();
+    cleanup();
+  });
+
+  it('shows exactly one state badge per chart and summary counts for 3 states', () => {
+    renderPage();
+
+    const statusLabels = screen.getAllByTestId('tournament-detail-chart-status-label');
+    expect(statusLabels).toHaveLength(3);
+    expect(statusLabels.map((node) => node.getAttribute('data-chart-state'))).toEqual(['unregistered', 'unshared', 'shared']);
+    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
+    expect(screen.getByTestId('tournament-detail-state-summary-text').textContent).toContain('共有済');
+  });
+
+  it('renders chart attributes as one line text and removes attribute badges', () => {
+    renderPage();
+
+    const metaLines = screen.getAllByTestId('tournament-detail-chart-meta-line');
+    expect(metaLines).toHaveLength(3);
+    expect(metaLines[0]?.textContent).toContain('SP');
+    expect(metaLines[0]?.textContent).toContain('ANOTHER 12');
+    expect(metaLines[1]?.textContent).toContain('SP');
+    expect(metaLines[2]?.textContent).toContain('DP');
+    expect(document.querySelector('.chartDifficultyTag')).toBeNull();
+    expect(document.querySelector('.chartLevelTag')).toBeNull();
+  });
+
+  it('enables the footer share CTA outside active period when unshared charts exist', () => {
+    renderPage({}, '2026-02-13');
+
+    const footerShareButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
+    expect(footerShareButton.disabled).toBe(false);
+  });
+
+  it('disables the footer share CTA when unshared count is zero', () => {
+    renderPage({
+      charts: detail.charts.map((chart) => ({
+        ...chart,
+        needsSend: false,
+      })),
+    });
+
+    const footerShareButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
+    expect(footerShareButton.disabled).toBe(true);
+  });
+
+  it('opens submit share confirm dialog with cancel and one submit action', async () => {
+    renderPage();
 
     await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
-    const submitMessageInput = screen.getByTestId('tournament-detail-submit-message-input') as HTMLInputElement;
-    expect(submitMessageInput.value).toBe('#スコアタ ');
+    const dialog = screen.getByTestId('tournament-detail-submit-dialog');
+    expect(dialog).toBeTruthy();
+    expect(screen.getByTestId('tournament-detail-submit-confirm-text').textContent).toContain('未共有の曲を共有します');
+    const dialogScope = within(dialog);
+    expect(dialogScope.getByRole('button', { name: 'キャンセル' })).toBeTruthy();
+    expect(dialogScope.getByTestId('tournament-detail-submit-share-button')).toBeTruthy();
+    expect(screen.queryByTestId('tournament-detail-submit-message-input')).toBeNull();
+    expect(screen.queryByTestId('tournament-detail-mark-send-completed-button')).toBeNull();
   });
 
-  it('clears send pending only after explicit completion action', async () => {
-    render(
-      <TournamentDetailPage
-        detail={buildDetail()}
-        todayDate="2026-02-10"
-        onOpenSubmit={() => undefined}
-        onUpdated={() => undefined}
-        onOpenSettings={() => undefined}
-        debugModeEnabled={false}
-        debugLastError={null}
-        onReportDebugError={() => undefined}
-      />,
-    );
-
-    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
+  it('marks as shared only on success and allows undo for the latest operation', async () => {
+    const { share } = mockWebShareAvailable();
+    renderPage();
 
     await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
-    await userEvent.click(screen.getByTestId('tournament-detail-mark-send-completed-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
 
-    expect(await screen.findByTestId('tournament-detail-submit-notice-alert')).toBeTruthy();
-    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('0');
-    expect(screen.queryByTestId('tournament-detail-chart-send-pending-badge')).toBeNull();
-    const completeButton = screen.getByTestId('tournament-detail-mark-send-completed-button') as HTMLButtonElement;
-    expect(completeButton.disabled).toBe(true);
+    await waitFor(() => {
+      expect(share).toHaveBeenCalledTimes(1);
+      expect(serviceMocks.appDb.markEvidenceSendCompleted).toHaveBeenCalledWith(detail.tournamentUuid, [101]);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('0');
+    });
+
+    const undoButton = await screen.findByTestId('tournament-detail-submit-undo-button');
+    await userEvent.click(undoButton);
+
+    await waitFor(() => {
+      expect(serviceMocks.appDb.markEvidenceSendPending).toHaveBeenCalledWith(detail.tournamentUuid, [101]);
+    });
+    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
   });
 
-  it('separates share modal content and debug info visibility', async () => {
-    render(
-      <TournamentDetailPage
-        detail={buildDetail()}
-        todayDate="2026-02-10"
-        onOpenSubmit={() => undefined}
-        onUpdated={() => undefined}
-        onOpenSettings={() => undefined}
-        debugModeEnabled={true}
-        debugLastError="sample error"
-        onReportDebugError={() => undefined}
-      />,
-    );
+  it('does not mark as shared when fallback copy fails', async () => {
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockRejectedValue(new Error('copy failed')),
+      },
+    });
+    renderPage();
 
-    const shareButtons = screen.getAllByTestId('tournament-detail-share-button');
-    expect(shareButtons.length).toBeGreaterThan(0);
-    await userEvent.click(shareButtons[0]!);
-    expect(screen.getByTestId('tournament-detail-share-dialog')).toBeTruthy();
-    expect(screen.getByTestId('tournament-detail-share-definition-alert')).toBeTruthy();
-    expect(await screen.findByTestId('tournament-detail-share-debug-accordion')).toBeTruthy();
-  });
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
 
-  it('hides share button for imported tournaments', () => {
-    render(
-      <TournamentDetailPage
-        detail={buildDetail({ isImported: true })}
-        todayDate="2026-02-10"
-        onOpenSubmit={() => undefined}
-        onUpdated={() => undefined}
-        onOpenSettings={() => undefined}
-        debugModeEnabled={false}
-        debugLastError={null}
-        onReportDebugError={() => undefined}
-      />,
-    );
-
-    expect(screen.queryByTestId('tournament-detail-share-button')).toBeNull();
-  });
-
-  it('hides chart register buttons and disables send bar outside active period', () => {
-    const { rerender } = render(
-      <TournamentDetailPage
-        detail={buildDetail()}
-        todayDate="2026-01-31"
-        onOpenSubmit={() => undefined}
-        onUpdated={() => undefined}
-        onOpenSettings={() => undefined}
-        debugModeEnabled={false}
-        debugLastError={null}
-        onReportDebugError={() => undefined}
-      />,
-    );
-
-    const upcomingSubmitButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
-    expect(upcomingSubmitButton.disabled).toBe(true);
-    expect(screen.queryByTestId('tournament-detail-chart-submit-button')).toBeNull();
-
-    rerender(
-      <TournamentDetailPage
-        detail={buildDetail()}
-        todayDate="2026-02-13"
-        onOpenSubmit={() => undefined}
-        onUpdated={() => undefined}
-        onOpenSettings={() => undefined}
-        debugModeEnabled={false}
-        debugLastError={null}
-        onReportDebugError={() => undefined}
-      />,
-    );
-
-    const endedSubmitButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
-    expect(endedSubmitButton.disabled).toBe(true);
-    expect(screen.queryByTestId('tournament-detail-chart-submit-button')).toBeNull();
-  });
-
-  it('disables send bar when all charts are unregistered', () => {
-    render(
-      <TournamentDetailPage
-        detail={buildDetail({
-          submittedCount: 0,
-          pendingCount: detail.chartCount,
-          lastSubmittedAt: null,
-          charts: detail.charts.map((chart) => ({
-            ...chart,
-            submitted: false,
-            updateSeq: 0,
-            fileDeleted: false,
-          })),
-        })}
-        todayDate="2026-02-10"
-        onOpenSubmit={() => undefined}
-        onUpdated={() => undefined}
-        onOpenSettings={() => undefined}
-        debugModeEnabled={false}
-        debugLastError={null}
-        onReportDebugError={() => undefined}
-      />,
-    );
-
-    const submitButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
-    expect(submitButton.disabled).toBe(true);
+    await waitFor(() => {
+      expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
+    });
+    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
   });
 });
