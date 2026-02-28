@@ -42,7 +42,7 @@
         "saved_in_browser": "データはご利用中のブラウザ内に保存されます",
         "no_auto_sync": "サーバーへの自動同期は行われません",
         "may_be_lost": "端末変更やブラウザデータ削除で消える場合があります",
-        "import_available": "QRコードやURLアクセスで大会をインポートすることができます",
+        "import_available": "QRコードやURLアクセスでスコアタをインポートすることができます",
         "consider_backup": "必要に応じてバックアップをご検討ください"
       },
       "understood": "上記を理解しました",
@@ -91,7 +91,7 @@
       },
       "preview": {
         "title": "取り込み内容プレビュー",
-        "tournament_name": "大会名: {{value}}",
+        "tournament_name": "スコアタ名: {{value}}",
         "owner": "開催者: {{value}}",
         "period": "期間: {{start}} 〜 {{end}}",
         "chart_count": "譜面数: {{count}}",
@@ -148,11 +148,11 @@
       "initialization_error": "初期化エラー: {{message}}"
     },
     "import": {
-      "require_song_master": "曲マスタが未取得のため、大会作成/取込は利用できません。",
-      "page_require_song_master": "曲マスタが未取得のため大会取込は利用できません。",
+      "require_song_master": "曲マスタが未取得のため、スコアタ作成/取込は利用できません。",
+      "page_require_song_master": "曲マスタが未取得のためスコアタ取込は利用できません。",
       "unrecognized_data": "取込データを認識できません。",
       "qr_not_found": "画像内にQRコードが見つかりませんでした。",
-      "incompatible_period": "既存大会と開催期間が矛盾するため取り込みできません。",
+      "incompatible_period": "既存スコアタと開催期間が矛盾するため取り込みできません。",
       "no_change": "変更なし",
       "completed": "取り込みました",
       "delegation": {
@@ -170,15 +170,15 @@
       "cleanup_log": "容量整理を実行しました。（画像 {{count}} 件 / 解放 {{released}}）"
     },
     "page_title": {
-      "home": "大会一覧",
-      "import": "大会取込",
+      "home": "スコアタ一覧",
+      "import": "スコアタ取込",
       "import_confirm": "取り込み確認",
-      "create": "大会作成",
-      "detail": "大会詳細",
+      "create": "スコアタ作成",
+      "detail": "スコアタ詳細",
       "submit": "スコア提出"
     },
     "create": {
-      "require_song_master": "曲マスタが未取得のため大会作成は利用できません。"
+      "require_song_master": "曲マスタが未取得のためスコアタ作成は利用できません。"
     },
     "pwa": {
       "apply_update_log": "アプリ更新を適用します。"
@@ -188,15 +188,15 @@
       "copy_failed": "技術ログのコピーに失敗しました。"
     },
     "tournament": {
-      "create": "大会を作成",
-      "actions": "大会アクション",
-      "deleted": "大会を削除しました。"
+      "create": "スコアタを作成",
+      "actions": "スコアタアクション",
+      "deleted": "スコアタを削除しました。"
     },
     "local_reset": {
       "executed": "ローカル初期化を実行しました。"
     },
     "home": {
-      "search_placeholder": "大会名 / 開催者 / ハッシュタグ",
+      "search_placeholder": "スコアタ名 / 開催者 / ハッシュタグ",
       "search_chip": "検索: \"{{value}}\""
     },
     "tournament_status": {
@@ -236,8 +236,8 @@
       "result_count": "現在の結果: {{count}}件"
     },
     "delete_tournament_confirm": {
-      "title": "大会を削除しますか？",
-      "description": "大会データと画像は削除され、復元できません"
+      "title": "スコアタを削除しますか？",
+      "description": "スコアタデータと画像は削除され、復元できません"
     }
   },
   "home": {
@@ -247,7 +247,7 @@
       "ended": "終了"
     },
     "empty": {
-      "text": "表示できる大会がありません。",
+      "text": "表示できるスコアタがありません。",
       "action": {
         "open_filter": "フィルタを開く"
       }
@@ -267,10 +267,10 @@
     }
   },
   "import": {
-    "title": "大会取込",
+    "title": "スコアタ取込",
     "description": "URLもしくは画像/テキストファイルを取り込めます。",
     "warning": {
-      "song_master_unavailable": "曲マスタが未取得のため、大会取込は利用できません。",
+      "song_master_unavailable": "曲マスタが未取得のため、スコアタ取込は利用できません。",
       "song_master_action": "設定画面の「曲データ」セクションで更新を確認してください。"
     },
     "input": {
@@ -294,17 +294,17 @@
       "json_error": "ペイロードJSONの解析に失敗しました。",
       "schema_error": "取り込みデータの必須項目または型が不正です。",
       "too_large": "取り込みデータサイズが上限を超えています。",
-      "expired": "終了済みの大会は取り込みできません。",
+      "expired": "終了済みのスコアタは取り込みできません。",
       "master_missing": "曲マスタが未取得のため検証できません。",
       "chart_not_found": "曲マスタに存在しない譜面があります: {{chartIds}}",
       "unsupported_version": "対応していないデータバージョンです。",
-      "period_conflict": "UUID一致の既存大会と開催期間が矛盾するため取り込みできません。",
+      "period_conflict": "UUID一致の既存スコアタと開催期間が矛盾するため取り込みできません。",
       "unexpected": "予期しないエラー: {{message}}"
     },
     "confirm": {
       "section": {
         "charts": "対象譜面",
-        "merge": "既存大会が見つかりました（UUID一致）",
+        "merge": "既存スコアタが見つかりました（UUID一致）",
         "caution": "注意"
       },
       "status": {
@@ -322,11 +322,11 @@
         "mode": "適用方式: マージ（譜面のみ）",
         "added_charts": "追加される譜面数: {{count}}",
         "same_charts": "既存と同一の譜面数: {{count}}",
-        "note": "大会名/開催者/期間/ハッシュタグは更新されません。"
+        "note": "スコアタ名/開催者/期間/ハッシュタグは更新されません。"
       },
       "caution": {
         "self_responsibility": "取り込みデータは自己責任で利用してください。",
-        "uuid_conflict": "UUID衝突時は大会情報を更新せず、譜面差分のみを適用します。"
+        "uuid_conflict": "UUID衝突時はスコアタ情報を更新せず、譜面差分のみを適用します。"
       }
     }
   },
@@ -369,15 +369,15 @@
     "out_of_range": "入力範囲が正しくありません。",
     "check_input": "入力内容を確認してください。",
     "tournament": {
-      "name_required": "大会名を入力してください。",
-      "name_too_long": "大会名は{{max}}文字以内で入力してください。",
+      "name_required": "スコアタ名を入力してください。",
+      "name_too_long": "スコアタ名は{{max}}文字以内で入力してください。",
       "owner_required": "開催者を入力してください。",
       "owner_too_long": "開催者は{{max}}文字以内で入力してください。",
       "hashtag_required": "ハッシュタグを入力してください。",
       "start_date_invalid_format": "開始日はYYYY-MM-DD形式で入力してください。",
       "end_date_invalid_format": "終了日はYYYY-MM-DD形式で入力してください。",
       "date_range_invalid": "開始日は終了日以前を指定してください。",
-      "past_date_not_allowed": "過去に終了した大会は登録できません。",
+      "past_date_not_allowed": "過去に終了したスコアタは登録できません。",
       "chart_required": "譜面を1件以上選択してください。",
       "chart_too_many": "譜面は最大{{max}}件です。",
       "chart_duplicate": "同一譜面を重複登録できません。"
@@ -391,7 +391,7 @@
   },
   "create_tournament": {
     "wizard": {
-      "aria_label": "大会定義ウィザード",
+      "aria_label": "スコアタ定義ウィザード",
       "step": {
         "basic": "基本情報",
         "charts": "譜面",
@@ -400,14 +400,14 @@
       "nav_item": "{{index}}. {{label}}"
     },
     "step": {
-      "basic_title": "1) 大会基本情報",
+      "basic_title": "1) スコアタ基本情報",
       "charts_title": "2) 対象譜面 ({{current}} / {{max}})",
       "confirm_title": "3) 確認"
     },
     "field": {
       "name": {
-        "label": "大会名 *",
-        "label_plain": "大会名",
+        "label": "スコアタ名 *",
+        "label_plain": "スコアタ名",
         "placeholder": "例）スコアタ2026"
       },
       "owner": {
@@ -460,7 +460,7 @@
       "set_next_month": "来月（1日〜月末）",
       "next_with_step": "{{action}}（{{step}}）",
       "back_with_step": "{{action}}（{{step}}）",
-      "create": "大会を作成",
+      "create": "スコアタを作成",
       "creating": "作成中..."
     },
     "progress": {
@@ -475,7 +475,7 @@
       "selection_delete_aria": "選曲 {{index}} を削除"
     },
     "validation": {
-      "name_required": "大会名を入力してください。",
+      "name_required": "スコアタ名を入力してください。",
       "owner_required": "開催者を入力してください。",
       "hashtag_required": "ハッシュタグを入力してください。",
       "start_date_required": "開始日を選択してください。",
@@ -684,7 +684,7 @@
       "auto_delete": {
         "enable": "画像自動削除を有効にする",
         "days_label": "終了後N日で画像削除",
-        "helper": "大会データは残り、画像のみ削除（復元不可）"
+        "helper": "スコアタデータは残り、画像のみ削除（復元不可）"
       },
       "detail": {
         "last_run_at": "直近実行日時",
@@ -695,7 +695,7 @@
       "cleanup_dialog": {
         "title": "容量を整理",
         "loading": "見積りを取得中...",
-        "target_tournament_count": "削除対象大会数: {{value}} 件",
+        "target_tournament_count": "削除対象スコアタ数: {{value}} 件",
         "target_image_count": "削除対象画像枚数: {{value}} 枚",
         "estimated_release": "解放見込み容量（概算）: {{size}}",
         "not_restorable": "復元不可",
@@ -780,7 +780,7 @@
       "title": "危険操作",
       "description": "ローカル初期化を実行すると以下を削除します。",
       "items": {
-        "tournament": "大会データ",
+        "tournament": "スコアタデータ",
         "images": "提出画像",
         "song_data": "曲データ"
       },
@@ -810,7 +810,7 @@
   },
   "tournament_detail": {
     "action": {
-      "share_tournament": "大会を共有",
+      "share_tournament": "スコアタを共有",
       "open_settings": "設定",
       "register": "登録",
       "replace": "差し替え",
@@ -859,7 +859,7 @@
     },
     "share_dialog": {
       "close_aria_label": "共有ダイアログを閉じる",
-      "definition_only": "共有されるのは大会定義のみ（画像は含まれません）",
+      "definition_only": "共有されるのはスコアタ定義のみ（画像は含まれません）",
       "preview_title": "プレビュー",
       "preview_image_size": "生成画像（1080x1920）",
       "preview_alt": "共有画像プレビュー",
