@@ -179,6 +179,25 @@ type HomeFilterCategory = 'none' | 'pending' | 'completed';
 type HomeFilterAttr = 'send-waiting' | 'imported' | 'created';
 type HomeSort = 'default' | 'deadline' | 'progress-low' | 'send-waiting-high' | 'name';
 type HomeFilterSheetFocusSection = 'state' | 'category' | 'type' | 'attrs' | null;
+type HomeAppliedChipCategory = 'status' | 'condition' | 'type';
+type HomeAppliedChipVariant = 'filled' | 'tonal' | 'outlined';
+type HomeAppliedChipClickTarget = Exclude<HomeFilterSheetFocusSection, null> | 'search';
+type HomeAppliedChipRemoveTarget = 'category' | 'type' | 'send-waiting' | 'search';
+
+interface HomeAppliedChipDescriptor {
+  id: string;
+  category: HomeAppliedChipCategory;
+  priority: number;
+  variant: HomeAppliedChipVariant;
+  label: string;
+  clickTarget: HomeAppliedChipClickTarget;
+  removeTarget?: HomeAppliedChipRemoveTarget;
+}
+
+interface HomeAppliedChipViewModel extends HomeAppliedChipDescriptor {
+  onClick: () => void;
+  onRemove?: () => void;
+}
 
 interface HomeSortOption {
   value: HomeSort;
@@ -242,6 +261,7 @@ const EMPTY_HOME_TOURNAMENT_BUCKETS: HomeTournamentBuckets = {
 };
 
 const HOME_FILTER_ATTR_VALUES: readonly HomeFilterAttr[] = ['send-waiting', 'imported', 'created'];
+const HOME_APPLIED_CHIP_MAX_VISIBLE = 3;
 
 function normalizeAsciiLowercase(value: string): string {
   return value.replace(/[A-Z]/g, (char) => char.toLowerCase());
@@ -511,6 +531,61 @@ function resolveHomeTypeAttr(attrs: readonly HomeFilterAttr[]): 'imported' | 'cr
     return 'created';
   }
   return null;
+}
+
+function resolveHomeChipCategoryPriority(category: HomeAppliedChipCategory): number {
+  switch (category) {
+    case 'status':
+      return 0;
+    case 'condition':
+      return 1;
+    default:
+      return 2;
+  }
+}
+
+function compareHomeAppliedChip(a: HomeAppliedChipDescriptor, b: HomeAppliedChipDescriptor): number {
+  const categoryComparison = resolveHomeChipCategoryPriority(a.category) - resolveHomeChipCategoryPriority(b.category);
+  if (categoryComparison !== 0) {
+    return categoryComparison;
+  }
+  const priorityComparison = a.priority - b.priority;
+  if (priorityComparison !== 0) {
+    return priorityComparison;
+  }
+  return a.id.localeCompare(b.id);
+}
+
+function resolveHomeConditionPriorityForCategory(category: HomeFilterCategory): number {
+  if (category === 'pending') {
+    return 10;
+  }
+  return 30;
+}
+
+function resolveHomeTypeChipPriority(attr: 'imported' | 'created'): number {
+  return attr === 'imported' ? 10 : 20;
+}
+
+interface HomeVisibleChipState {
+  visibleChips: HomeAppliedChipDescriptor[];
+  hiddenCount: number;
+}
+
+function selectHomeVisibleChips(chips: readonly HomeAppliedChipDescriptor[]): HomeVisibleChipState {
+  const sorted = [...chips].sort(compareHomeAppliedChip);
+  const statusChips = sorted.filter((chip) => chip.category === 'status').slice(0, 1);
+  const conditionChips = sorted.filter((chip) => chip.category === 'condition').slice(0, 2);
+  const typeChip = sorted.find((chip) => chip.category === 'type') ?? null;
+  const visibleChips = [...statusChips, ...conditionChips];
+  if (typeChip && visibleChips.length < HOME_APPLIED_CHIP_MAX_VISIBLE) {
+    visibleChips.push(typeChip);
+  }
+  const normalizedVisible = visibleChips.sort(compareHomeAppliedChip);
+  return {
+    visibleChips: normalizedVisible,
+    hiddenCount: Math.max(0, sorted.length - normalizedVisible.length),
+  };
 }
 
 function homeSortLabel(sort: HomeSort, t: (key: string) => string): string {
@@ -850,7 +925,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeHasSearchQuery = homeNormalizedSearch.length > 0;
   const homeSearchChip = homeHasSearchQuery ? truncateSearchChipText(homeNormalizedSearch) : '';
   const homeTypeAttr = resolveHomeTypeAttr(homeQuery.attrs);
-  const homeNonMajorChipCount = homeQuery.attrs.includes('send-waiting') ? 1 : 0;
   const homeSortLabelText = homeSortLabel(homeQuery.sort, t);
   const rawWhatsNewItems = t('whats_new.items', { returnObjects: true }) as unknown;
   const whatsNewItems =
@@ -971,6 +1045,120 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       attrs: previous.attrs.filter((value) => value !== attr),
     }));
   }, []);
+
+  const clearHomeSendWaitingAttr = React.useCallback(() => {
+    clearHomeAttr('send-waiting');
+  }, [clearHomeAttr]);
+
+  const homeAppliedChipDescriptors = React.useMemo<HomeAppliedChipDescriptor[]>(() => {
+    const descriptors: HomeAppliedChipDescriptor[] = [
+      {
+        id: `status-${homeQuery.state}`,
+        category: 'status',
+        priority: 0,
+        variant: 'filled',
+        label: homeStateLabel(homeQuery.state, t),
+        clickTarget: 'state',
+      },
+    ];
+
+    if (homeQuery.category !== 'none') {
+      descriptors.push({
+        id: `condition-category-${homeQuery.category}`,
+        category: 'condition',
+        priority: resolveHomeConditionPriorityForCategory(homeQuery.category),
+        variant: 'tonal',
+        label: homeCategoryLabel(homeQuery.category, t),
+        clickTarget: 'category',
+        removeTarget: 'category',
+      });
+    }
+
+    if (homeQuery.attrs.includes('send-waiting')) {
+      descriptors.push({
+        id: 'condition-send-waiting',
+        category: 'condition',
+        priority: 20,
+        variant: 'tonal',
+        label: homeAttrLabel('send-waiting', t),
+        clickTarget: 'attrs',
+        removeTarget: 'send-waiting',
+      });
+    }
+
+    if (homeHasSearchQuery) {
+      descriptors.push({
+        id: 'condition-search',
+        category: 'condition',
+        priority: 40,
+        variant: 'tonal',
+        label: t('common.home.search_chip', { value: homeSearchChip }),
+        clickTarget: 'search',
+        removeTarget: 'search',
+      });
+    }
+
+    if (homeTypeAttr) {
+      descriptors.push({
+        id: `type-${homeTypeAttr}`,
+        category: 'type',
+        priority: resolveHomeTypeChipPriority(homeTypeAttr),
+        variant: 'outlined',
+        label: homeAttrLabel(homeTypeAttr, t),
+        clickTarget: 'type',
+        removeTarget: 'type',
+      });
+    }
+
+    return descriptors.sort(compareHomeAppliedChip);
+  }, [homeHasSearchQuery, homeQuery.attrs, homeQuery.category, homeQuery.state, homeSearchChip, homeTypeAttr, t]);
+
+  const { visibleChips: homeVisibleAppliedChipDescriptors, hiddenCount: homeHiddenAppliedChipCount } = React.useMemo(
+    () => selectHomeVisibleChips(homeAppliedChipDescriptors),
+    [homeAppliedChipDescriptors],
+  );
+
+  const homeVisibleAppliedChips = React.useMemo<HomeAppliedChipViewModel[]>(
+    () =>
+      homeVisibleAppliedChipDescriptors.map((chip) => {
+        let onClick: () => void;
+        if (chip.clickTarget === 'search') {
+          onClick = () => setHomeSearchMode(true);
+        } else {
+          const focusSection: Exclude<HomeAppliedChipClickTarget, 'search'> = chip.clickTarget;
+          onClick = () => openHomeFilterSheet(focusSection);
+        }
+        let onRemove: (() => void) | undefined;
+        if (chip.removeTarget === 'category') {
+          onRemove = clearHomeCategory;
+        } else if (chip.removeTarget === 'type') {
+          onRemove = clearHomeTypeAttr;
+        } else if (chip.removeTarget === 'send-waiting') {
+          onRemove = clearHomeSendWaitingAttr;
+        } else if (chip.removeTarget === 'search') {
+          onRemove = clearHomeSearchText;
+        }
+        const baseChip: HomeAppliedChipViewModel = {
+          ...chip,
+          onClick,
+        };
+        if (onRemove) {
+          return {
+            ...baseChip,
+            onRemove,
+          };
+        }
+        return baseChip;
+      }),
+    [
+      clearHomeCategory,
+      clearHomeSearchText,
+      clearHomeSendWaitingAttr,
+      clearHomeTypeAttr,
+      homeVisibleAppliedChipDescriptors,
+      openHomeFilterSheet,
+    ],
+  );
 
   React.useEffect(() => {
     if (!homeSearchMode) {
@@ -2127,66 +2315,37 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               </IconButton>
               <div className="homeAppliedChipsViewport">
                 <div className="homeAppliedChipsScroll">
-                  <Chip
-                    size="small"
-                    clickable
-                    color="default"
-                    label={homeStateLabel(homeQuery.state, t)}
-                    onClick={() => openHomeFilterSheet('state')}
-                  />
-                  {homeQuery.category !== 'none' ? (
+                  {homeVisibleAppliedChips.map((chip) => (
                     <Chip
+                      key={chip.id}
                       size="small"
                       clickable
-                      color="primary"
-                      label={homeCategoryLabel(homeQuery.category, t)}
-                      onClick={() => openHomeFilterSheet('category')}
-                      onDelete={clearHomeCategory}
+                      color={chip.category === 'status' ? 'primary' : 'default'}
+                      variant={chip.variant === 'outlined' ? 'outlined' : 'filled'}
+                      className={[
+                        'homeAppliedChip',
+                        `homeAppliedChip-${chip.category}`,
+                        chip.variant === 'tonal' ? 'homeAppliedChip-tonal' : '',
+                      ]
+                        .filter((className) => className.length > 0)
+                        .join(' ')}
+                      label={chip.label}
+                      onClick={chip.onClick}
+                      {...(chip.onRemove ? { onDelete: chip.onRemove } : {})}
                     />
-                  ) : null}
-                  {homeTypeAttr ? (
+                  ))}
+                  {homeHiddenAppliedChipCount > 0 ? (
                     <Chip
                       size="small"
                       clickable
-                      color="primary"
-                      label={homeAttrLabel(homeTypeAttr, t)}
-                      onClick={() => openHomeFilterSheet('type')}
-                      onDelete={clearHomeTypeAttr}
-                    />
-                  ) : null}
-                  {homeHasSearchQuery ? (
-                    <Chip
-                      size="small"
-                      clickable
-                      color="primary"
-                      label={t('common.home.search_chip', { value: homeSearchChip })}
-                      onClick={() => setHomeSearchMode(true)}
-                      onDelete={clearHomeSearchText}
-                    />
-                  ) : null}
-                  {homeNonMajorChipCount > 0 ? (
-                    <Chip
-                      size="small"
-                      clickable
-                      color="primary"
-                      label={`+${homeNonMajorChipCount}`}
+                      variant="outlined"
+                      className="homeAppliedChip homeAppliedChip-overflow"
+                      label={`+${homeHiddenAppliedChipCount}`}
                       onClick={() => openHomeFilterSheet()}
                     />
                   ) : null}
                 </div>
-                <span className="homeAppliedChipsFade homeAppliedChipsFade-left" aria-hidden />
-                <span className="homeAppliedChipsFade homeAppliedChipsFade-right" aria-hidden />
               </div>
-              <Button
-                type="button"
-                size="small"
-                variant="text"
-                className="homeClearAllButton"
-                onClick={clearAllHomeQuery}
-                disabled={!homeHasNonDefaultFilter}
-              >
-                {t('common.clear_all')}
-              </Button>
             </section>
             <section className="homeSubheaderRow" aria-label="home-list-subheader">
               <Typography variant="body2" className="homeSubheaderCount">
@@ -2454,12 +2613,17 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               </Typography>
             </Box>
             <Box className="homeFilterSheetActions">
-              <Button variant="text" onClick={resetHomeFilterSheet}>
-                {t('common.reset')}
+              <Button variant="text" onClick={clearAllHomeQuery} disabled={!homeHasNonDefaultFilter}>
+                {t('common.clear_all')}
               </Button>
-              <Button variant="contained" onClick={applyHomeFilterSheet}>
-                {t('common.apply')}
-              </Button>
+              <div className="homeFilterSheetActionsRight">
+                <Button variant="text" onClick={resetHomeFilterSheet}>
+                  {t('common.reset')}
+                </Button>
+                <Button variant="contained" onClick={applyHomeFilterSheet}>
+                  {t('common.apply')}
+                </Button>
+              </div>
             </Box>
           </Box>
         </Drawer>
