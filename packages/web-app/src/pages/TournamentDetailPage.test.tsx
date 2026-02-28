@@ -116,23 +116,21 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: '大会を共有' })).toBeTruthy();
-    const submitButton = screen.getByRole('button', { name: '送信する' }) as HTMLButtonElement;
+    expect(screen.getByTestId('tournament-detail-share-button')).toBeTruthy();
+    const submitButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
     expect(submitButton.disabled).toBe(false);
-    expect(screen.getByText('送信待ち 1件')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '差し替え' })).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: '登録' }).length).toBeGreaterThan(0);
-    expect(screen.getByText('登録済')).toBeTruthy();
-    expect(screen.getAllByText('未登録').length).toBeGreaterThan(0);
-    expect(screen.getByText('送信待ち')).toBeTruthy();
-    expect(screen.queryByText('提出する')).toBeNull();
-    expect(screen.queryByText('提出済')).toBeNull();
-    expect(screen.queryByText('未提出')).toBeNull();
+    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
+    expect(screen.getAllByTestId('tournament-detail-chart-submit-button').length).toBeGreaterThan(0);
+    const submittedLabels = screen
+      .getAllByTestId('tournament-detail-chart-status-label')
+      .filter((element) => element.getAttribute('data-chart-status') === 'submitted');
+    expect(submittedLabels.length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('tournament-detail-chart-send-pending-badge').length).toBe(1);
 
     await userEvent.click(submitButton);
-    const submitMessageInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
+    const submitMessageInput = screen.getByTestId('tournament-detail-submit-message-input') as HTMLInputElement;
     expect(submitMessageInput.value).toBe('#SCOREATTACK ');
-    expect(screen.getByRole('button', { name: '送信完了にする' })).toBeTruthy();
+    expect(screen.getByTestId('tournament-detail-mark-send-completed-button')).toBeTruthy();
   });
 
   it('normalizes japanese hashtag for submit message', async () => {
@@ -149,8 +147,8 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole('button', { name: '送信する' }));
-    const submitMessageInput = screen.getAllByRole('textbox')[0] as HTMLInputElement;
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    const submitMessageInput = screen.getByTestId('tournament-detail-submit-message-input') as HTMLInputElement;
     expect(submitMessageInput.value).toBe('#スコアタ ');
   });
 
@@ -168,15 +166,15 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    expect(screen.getByText('送信待ち 1件')).toBeTruthy();
+    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
 
-    await userEvent.click(screen.getByRole('button', { name: '送信する' }));
-    await userEvent.click(screen.getByRole('button', { name: '送信完了にする' }));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-mark-send-completed-button'));
 
-    expect(await screen.findByText('1件を送信完了にしました。')).toBeTruthy();
-    expect(screen.getByText('送信待ち 0件')).toBeTruthy();
-    expect(screen.queryByText('送信待ち', { selector: '.chartSendPendingBadge' })).toBeNull();
-    const completeButton = screen.getByRole('button', { name: '送信完了にする' }) as HTMLButtonElement;
+    expect(await screen.findByTestId('tournament-detail-submit-notice-alert')).toBeTruthy();
+    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('0');
+    expect(screen.queryByTestId('tournament-detail-chart-send-pending-badge')).toBeNull();
+    const completeButton = screen.getByTestId('tournament-detail-mark-send-completed-button') as HTMLButtonElement;
     expect(completeButton.disabled).toBe(true);
   });
 
@@ -194,11 +192,12 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    const shareButtons = screen.getAllByRole('button', { name: '大会を共有' });
+    const shareButtons = screen.getAllByTestId('tournament-detail-share-button');
     expect(shareButtons.length).toBeGreaterThan(0);
     await userEvent.click(shareButtons[0]!);
-    expect(screen.getByText('共有されるのは大会定義のみ（画像は含まれません）')).toBeTruthy();
-    expect(await screen.findByText('技術情報')).toBeTruthy();
+    expect(screen.getByTestId('tournament-detail-share-dialog')).toBeTruthy();
+    expect(screen.getByTestId('tournament-detail-share-definition-alert')).toBeTruthy();
+    expect(await screen.findByTestId('tournament-detail-share-debug-accordion')).toBeTruthy();
   });
 
   it('hides share button for imported tournaments', () => {
@@ -215,7 +214,7 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: '大会を共有' })).toBeNull();
+    expect(screen.queryByTestId('tournament-detail-share-button')).toBeNull();
   });
 
   it('hides chart register buttons and disables send bar outside active period', () => {
@@ -232,10 +231,9 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    const upcomingSubmitButton = screen.getByRole('button', { name: '送信する' }) as HTMLButtonElement;
+    const upcomingSubmitButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
     expect(upcomingSubmitButton.disabled).toBe(true);
-    expect(screen.queryByRole('button', { name: '差し替え' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '登録' })).toBeNull();
+    expect(screen.queryByTestId('tournament-detail-chart-submit-button')).toBeNull();
 
     rerender(
       <TournamentDetailPage
@@ -250,10 +248,9 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    const endedSubmitButton = screen.getByRole('button', { name: '送信する' }) as HTMLButtonElement;
+    const endedSubmitButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
     expect(endedSubmitButton.disabled).toBe(true);
-    expect(screen.queryByRole('button', { name: '差し替え' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '登録' })).toBeNull();
+    expect(screen.queryByTestId('tournament-detail-chart-submit-button')).toBeNull();
   });
 
   it('disables send bar when all charts are unregistered', () => {
@@ -280,7 +277,7 @@ describe('TournamentDetailPage', () => {
       />,
     );
 
-    const submitButton = screen.getByRole('button', { name: '送信する' }) as HTMLButtonElement;
+    const submitButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
     expect(submitButton.disabled).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 
 import { SettingsPage } from './SettingsPage';
+import i18n from '../i18n';
 
 type SettingsPageProps = ComponentProps<typeof SettingsPage>;
 
@@ -83,9 +84,8 @@ describe('SettingsPage', () => {
   it('hides health summary in normal state and does not treat check-not-run as health warning', () => {
     render(<SettingsPage {...createProps()} />);
 
-    expect(screen.queryByText(/ヘルスサマリ:/)).toBeNull();
-    expect(screen.queryByText('曲データ：最新確認未実施')).toBeNull();
-    expect(screen.getAllByText('最新確認未実施').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('settings-health-summary-card')).toBeNull();
+    expect(screen.getByTestId('settings-song-status-chip').getAttribute('data-song-status')).toBe('check_not_run');
   });
 
   it('toggles debug mode after tapping app version 7 times', async () => {
@@ -93,7 +93,7 @@ describe('SettingsPage', () => {
     const onToggleDebugMode = vi.fn();
     render(<SettingsPage {...createProps({ onToggleDebugMode })} />);
 
-    const versionTrigger = screen.getByRole('button', { name: 'アプリ版本体' });
+    const versionTrigger = screen.getByTestId('settings-app-version-trigger-button');
     for (let i = 0; i < 6; i += 1) {
       await user.click(versionTrigger);
     }
@@ -105,10 +105,10 @@ describe('SettingsPage', () => {
 
   it('shows technical info only in debug mode', () => {
     const { rerender } = render(<SettingsPage {...createProps({ debugModeEnabled: false })} />);
-    expect(screen.queryByText('技術情報')).toBeNull();
+    expect(screen.queryByTestId('settings-technical-card')).toBeNull();
 
     rerender(<SettingsPage {...createProps({ debugModeEnabled: true })} />);
-    expect(screen.getAllByText('技術情報').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('settings-technical-card')).toBeTruthy();
   });
 
   it('isolates local reset behind two-step confirmation and confirmation text', async () => {
@@ -116,19 +116,20 @@ describe('SettingsPage', () => {
     const onResetLocalData = vi.fn(async () => undefined);
     render(<SettingsPage {...createProps({ onResetLocalData })} />);
 
-    await user.click(screen.getByRole('button', { name: 'ローカル初期化' }));
-    expect(screen.getByText('以下を削除します（復元不可）。')).toBeTruthy();
+    await user.click(screen.getByTestId('settings-reset-open-button'));
+    expect(screen.getByTestId('settings-reset-guide-dialog')).toBeTruthy();
 
-    await user.click(screen.getByRole('button', { name: '次へ' }));
-    const executeButton = screen.getByRole('button', { name: '初期化を実行' });
-    const confirmInput = screen.getByLabelText('確認文字列');
+    await user.click(screen.getByTestId('settings-reset-guide-next-button'));
+    const executeButton = screen.getByTestId('settings-reset-execute-button');
+    const confirmInput = screen.getByTestId('settings-reset-confirm-input');
     expect((executeButton as HTMLButtonElement).disabled).toBe(true);
 
-    await user.type(confirmInput, '削除前');
+    await user.type(confirmInput, 'not-confirm-token');
     expect((executeButton as HTMLButtonElement).disabled).toBe(true);
 
+    const resetConfirmToken = i18n.t('settings.danger.reset_confirm_token');
     await user.clear(confirmInput);
-    await user.type(confirmInput, '削除');
+    await user.type(confirmInput, resetConfirmToken);
     expect((executeButton as HTMLButtonElement).disabled).toBe(false);
 
     await user.click(executeButton);
