@@ -5,10 +5,176 @@
     "copy": "コピー",
     "share": "共有",
     "cancel": "キャンセル",
+    "back": "戻る",
+    "delete": "削除",
     "next": "次へ",
     "execute": "実行",
     "not_available": "-",
     "unknown": "不明"
+  },
+  "create_tournament": {
+    "wizard": {
+      "aria_label": "大会定義ウィザード",
+      "step": {
+        "basic": "基本情報",
+        "charts": "譜面",
+        "confirm": "確認"
+      },
+      "nav_item": "{{index}}. {{label}}"
+    },
+    "step": {
+      "basic_title": "1) 大会基本情報",
+      "charts_title": "2) 対象譜面 ({{current}} / {{max}})",
+      "confirm_title": "3) 確認"
+    },
+    "field": {
+      "name": {
+        "label": "大会名 *",
+        "label_plain": "大会名",
+        "placeholder": "例）スコアタ2026"
+      },
+      "owner": {
+        "label": "開催者 *",
+        "label_plain": "開催者",
+        "placeholder": "例）IIDX部"
+      },
+      "hashtag": {
+        "label": "ハッシュタグ *",
+        "label_plain": "ハッシュタグ",
+        "placeholder": "例）スコアタ2026"
+      },
+      "period": {
+        "label": "期間 *",
+        "label_plain": "期間",
+        "start_placeholder": "開始日",
+        "end_placeholder": "終了日"
+      },
+      "song": {
+        "label": "曲名",
+        "placeholder": "曲名を入力",
+        "no_options_empty_query": "曲名を入力してください。",
+        "no_options_not_found": "該当する曲がありません。",
+        "loading": "読み込み中..."
+      },
+      "play_style": {
+        "label": "プレイスタイル",
+        "disabled_hint": "曲を選択するまで変更できません。",
+        "sp": "SP",
+        "dp": "DP"
+      },
+      "difficulty": {
+        "label": "難易度",
+        "select_song_hint": "曲を選択すると選べます。",
+        "no_available": "選択可能な譜面がありません。",
+        "used_in_other": "他の選曲で譜面が使用中です。",
+        "value": "{{difficulty}} Lv{{level}}"
+      }
+    },
+    "text": {
+      "period_separator": "〜",
+      "list_separator": "、"
+    },
+    "period": {
+      "empty": "-",
+      "range": "{{start}} 〜 {{end}}",
+      "range_with_days": "{{start}} 〜 {{end}}（{{count}}日間）"
+    },
+    "action": {
+      "set_next_month": "来月（1日〜月末）",
+      "next_with_step": "{{action}}（{{step}}）",
+      "back_with_step": "{{action}}（{{step}}）",
+      "create": "大会を作成",
+      "creating": "作成中..."
+    },
+    "progress": {
+      "completed": "入力完了: {{count}}/4",
+      "missing": "未入力項目: {{items}}",
+      "none": "なし"
+    },
+    "chart": {
+      "max_limit": "最大{{max}}譜面までです。",
+      "add": "＋追加",
+      "selection_label": "選曲 {{index}}",
+      "selection_delete_aria": "選曲 {{index}} を削除"
+    },
+    "validation": {
+      "name_required": "大会名を入力してください。",
+      "owner_required": "開催者を入力してください。",
+      "hashtag_required": "ハッシュタグを入力してください。",
+      "start_date_required": "開始日を選択してください。",
+      "end_date_required": "終了日を選択してください。",
+      "end_date_after_start": "終了日は開始日以降を指定してください。",
+      "end_date_from_today": "終了日には今日以降の日付を指定してください。",
+      "chart_required": "譜面を1件以上選択してください。",
+      "chart_difficulty_required": "各譜面で難易度を選択してください。",
+      "chart_duplicate": "同一譜面を重複登録できません。",
+      "chart_duplicate_on_page": "同一譜面が重複しています。",
+      "check_input": "入力内容を確認してください。",
+      "check_chart_input": "譜面の入力内容を確認してください。",
+      "missing_items": "未入力項目: {{items}}"
+    },
+    "confirm": {
+      "chart_list_title": "譜面一覧",
+      "chart_title": "譜面 {{index}}",
+      "debug": {
+        "title": "デバッグ情報",
+        "def_hash": "def_hash",
+        "source_tournament_uuid": "source_tournament_uuid",
+        "null": "null"
+      }
+    }
+  },
+  "submit_evidence": {
+    "chart": {
+      "level": "Lv{{level}}"
+    },
+    "status": {
+      "processing": "提出処理中",
+      "failed": "提出失敗",
+      "submitted": "提出済み",
+      "submitted_with_date": "提出済み {{date}}",
+      "not_submitted": "未提出"
+    },
+    "step": {
+      "select_image": "Step 1) 画像を選ぶ",
+      "review_image": "Step 2) 画像を確認"
+    },
+    "images": {
+      "preview_alt": "提出画像プレビュー",
+      "updated_at": "最終更新: {{date}}",
+      "action": {
+        "tap_to_select": "タップして画像を選ぶ",
+        "take_photo": "カメラで撮る",
+        "pick_from_gallery": "ギャラリーから選ぶ",
+        "reselect": "選び直す"
+      }
+    },
+    "note": {
+      "local_only": "画像はこの端末の中だけに保存されます",
+      "not_sent": "他の人に画像は送られません"
+    },
+    "action": {
+      "processing": "提出処理中",
+      "update": "更新する",
+      "save": "保存する"
+    },
+    "menu": {
+      "actions_aria": "提出画像の操作"
+    },
+    "hint": {
+      "select_to_submit": "画像を選ぶと提出できます"
+    },
+    "error": {
+      "submit_failed": "提出に失敗しました",
+      "quota_exceeded": "容量不足",
+      "save_failed": "保存に失敗しました",
+      "delete_failed": "削除に失敗しました"
+    },
+    "delete_dialog": {
+      "title": "提出画像を削除しますか？",
+      "description": "削除すると元に戻せません。",
+      "confirm": "削除する"
+    }
   },
   "settings": {
     "title": "設定",

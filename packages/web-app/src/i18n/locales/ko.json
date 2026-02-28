@@ -5,10 +5,176 @@
     "copy": "복사",
     "share": "공유",
     "cancel": "취소",
+    "back": "뒤로",
+    "delete": "삭제",
     "next": "다음",
     "execute": "실행",
     "not_available": "-",
     "unknown": "알 수 없음"
+  },
+  "create_tournament": {
+    "wizard": {
+      "aria_label": "대회 정의 마법사",
+      "step": {
+        "basic": "기본 정보",
+        "charts": "채보",
+        "confirm": "확인"
+      },
+      "nav_item": "{{index}}. {{label}}"
+    },
+    "step": {
+      "basic_title": "1) 대회 기본 정보",
+      "charts_title": "2) 대상 채보 ({{current}} / {{max}})",
+      "confirm_title": "3) 확인"
+    },
+    "field": {
+      "name": {
+        "label": "대회명 *",
+        "label_plain": "대회명",
+        "placeholder": "예) 스코어어택 2026"
+      },
+      "owner": {
+        "label": "주최자 *",
+        "label_plain": "주최자",
+        "placeholder": "예) IIDX부"
+      },
+      "hashtag": {
+        "label": "해시태그 *",
+        "label_plain": "해시태그",
+        "placeholder": "예) 스코어어택2026"
+      },
+      "period": {
+        "label": "기간 *",
+        "label_plain": "기간",
+        "start_placeholder": "시작일",
+        "end_placeholder": "종료일"
+      },
+      "song": {
+        "label": "곡명",
+        "placeholder": "곡명을 입력",
+        "no_options_empty_query": "곡명을 입력해 주세요.",
+        "no_options_not_found": "일치하는 곡이 없습니다.",
+        "loading": "불러오는 중..."
+      },
+      "play_style": {
+        "label": "플레이 스타일",
+        "disabled_hint": "곡을 선택하면 변경할 수 있습니다.",
+        "sp": "SP",
+        "dp": "DP"
+      },
+      "difficulty": {
+        "label": "난이도",
+        "select_song_hint": "곡을 선택하면 고를 수 있습니다.",
+        "no_available": "선택 가능한 채보가 없습니다.",
+        "used_in_other": "다른 선택에서 이 채보를 이미 사용 중입니다.",
+        "value": "{{difficulty}} Lv{{level}}"
+      }
+    },
+    "text": {
+      "period_separator": "~",
+      "list_separator": ", "
+    },
+    "period": {
+      "empty": "-",
+      "range": "{{start}} ~ {{end}}",
+      "range_with_days": "{{start}} ~ {{end}} ({{count}}일)"
+    },
+    "action": {
+      "set_next_month": "다음 달 (1일~말일)",
+      "next_with_step": "{{action}} ({{step}})",
+      "back_with_step": "{{action}} ({{step}})",
+      "create": "대회 만들기",
+      "creating": "생성 중..."
+    },
+    "progress": {
+      "completed": "입력 완료: {{count}}/4",
+      "missing": "미입력 항목: {{items}}",
+      "none": "없음"
+    },
+    "chart": {
+      "max_limit": "최대 {{max}}개 채보까지 가능합니다.",
+      "add": "+ 추가",
+      "selection_label": "선곡 {{index}}",
+      "selection_delete_aria": "선곡 {{index}} 삭제"
+    },
+    "validation": {
+      "name_required": "대회명을 입력해 주세요.",
+      "owner_required": "주최자를 입력해 주세요.",
+      "hashtag_required": "해시태그를 입력해 주세요.",
+      "start_date_required": "시작일을 선택해 주세요.",
+      "end_date_required": "종료일을 선택해 주세요.",
+      "end_date_after_start": "종료일은 시작일 이후여야 합니다.",
+      "end_date_from_today": "종료일은 오늘 이후여야 합니다.",
+      "chart_required": "채보를 1개 이상 선택해 주세요.",
+      "chart_difficulty_required": "각 채보의 난이도를 선택해 주세요.",
+      "chart_duplicate": "동일 채보를 중복 등록할 수 없습니다.",
+      "chart_duplicate_on_page": "동일 채보가 중복 선택되었습니다.",
+      "check_input": "입력 내용을 확인해 주세요.",
+      "check_chart_input": "채보 입력 내용을 확인해 주세요.",
+      "missing_items": "미입력 항목: {{items}}"
+    },
+    "confirm": {
+      "chart_list_title": "채보 목록",
+      "chart_title": "채보 {{index}}",
+      "debug": {
+        "title": "디버그 정보",
+        "def_hash": "def_hash",
+        "source_tournament_uuid": "source_tournament_uuid",
+        "null": "null"
+      }
+    }
+  },
+  "submit_evidence": {
+    "chart": {
+      "level": "Lv{{level}}"
+    },
+    "status": {
+      "processing": "제출 처리 중",
+      "failed": "제출 실패",
+      "submitted": "제출됨",
+      "submitted_with_date": "제출됨 {{date}}",
+      "not_submitted": "미제출"
+    },
+    "step": {
+      "select_image": "Step 1) 이미지 선택",
+      "review_image": "Step 2) 이미지 확인"
+    },
+    "images": {
+      "preview_alt": "제출 이미지 미리보기",
+      "updated_at": "최종 업데이트: {{date}}",
+      "action": {
+        "tap_to_select": "탭해서 이미지 선택",
+        "take_photo": "카메라로 촬영",
+        "pick_from_gallery": "갤러리에서 선택",
+        "reselect": "다시 선택"
+      }
+    },
+    "note": {
+      "local_only": "이미지는 이 기기 안에만 저장됩니다.",
+      "not_sent": "다른 사람에게 이미지는 전송되지 않습니다."
+    },
+    "action": {
+      "processing": "제출 처리 중",
+      "update": "업데이트",
+      "save": "저장"
+    },
+    "menu": {
+      "actions_aria": "제출 이미지 작업"
+    },
+    "hint": {
+      "select_to_submit": "이미지를 선택하면 제출할 수 있습니다."
+    },
+    "error": {
+      "submit_failed": "제출에 실패했습니다",
+      "quota_exceeded": "저장 공간이 부족합니다",
+      "save_failed": "저장에 실패했습니다",
+      "delete_failed": "삭제에 실패했습니다"
+    },
+    "delete_dialog": {
+      "title": "제출 이미지를 삭제할까요?",
+      "description": "삭제하면 되돌릴 수 없습니다.",
+      "confirm": "삭제"
+    }
   },
   "settings": {
     "title": "설정",

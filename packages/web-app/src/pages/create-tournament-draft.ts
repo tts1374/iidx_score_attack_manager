@@ -26,20 +26,38 @@ export interface CreateTournamentDraft {
   rows: CreateTournamentChartDraft[];
 }
 
+export type CreateTournamentFieldLabelKey =
+  | 'create_tournament.field.name.label_plain'
+  | 'create_tournament.field.owner.label_plain'
+  | 'create_tournament.field.hashtag.label_plain'
+  | 'create_tournament.field.period.label_plain';
+
+export type CreateTournamentValidationMessageKey =
+  | 'create_tournament.validation.name_required'
+  | 'create_tournament.validation.owner_required'
+  | 'create_tournament.validation.hashtag_required'
+  | 'create_tournament.validation.start_date_required'
+  | 'create_tournament.validation.end_date_required'
+  | 'create_tournament.validation.end_date_after_start'
+  | 'create_tournament.validation.end_date_from_today'
+  | 'create_tournament.validation.chart_required'
+  | 'create_tournament.validation.chart_difficulty_required'
+  | 'create_tournament.validation.chart_duplicate';
+
 export interface CreateTournamentValidationResult {
   selectedChartIds: number[];
   duplicateChartIds: Set<number>;
-  nameError: string | null;
-  ownerError: string | null;
-  hashtagError: string | null;
-  startDateError: string | null;
-  endDateError: string | null;
-  missingBasicFields: string[];
+  nameError: CreateTournamentValidationMessageKey | null;
+  ownerError: CreateTournamentValidationMessageKey | null;
+  hashtagError: CreateTournamentValidationMessageKey | null;
+  startDateError: CreateTournamentValidationMessageKey | null;
+  endDateError: CreateTournamentValidationMessageKey | null;
+  missingBasicFields: CreateTournamentFieldLabelKey[];
   basicCompletedCount: number;
   hasRequiredFields: boolean;
   hasUnselectedChart: boolean;
-  chartStepError: string | null;
-  periodError: string | null;
+  chartStepError: CreateTournamentValidationMessageKey | null;
+  periodError: CreateTournamentValidationMessageKey | null;
   canProceed: boolean;
 }
 
@@ -140,45 +158,45 @@ export function resolveCreateTournamentValidation(
     }
   }
 
-  const nameError = draft.name.trim().length === 0 ? '大会名を入力してください。' : null;
-  const ownerError = draft.owner.trim().length === 0 ? '開催者を入力してください。' : null;
-  const hashtagError = normalizeHashtag(draft.hashtag).length === 0 ? 'ハッシュタグを入力してください。' : null;
-  const startDateRequiredError = draft.startDate.trim().length === 0 ? '開始日を選択してください。' : null;
-  const endDateRequiredError = draft.endDate.trim().length === 0 ? '終了日を選択してください。' : null;
+  const nameError = draft.name.trim().length === 0 ? 'create_tournament.validation.name_required' : null;
+  const ownerError = draft.owner.trim().length === 0 ? 'create_tournament.validation.owner_required' : null;
+  const hashtagError = normalizeHashtag(draft.hashtag).length === 0 ? 'create_tournament.validation.hashtag_required' : null;
+  const startDateRequiredError = draft.startDate.trim().length === 0 ? 'create_tournament.validation.start_date_required' : null;
+  const endDateRequiredError = draft.endDate.trim().length === 0 ? 'create_tournament.validation.end_date_required' : null;
   const startDateError = startDateRequiredError;
 
-  let endDateError = endDateRequiredError;
+  let endDateError: CreateTournamentValidationMessageKey | null = endDateRequiredError;
   if (!endDateError && !startDateRequiredError && draft.startDate > draft.endDate) {
-    endDateError = '終了日は開始日以降を指定してください。';
+    endDateError = 'create_tournament.validation.end_date_after_start';
   } else if (!endDateError && draft.endDate < todayDate) {
-    endDateError = '終了日には今日以降の日付を指定してください。';
+    endDateError = 'create_tournament.validation.end_date_from_today';
   }
-  const periodError = endDateError;
+  const periodError: CreateTournamentValidationMessageKey | null = endDateError;
 
-  const missingBasicFields: string[] = [];
+  const missingBasicFields: CreateTournamentFieldLabelKey[] = [];
   if (nameError) {
-    missingBasicFields.push('大会名');
+    missingBasicFields.push('create_tournament.field.name.label_plain');
   }
   if (ownerError) {
-    missingBasicFields.push('開催者');
+    missingBasicFields.push('create_tournament.field.owner.label_plain');
   }
   if (hashtagError) {
-    missingBasicFields.push('ハッシュタグ');
+    missingBasicFields.push('create_tournament.field.hashtag.label_plain');
   }
   if (startDateRequiredError || endDateRequiredError) {
-    missingBasicFields.push('期間');
+    missingBasicFields.push('create_tournament.field.period.label_plain');
   }
   const basicCompletedCount = 4 - missingBasicFields.length;
   const hasRequiredFields = missingBasicFields.length === 0 && periodError === null;
 
   const hasUnselectedChart = draft.rows.some((row) => row.selectedChartId === null);
-  const chartStepError =
+  const chartStepError: CreateTournamentValidationMessageKey | null =
     draft.rows.length === 0
-      ? '譜面を1件以上選択してください。'
+      ? 'create_tournament.validation.chart_required'
       : hasUnselectedChart
-        ? '各譜面で難易度を選択してください。'
+        ? 'create_tournament.validation.chart_difficulty_required'
         : duplicateChartIds.size > 0
-          ? '同一譜面を重複登録できません。'
+          ? 'create_tournament.validation.chart_duplicate'
           : null;
 
   return {
