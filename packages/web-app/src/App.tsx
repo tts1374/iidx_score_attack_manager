@@ -180,6 +180,25 @@ type HomeFilterAttr = 'send-waiting' | 'imported' | 'created';
 type HomeSort = 'default' | 'deadline' | 'progress-low' | 'send-waiting-high' | 'name';
 type HomeFilterSheetFocusSection = 'state' | 'category' | 'type' | 'attrs' | 'sort' | null;
 
+interface HomeSortOption {
+  value: HomeSort;
+  labelKey:
+    | 'common.home_filter.sort.default'
+    | 'common.home_filter.sort.deadline'
+    | 'common.home_filter.sort.progress_low'
+    | 'common.home_filter.sort.send_waiting_high'
+    | 'common.home_filter.sort.name';
+}
+
+const HOME_SORT_OPTIONS: readonly HomeSortOption[] = [
+  { value: 'default', labelKey: 'common.home_filter.sort.default' },
+  { value: 'deadline', labelKey: 'common.home_filter.sort.deadline' },
+  { value: 'progress-low', labelKey: 'common.home_filter.sort.progress_low' },
+  { value: 'send-waiting-high', labelKey: 'common.home_filter.sort.send_waiting_high' },
+  { value: 'name', labelKey: 'common.home_filter.sort.name' },
+];
+const HOME_FALLBACK_SORT_LABEL_KEY: HomeSortOption['labelKey'] = 'common.home_filter.sort.default';
+
 interface HomeQueryState {
   state: TournamentTab;
   searchText: string;
@@ -202,14 +221,18 @@ const HOME_DEFAULT_QUERY_STATE: HomeQueryState = {
   sort: 'default',
 };
 
-function createDefaultHomeQueryState(): HomeQueryState {
+function createDefaultHomeFilterState(sort: HomeSort): HomeQueryState {
   return {
     state: HOME_DEFAULT_QUERY_STATE.state,
     searchText: HOME_DEFAULT_QUERY_STATE.searchText,
     category: HOME_DEFAULT_QUERY_STATE.category,
     attrs: [],
-    sort: HOME_DEFAULT_QUERY_STATE.sort,
+    sort,
   };
+}
+
+function createDefaultHomeQueryState(): HomeQueryState {
+  return createDefaultHomeFilterState(HOME_DEFAULT_QUERY_STATE.sort);
 }
 
 const EMPTY_HOME_TOURNAMENT_BUCKETS: HomeTournamentBuckets = {
@@ -414,7 +437,7 @@ function isTournamentTab(value: string): value is TournamentTab {
 }
 
 function isHomeSort(value: string): value is HomeSort {
-  return value === 'default' || value === 'deadline' || value === 'progress-low' || value === 'send-waiting-high' || value === 'name';
+  return HOME_SORT_OPTIONS.some((option) => option.value === value);
 }
 
 function isHomeFilterCategory(value: string): value is HomeFilterCategory {
@@ -491,19 +514,11 @@ function resolveHomeTypeAttr(attrs: readonly HomeFilterAttr[]): 'imported' | 'cr
 }
 
 function homeSortLabel(sort: HomeSort, t: (key: string) => string): string {
-  if (sort === 'deadline') {
-    return t('common.home_filter.sort.deadline');
+  const option = HOME_SORT_OPTIONS.find((entry) => entry.value === sort);
+  if (option) {
+    return t(option.labelKey);
   }
-  if (sort === 'progress-low') {
-    return t('common.home_filter.sort.progress_low');
-  }
-  if (sort === 'send-waiting-high') {
-    return t('common.home_filter.sort.send_waiting_high');
-  }
-  if (sort === 'name') {
-    return t('common.home_filter.sort.name');
-  }
-  return t('common.home_filter.sort.default');
+  return t(HOME_FALLBACK_SORT_LABEL_KEY);
 }
 
 function truncateSearchChipText(searchText: string): string {
@@ -514,13 +529,12 @@ function truncateSearchChipText(searchText: string): string {
   return `${searchText.slice(0, max)}…`;
 }
 
-function isHomeQueryDefault(query: HomeQueryState): boolean {
+function isHomeFilterDefault(query: HomeQueryState): boolean {
   return (
     query.state === HOME_DEFAULT_QUERY_STATE.state &&
     normalizeHomeSearchForFilter(query.searchText) === HOME_DEFAULT_QUERY_STATE.searchText &&
     query.category === HOME_DEFAULT_QUERY_STATE.category &&
-    query.attrs.length === 0 &&
-    query.sort === HOME_DEFAULT_QUERY_STATE.sort
+    query.attrs.length === 0
   );
 }
 
@@ -831,13 +845,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     () => applyHomeQueryState(homeTournamentBuckets, homeFilterDraft).length,
     [homeFilterDraft, homeTournamentBuckets],
   );
-  const homeHasNonDefaultQuery = !isHomeQueryDefault(homeQuery);
+  const homeHasNonDefaultFilter = !isHomeFilterDefault(homeQuery);
   const homeNormalizedSearch = normalizeHomeSearchForFilter(homeQuery.searchText);
   const homeHasSearchQuery = homeNormalizedSearch.length > 0;
   const homeSearchChip = homeHasSearchQuery ? truncateSearchChipText(homeNormalizedSearch) : '';
   const homeTypeAttr = resolveHomeTypeAttr(homeQuery.attrs);
-  const homeNonMajorChipCount =
-    (homeQuery.attrs.includes('send-waiting') ? 1 : 0) + (homeQuery.sort === 'default' ? 0 : 1);
+  const homeNonMajorChipCount = homeQuery.attrs.includes('send-waiting') ? 1 : 0;
   const rawWhatsNewItems = t('whats_new.items', { returnObjects: true }) as unknown;
   const whatsNewItems =
     Array.isArray(rawWhatsNewItems) ? rawWhatsNewItems.filter((value): value is string => typeof value === 'string') : [];
@@ -870,12 +883,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [homeFilterDraft]);
 
   const resetHomeFilterSheet = React.useCallback(() => {
-    setHomeFilterDraft(createDefaultHomeQueryState());
+    setHomeFilterDraft((previous) => createDefaultHomeFilterState(previous.sort));
   }, []);
 
   const clearAllHomeQuery = React.useCallback(() => {
-    setHomeQuery(createDefaultHomeQueryState());
-    setHomeFilterDraft(createDefaultHomeQueryState());
+    setHomeQuery((previous) => createDefaultHomeFilterState(previous.sort));
+    setHomeFilterDraft((previous) => createDefaultHomeFilterState(previous.sort));
     setHomeSearchMode(false);
   }, []);
 
@@ -1977,12 +1990,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 </Typography>
                 <IconButton
                   edge="end"
-                  color={homeHasNonDefaultQuery ? 'primary' : 'inherit'}
+                  color={homeHasNonDefaultFilter ? 'primary' : 'inherit'}
                   aria-label="home-filter"
                   onClick={() => openHomeFilterSheet()}
                   sx={{ mr: 1 }}
                 >
-                  <Badge color="primary" variant="dot" invisible={!homeHasNonDefaultQuery}>
+                  <Badge color="primary" variant="dot" invisible={!homeHasNonDefaultFilter}>
                     <FilterListIcon />
                   </Badge>
                 </IconButton>
@@ -2137,7 +2150,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 variant="text"
                 className="homeClearAllButton"
                 onClick={clearAllHomeQuery}
-                disabled={!homeHasNonDefaultQuery}
+                disabled={!homeHasNonDefaultFilter}
               >
                 {t('common.clear_all')}
               </Button>
