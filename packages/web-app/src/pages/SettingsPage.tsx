@@ -355,7 +355,7 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-function row(label: string, value: string, mono = false, onValueTap?: () => void): JSX.Element {
+function row(label: string, value: string, mono = false, onValueTap?: () => void, valueButtonTestId?: string): JSX.Element {
   return (
     <ListItem key={label} disableGutters sx={{ px: 0, py: 0.75 }}>
       <Box
@@ -387,6 +387,7 @@ function row(label: string, value: string, mono = false, onValueTap?: () => void
               component="button"
               type="button"
               aria-label={label}
+              data-testid={valueButtonTestId}
               onClick={onValueTap}
               sx={{
                 all: 'unset',
@@ -736,6 +737,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       {health.reasons.length > 0 ? (
         <Card
           variant="outlined"
+          data-testid="settings-health-summary-card"
           sx={{ ...cardSx, position: 'sticky', top: 8, zIndex: 2, borderColor: hStyle.border, backgroundColor: hStyle.bg }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
@@ -790,7 +792,13 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           <Typography variant="h6" component="h2" fontWeight={700}>
             {t('settings.song_data.title')}
           </Typography>
-          <Chip label={t(songStatusKey(songStatus))} color={songStatusColor(songStatus)} size="small" />
+          <Chip
+            label={t(songStatusKey(songStatus))}
+            color={songStatusColor(songStatus)}
+            size="small"
+            data-testid="settings-song-status-chip"
+            data-song-status={songStatus}
+          />
         </Box>
         <List dense disablePadding>
           {row(t('settings.song_data.status.label'), t(songStatusKey(songStatus)))}
@@ -972,7 +980,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           {t('settings.app.title')}
         </Typography>
         <List dense disablePadding>
-          {row(t('settings.app.version'), props.appInfo.appVersion || noneText, false, handleVersionTap)}
+          {row(t('settings.app.version'), props.appInfo.appVersion || noneText, false, handleVersionTap, 'settings-app-version-trigger-button')}
           {row(t('settings.app.build_time'), props.appInfo.buildTime || noneText)}
           {row(t('settings.app.offline'), t(swLabelKey(props.appInfo.swStatus)))}
           {row(t('settings.app.update'), t(updateLabelKey(props.appInfo.swStatus)))}
@@ -1017,7 +1025,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       </Card>
 
       {props.debugModeEnabled ? (
-        <Card variant="outlined" sx={cardSx}>
+        <Card variant="outlined" sx={cardSx} data-testid="settings-technical-card">
           <Typography variant="h6" component="h2" fontWeight={700}>
             {t('settings.technical.title')}
           </Typography>
@@ -1107,12 +1115,18 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             {t('settings.danger.not_restorable')}
           </Typography>
         </Stack>
-        <Button color="error" variant="contained" onClick={openResetGuideDialog} disabled={props.busy || resetRunning}>
+        <Button
+          color="error"
+          variant="contained"
+          onClick={openResetGuideDialog}
+          disabled={props.busy || resetRunning}
+          data-testid="settings-reset-open-button"
+        >
           {t('settings.danger.action.reset_local')}
         </Button>
       </Card>
 
-      <Dialog open={resetGuideDialogOpen} onClose={closeResetGuideDialog} maxWidth="xs" fullWidth>
+      <Dialog open={resetGuideDialogOpen} onClose={closeResetGuideDialog} maxWidth="xs" fullWidth data-testid="settings-reset-guide-dialog">
         <DialogTitle>{t('settings.danger.guide.title')}</DialogTitle>
         <DialogContent sx={{ display: 'grid', gap: 1 }}>
           <DialogContentText>{t('settings.danger.guide.description')}</DialogContentText>
@@ -1127,13 +1141,19 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           <Button onClick={closeResetGuideDialog} disabled={resetRunning}>
             {t('common.cancel')}
           </Button>
-          <Button color="error" variant="outlined" onClick={proceedResetConfirmation} disabled={resetRunning}>
+          <Button
+            color="error"
+            variant="outlined"
+            onClick={proceedResetConfirmation}
+            disabled={resetRunning}
+            data-testid="settings-reset-guide-next-button"
+          >
             {t('common.next')}
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={resetFinalDialogOpen} onClose={closeResetFinalDialog} maxWidth="xs" fullWidth>
+      <Dialog open={resetFinalDialogOpen} onClose={closeResetFinalDialog} maxWidth="xs" fullWidth data-testid="settings-reset-final-dialog">
         <DialogTitle>{t('settings.danger.final.title')}</DialogTitle>
         <DialogContent sx={{ display: 'grid', gap: 1.25 }}>
           <DialogContentText>{t('settings.danger.final.description')}</DialogContentText>
@@ -1145,6 +1165,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             disabled={resetRunning}
             placeholder={t('settings.danger.confirm_placeholder')}
             helperText={t('settings.danger.confirm_helper', { token: resetConfirmToken })}
+            inputProps={{ 'data-testid': 'settings-reset-confirm-input' }}
           />
           {resetError ? (
             <Typography variant="caption" color="error.main">
@@ -1161,6 +1182,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             variant="contained"
             onClick={() => void runResetLocalData()}
             disabled={!canRunReset || resetRunning || props.busy}
+            data-testid="settings-reset-execute-button"
           >
             {t('settings.danger.action.execute_reset')}
           </Button>

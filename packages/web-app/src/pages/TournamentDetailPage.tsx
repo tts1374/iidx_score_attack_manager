@@ -972,7 +972,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             ) : null}
           </div>
           {!props.detail.isImported ? (
-            <button className="detailShareButton" onClick={openShareDialog}>
+            <button className="detailShareButton" data-testid="tournament-detail-share-button" onClick={openShareDialog}>
               {t('tournament_detail.action.share_tournament')}
             </button>
           ) : null}
@@ -1013,13 +1013,24 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                   </div>
                   <div className="chartActions">
                     <div className="chartStatusLine">
-                      <span className={`chartSubmitLabel ${chartStatus.status}`}>{chartStatus.label}</span>
-                      {chartNeedsSend ? <span className="chartSendPendingBadge">{t('tournament_detail.chart.status.send_pending')}</span> : null}
+                      <span
+                        className={`chartSubmitLabel ${chartStatus.status}`}
+                        data-testid="tournament-detail-chart-status-label"
+                        data-chart-status={chartStatus.status}
+                      >
+                        {chartStatus.label}
+                      </span>
+                      {chartNeedsSend ? (
+                        <span className="chartSendPendingBadge" data-testid="tournament-detail-chart-send-pending-badge">
+                          {t('tournament_detail.chart.status.send_pending')}
+                        </span>
+                      ) : null}
                     </div>
                     {isActivePeriod ? (
                       <button
                         type="button"
                         className={`chartSubmitButton ${chart.submitted ? 'submitted' : 'pending'}`}
+                        data-testid="tournament-detail-chart-submit-button"
                         onClick={() => props.onOpenSubmit(chart.chartId)}
                       >
                         {chartStatus.actionLabel}
@@ -1033,7 +1044,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         </ul>
       </section>
 
-      <Dialog open={shareDialogOpen} onClose={closeShareDialog} fullWidth maxWidth="sm">
+      <Dialog open={shareDialogOpen} onClose={closeShareDialog} fullWidth maxWidth="sm" data-testid="tournament-detail-share-dialog">
         <DialogTitle sx={{ pr: 6 }}>
           {t('tournament_detail.action.share_tournament')}
           <IconButton
@@ -1045,7 +1056,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           </IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
-          <Alert severity="info" icon={false}>
+          <Alert severity="info" icon={false} data-testid="tournament-detail-share-definition-alert">
             {t('tournament_detail.share_dialog.definition_only')}
           </Alert>
 
@@ -1142,7 +1153,12 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           </Box>
 
           {props.debugModeEnabled ? (
-            <Accordion disableGutters elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 2 }}>
+            <Accordion
+              disableGutters
+              elevation={0}
+              sx={{ border: '1px solid #e2e8f0', borderRadius: 2 }}
+              data-testid="tournament-detail-share-debug-accordion"
+            >
               <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ borderRadius: 2 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                   {t('tournament_detail.share_dialog.debug_title')}
@@ -1192,7 +1208,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         </DialogActions>
       </Dialog>
 
-      <Dialog open={submitDialogOpen} onClose={() => setSubmitDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={submitDialogOpen} onClose={() => setSubmitDialogOpen(false)} fullWidth maxWidth="sm" data-testid="tournament-detail-submit-dialog">
         <DialogTitle>{t('tournament_detail.submit_dialog.title')}</DialogTitle>
         <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
           <Box>
@@ -1221,7 +1237,14 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
               {t('tournament_detail.submit_dialog.message_title')}
             </Typography>
-            <TextField fullWidth size="small" value={submitMessageText} InputProps={{ readOnly: true }} sx={{ mb: 1.5 }} />
+            <TextField
+              fullWidth
+              size="small"
+              value={submitMessageText}
+              inputProps={{ 'data-testid': 'tournament-detail-submit-message-input' }}
+              InputProps={{ readOnly: true }}
+              sx={{ mb: 1.5 }}
+            />
             <Stack direction="row" spacing={1}>
               <Button variant="outlined" onClick={() => void copySubmitMessage()} disabled={submitBusy}>
                 {t('common.copy')}
@@ -1241,12 +1264,21 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
               {t('tournament_detail.submit_dialog.complete_description')}
             </Typography>
-            <Button variant="outlined" onClick={() => void markSubmissionAsCompleted()} disabled={submitBusy || sendPendingCount === 0}>
+            <Button
+              variant="outlined"
+              onClick={() => void markSubmissionAsCompleted()}
+              disabled={submitBusy || sendPendingCount === 0}
+              data-testid="tournament-detail-mark-send-completed-button"
+            >
               {t('tournament_detail.action.mark_send_completed')}
             </Button>
           </Box>
 
-          {submitNotice ? <Alert severity={submitNotice.severity}>{submitNotice.text}</Alert> : null}
+          {submitNotice ? (
+            <Alert severity={submitNotice.severity} data-testid="tournament-detail-submit-notice-alert">
+              {submitNotice.text}
+            </Alert>
+          ) : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSubmitDialogOpen(false)} disabled={submitBusy}>
@@ -1260,6 +1292,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           <button
             type="button"
             className={`detailSubmitPrimaryButton ${sendPendingCount > 0 && canOpenSubmitDialog ? 'emphasis' : ''}`}
+            data-testid="tournament-detail-submit-open-button"
             onClick={() => {
               if (!canOpenSubmitDialog) {
                 return;
@@ -1271,7 +1304,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           >
             {t('tournament_detail.action.submit')}
           </button>
-          <p className="detailSubmitSubInfo">{submitSummaryText}</p>
+          <p className="detailSubmitSubInfo" data-testid="tournament-detail-submit-summary-text" data-send-pending-count={sendPendingCount}>
+            {submitSummaryText}
+          </p>
         </div>
       </footer>
     </div>
