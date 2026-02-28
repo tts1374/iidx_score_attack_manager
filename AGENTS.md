@@ -4,35 +4,89 @@
 
 This project is governed by the following documents:
 
--   AGENTS.md (execution constraints)
--   WORKFLOW.md (planning and PR rules)
--   QUALITY.md (acceptance criteria)
+- AGENTS.md (execution constraints)
+- WORKFLOW.md (planning and PR rules)
+- QUALITY.md (acceptance criteria)
 
 All three documents must be followed. If any conflict occurs, AGENTS.md
 takes precedence for execution rules.
 
 ------------------------------------------------------------------------
 
-## 1. 基本原則
+## 1. WORKFLOW Enforcement (MANDATORY)
 
--   すべての変更は再現可能であること。
--   宣言してから実行する（define → use）。
--   変更対象外のファイルには一切触れない。
--   不必要な整形・並び替え・リネームを行わない。
--   生成物は直接編集しない。
+WORKFLOW.md is not optional guidance.  
+If the following Plan-mode gate conditions are met, implementation MUST NOT begin
+until the planning procedure defined below is completed.
+
+### 1.1 Plan-mode gate（該当したら実装開始禁止）
+
+If any of the following conditions apply, Plan-mode is mandatory:
+
+- 作業が複数ステップにまたがる変更
+- アーキテクチャ変更 / 責務再分割 / データモデル変更
+- 永続化形式 / 互換性 / データ移行に影響する変更
+- Service Worker / COOP-COEP / crossOriginIsolated 関連変更
+- Web Locks / Single-tab invariant に関わる変更
+- import/export / 共有 / 保存 / 起動導線の挙動変更
+- CI/CD（.github/workflows）変更
+- リリース運用 / デプロイ方式変更
+- 依存関係更新（lockfile含む）
+- セキュリティ・再現性・整合性に影響する可能性がある変更
+
+該当する場合、直接コード変更してはならない。
+
+### 1.2 Plan Procedure（必須）
+
+Plan-mode発動時は必ず以下を実行する。
+
+1. WORKFLOW.md に従い Plan → 実装 → 検証 → PR の順で進める。
+2. `tasks/<branch-or-topic>.md` を作成し、以下を明記する。
+
+   - 目的
+   - 非目的
+   - 変更点（明確な箇条書き）
+   - 影響範囲（ユーザー / データ / 互換性）
+   - 実装方針（対象ファイル単位）
+   - テスト観点
+   - ロールバック方針
+   - Commit Plan（コミット分割計画）
+
+3. tasksに定義されていない変更を加えてはならない。
+   変更が必要になった場合は tasks を更新してから実装する。
+
+### 1.3 非Plan許可範囲
+
+以下はPlan不要。
+
+- タイポ修正
+- コメント追加
+- 文言調整
+- 挙動不変の軽微リファクタ
+- 影響範囲が明確に局所的な修正
 
 ------------------------------------------------------------------------
 
-## 2. 作業環境の分離
+## 2. 基本原則
 
-### 2.1 worktree強制（MANDATORY）
+- すべての変更は再現可能であること。
+- 宣言してから実行する（define → use）。
+- 変更対象外のファイルには一切触れない。
+- 不必要な整形・並び替え・リネームを行わない。
+- 生成物は直接編集しない。
+
+------------------------------------------------------------------------
+
+## 3. 作業環境の分離
+
+### 3.1 worktree強制（MANDATORY）
 
 - すべての作業は git worktree で物理分離する。
 - 既存作業ディレクトリを流用しない。
 - 1 worktree = 1 branch = 1 purpose（1PR1目的と一致させる）。
 - 作業開始時に worktree パスと BASE_SHA を宣言する。
 
-### 2.2 worktree再利用ポリシー
+### 3.2 worktree再利用ポリシー
 
 - 同一PR内のレビュー指摘対応のみ、既存worktreeを再利用してよい。
 - 目的が変わる場合は必ず新規worktreeを作成する。
@@ -41,80 +95,80 @@ takes precedence for execution rules.
 
 ------------------------------------------------------------------------
 
-## 3. 基点SHA固定
+## 4. 基点SHA固定
 
-### 3.1 作業開始時
+### 4.1 作業開始時
 
--   必ず基点SHAを明示する。
--   ブランチ名ではなくコミットSHAを使用する。
--   SHAはPR完了まで固定する。
+- 必ず基点SHAを明示する。
+- ブランチ名ではなくコミットSHAを使用する。
+- SHAはPR完了まで固定する。
 
 例:
 
-BASE_SHA=`<commit_hash>`{=html} git worktree add ../repo-task \$BASE_SHA
+BASE_SHA=`<commit_hash>` git worktree add ../repo-task $BASE_SHA
 
-### 3.2 禁止事項
+### 4.2 禁止事項
 
--   作業途中の rebase
--   作業途中の merge
--   不明確な upstream 追従
-
-------------------------------------------------------------------------
-
-## 4. 変更スコープ固定
-
--   変更対象ディレクトリ/ファイルを事前宣言する。
--   宣言外の変更は禁止。
--   globによる広範囲編集は禁止。
+- 作業途中の rebase
+- 作業途中の merge
+- 不明確な upstream 追従
 
 ------------------------------------------------------------------------
 
-## 5. Git運用制約
+## 5. 変更スコープ固定
 
--   main 直push禁止。
--   1ブランチ＝1目的。
--   dist/build/node_modules 等を直接編集しない。
--   CI生成物はCI経由のみ更新する。
-
-------------------------------------------------------------------------
-
-## 6. ファイルI/O規約
-
--   UTF-8 (no BOM) 固定。
--   atomic replace を使用。
--   書き込み前後で差分確認。
--   改行コードは既存に合わせる。
+- 変更対象ディレクトリ/ファイルを事前宣言する。
+- 宣言外の変更は禁止。
+- globによる広範囲編集は禁止。
 
 ------------------------------------------------------------------------
 
-## 7. 差分制御
+## 6. Git運用制約
 
--   変更は最小diff。
--   無関係なimport順修正禁止。
--   フォーマット変更は別PR。
-
-------------------------------------------------------------------------
-
-## 8. ローカル依存禁止
-
--   絶対パス禁止。
--   環境依存値の埋め込み禁止。
--   .env を直接編集しない。
+- main 直push禁止。
+- 1ブランチ＝1目的。
+- dist/build/node_modules 等を直接編集しない。
+- CI生成物はCI経由のみ更新する。
 
 ------------------------------------------------------------------------
 
-## 9. Single-tab operation (frozen)
+## 7. ファイルI/O規約
+
+- UTF-8 (no BOM) 固定。
+- atomic replace を使用。
+- 書き込み前後で差分確認。
+- 改行コードは既存に合わせる。
+
+------------------------------------------------------------------------
+
+## 8. 差分制御
+
+- 変更は最小diff。
+- 無関係なimport順修正禁止。
+- フォーマット変更は別PR。
+
+------------------------------------------------------------------------
+
+## 9. ローカル依存禁止
+
+- 絶対パス禁止。
+- 環境依存値の埋め込み禁止。
+- .env を直接編集しない。
+
+------------------------------------------------------------------------
+
+## 10. Single-tab operation (frozen)
 
 Current product invariant: single-tab operation via Web Locks.
 
--   Lock name `iidx-score-attack-web-lock` を変更しない。
--   Lock取得フローを混在PRで変更しない。
--   BroadcastChannel / storage event 委譲経路を変更しない。
--   マルチタブ対応は専用設計PRでのみ実施する。
+- Lock name `iidx-score-attack-web-lock` を変更しない。
+- Lock取得フローを混在PRで変更しない。
+- BroadcastChannel / storage event 委譲経路を変更しない。
+- マルチタブ対応は専用設計PRでのみ実施する。
 
 ------------------------------------------------------------------------
 
-## 10. READ / WRITE Protocol (Windows: UTF-8 strict)
+## 11. READ / WRITE Protocol (Windows: UTF-8 strict)
 
 目的: Windows起因の文字化け（UTF-16/CP932混入、BOM、改行コード揺れ）を作業プロセスで封じる。
 
