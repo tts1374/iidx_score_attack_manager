@@ -2201,7 +2201,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 aria-expanded={homeSortMenuOpen ? 'true' : undefined}
                 onClick={openHomeSortMenu}
               >
-                <span>{homeSortLabelText}</span>
+                <span className="homeSubheaderSortButtonLabel">{homeSortLabelText}</span>
                 <span className="homeSubheaderSortButtonArrow" aria-hidden>
                   ▾
                 </span>
