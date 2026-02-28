@@ -173,7 +173,7 @@ export function HomePage(props: HomePageProps): JSX.Element {
                     <span className={`statusBadge ${stateBadge.className}`}>{t(stateBadge.labelKey)}</span>
                     {showRemainingDays && deadlineTone ? (
                       <span className={`remainingDays remainingDays-${deadlineTone}`}>
-                        {t('home.remaining_days', { days: statusInfo.daysLeft })}
+                        {statusInfo.label}
                       </span>
                     ) : null}
                   </div>

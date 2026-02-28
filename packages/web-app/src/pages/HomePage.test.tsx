@@ -42,7 +42,7 @@ describe('HomePage', () => {
     const navigationHint = firstCard.querySelector('.cardNavigationHint > span');
 
     expect(statusBadge?.textContent?.trim()).toBeTruthy();
-    expect(remainingDays?.textContent).toContain('2');
+    expect(remainingDays?.textContent).toBe('残り2日');
     expect(progressLine?.textContent).toContain('1');
     expect(progressLine?.classList.contains('progressLine-muted')).toBe(false);
     expect(sendWaitingBadge?.textContent?.trim()).toBeTruthy();
