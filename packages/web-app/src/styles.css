@@ -649,15 +649,15 @@ label {
 }
 
 .stateDistributionBar > .progressBarSegment-shared {
-  background: #86efac;
+  background: #9fd4ac;
 }
 
 .stateDistributionBar > .progressBarSegment-sendWaiting {
-  background: #fcd34d;
+  background: #f2d3a2;
 }
 
 .stateDistributionBar > .progressBarSegment-unregistered {
-  background: #cbd5e1;
+  background: #cfd8e3;
 }
 
 .progressBar > span {
