@@ -71,6 +71,8 @@
 ## Commit Plan
 
 1. Home一覧カードロジック/UIを状態3分割バー仕様へ変更（`HomePage.tsx`）。
-2. Home一覧カード用スタイルを更新（`styles.css`）。
+2. Home一覧カードのスタイル更新と表示テスト更新を同一コミットで反映（`styles.css` + `HomePage.test.tsx`）。
 3. Home一覧カード文言を更新（`ja/en/ko` locales）。
-4. Home一覧カードテストを更新し、検証を実施（`HomePage.test.tsx`）。
+
+実績メモ:
+- 当初はスタイルとテストを分離予定だったが、3分割バーのDOM/CSS変更とテスト期待値が密結合のため、差分追跡性を優先して同一コミットに統合した。
