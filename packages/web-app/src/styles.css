@@ -208,9 +208,9 @@ label {
 
 .homeAppliedChipsRow {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-height: 38px;
   margin-bottom: 12px;
 }
@@ -220,7 +220,6 @@ label {
 }
 
 .homeAppliedChipsViewport {
-  position: relative;
   min-width: 0;
   overflow: hidden;
 }
@@ -228,10 +227,10 @@ label {
 .homeAppliedChipsScroll {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   overflow-x: auto;
   white-space: nowrap;
-  padding: 2px 14px 2px 14px;
+  padding: 2px 0;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
@@ -240,27 +239,36 @@ label {
   display: none;
 }
 
-.homeAppliedChipsFade {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 14px;
-  pointer-events: none;
-  z-index: 1;
+.homeAppliedChip {
+  max-width: 100%;
 }
 
-.homeAppliedChipsFade-left {
-  left: 0;
-  background: linear-gradient(to right, #f7f8fa 0%, rgba(247, 248, 250, 0) 100%);
+.homeAppliedChip .MuiChip-label {
+  font-weight: 600;
 }
 
-.homeAppliedChipsFade-right {
-  right: 0;
-  background: linear-gradient(to left, #f7f8fa 0%, rgba(247, 248, 250, 0) 100%);
+.homeAppliedChip-tonal {
+  background: #e9edf3;
+  color: #334155;
 }
 
-.homeClearAllButton {
-  flex-shrink: 0;
+.homeAppliedChip-tonal .MuiChip-deleteIcon {
+  color: #64748b;
+}
+
+.homeAppliedChip-tonal .MuiChip-deleteIcon:hover {
+  color: #334155;
+}
+
+.homeAppliedChip-type,
+.homeAppliedChip-overflow {
+  border-color: #cbd5e1;
+  color: #475569;
+  background: #ffffff;
+}
+
+.homeAppliedChip-type .MuiChip-deleteIcon {
+  color: #64748b;
 }
 
 .homeSubheaderRow {
@@ -383,6 +391,13 @@ label {
   padding: 12px 16px 16px;
   border-top: 1px solid #e2e8f0;
   background: #ffffff;
+}
+
+.homeFilterSheetActionsRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .emptyState {

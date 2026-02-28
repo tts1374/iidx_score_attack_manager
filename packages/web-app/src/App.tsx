@@ -925,7 +925,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeHasSearchQuery = homeNormalizedSearch.length > 0;
   const homeSearchChip = homeHasSearchQuery ? truncateSearchChipText(homeNormalizedSearch) : '';
   const homeTypeAttr = resolveHomeTypeAttr(homeQuery.attrs);
-  const homeNonMajorChipCount = homeQuery.attrs.includes('send-waiting') ? 1 : 0;
   const homeSortLabelText = homeSortLabel(homeQuery.sort, t);
   const rawWhatsNewItems = t('whats_new.items', { returnObjects: true }) as unknown;
   const whatsNewItems =
@@ -2316,66 +2315,37 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               </IconButton>
               <div className="homeAppliedChipsViewport">
                 <div className="homeAppliedChipsScroll">
-                  <Chip
-                    size="small"
-                    clickable
-                    color="default"
-                    label={homeStateLabel(homeQuery.state, t)}
-                    onClick={() => openHomeFilterSheet('state')}
-                  />
-                  {homeQuery.category !== 'none' ? (
+                  {homeVisibleAppliedChips.map((chip) => (
                     <Chip
+                      key={chip.id}
                       size="small"
                       clickable
-                      color="primary"
-                      label={homeCategoryLabel(homeQuery.category, t)}
-                      onClick={() => openHomeFilterSheet('category')}
-                      onDelete={clearHomeCategory}
+                      color={chip.category === 'status' ? 'primary' : 'default'}
+                      variant={chip.variant === 'outlined' ? 'outlined' : 'filled'}
+                      className={[
+                        'homeAppliedChip',
+                        `homeAppliedChip-${chip.category}`,
+                        chip.variant === 'tonal' ? 'homeAppliedChip-tonal' : '',
+                      ]
+                        .filter((className) => className.length > 0)
+                        .join(' ')}
+                      label={chip.label}
+                      onClick={chip.onClick}
+                      {...(chip.onRemove ? { onDelete: chip.onRemove } : {})}
                     />
-                  ) : null}
-                  {homeTypeAttr ? (
+                  ))}
+                  {homeHiddenAppliedChipCount > 0 ? (
                     <Chip
                       size="small"
                       clickable
-                      color="primary"
-                      label={homeAttrLabel(homeTypeAttr, t)}
-                      onClick={() => openHomeFilterSheet('type')}
-                      onDelete={clearHomeTypeAttr}
-                    />
-                  ) : null}
-                  {homeHasSearchQuery ? (
-                    <Chip
-                      size="small"
-                      clickable
-                      color="primary"
-                      label={t('common.home.search_chip', { value: homeSearchChip })}
-                      onClick={() => setHomeSearchMode(true)}
-                      onDelete={clearHomeSearchText}
-                    />
-                  ) : null}
-                  {homeNonMajorChipCount > 0 ? (
-                    <Chip
-                      size="small"
-                      clickable
-                      color="primary"
-                      label={`+${homeNonMajorChipCount}`}
+                      variant="outlined"
+                      className="homeAppliedChip homeAppliedChip-overflow"
+                      label={`+${homeHiddenAppliedChipCount}`}
                       onClick={() => openHomeFilterSheet()}
                     />
                   ) : null}
                 </div>
-                <span className="homeAppliedChipsFade homeAppliedChipsFade-left" aria-hidden />
-                <span className="homeAppliedChipsFade homeAppliedChipsFade-right" aria-hidden />
               </div>
-              <Button
-                type="button"
-                size="small"
-                variant="text"
-                className="homeClearAllButton"
-                onClick={clearAllHomeQuery}
-                disabled={!homeHasNonDefaultFilter}
-              >
-                {t('common.clear_all')}
-              </Button>
             </section>
             <section className="homeSubheaderRow" aria-label="home-list-subheader">
               <Typography variant="body2" className="homeSubheaderCount">
@@ -2643,12 +2613,17 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               </Typography>
             </Box>
             <Box className="homeFilterSheetActions">
-              <Button variant="text" onClick={resetHomeFilterSheet}>
-                {t('common.reset')}
+              <Button variant="text" onClick={clearAllHomeQuery} disabled={!homeHasNonDefaultFilter}>
+                {t('common.clear_all')}
               </Button>
-              <Button variant="contained" onClick={applyHomeFilterSheet}>
-                {t('common.apply')}
-              </Button>
+              <div className="homeFilterSheetActionsRight">
+                <Button variant="text" onClick={resetHomeFilterSheet}>
+                  {t('common.reset')}
+                </Button>
+                <Button variant="contained" onClick={applyHomeFilterSheet}>
+                  {t('common.apply')}
+                </Button>
+              </div>
             </Box>
           </Box>
         </Drawer>
