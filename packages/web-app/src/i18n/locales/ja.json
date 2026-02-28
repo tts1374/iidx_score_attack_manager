@@ -813,7 +813,7 @@
   },
   "tournament_detail": {
     "action": {
-      "share_tournament": "スコアタを共有",
+      "share_tournament": "大会を共有（QR）",
       "open_settings": "設定",
       "register": "登録",
       "replace": "差し替え",
@@ -822,8 +822,8 @@
       "copy_text": "テキストをコピー",
       "copy_logs": "ログコピー",
       "save_to_device": "端末に保存",
-      "mark_send_completed": "送信完了にする",
-      "submit": "送信する"
+      "mark_send_completed": "削除",
+      "submit": "共有する"
     },
     "status": {
       "upcoming": "未開催",
@@ -835,6 +835,7 @@
       "period": "{{start}}〜{{end}}",
       "period_with_space": "{{start}} 〜 {{end}}",
       "progress": "登録 {{submitted}} / {{total}}",
+      "state_counts": "共有済 {{shared}} ・ 未共有 {{unshared}} ・ 未登録 {{unregistered}}",
       "last_updated": "最終更新: {{date}}"
     },
     "chart": {
@@ -843,8 +844,11 @@
       "status": {
         "error": "エラー",
         "pending": "未登録",
-        "submitted": "登録済",
-        "send_pending": "送信待ち"
+        "submitted": "共有済",
+        "send_pending": "未共有",
+        "unregistered": "未登録",
+        "unshared": "未共有",
+        "shared": "共有済"
       },
       "resolve_issue": {
         "mismatch": "一部譜面が曲データと一致しません。",
@@ -862,7 +866,7 @@
     },
     "share_dialog": {
       "close_aria_label": "共有ダイアログを閉じる",
-      "definition_only": "共有されるのはスコアタ定義のみ（画像は含まれません）",
+      "definition_only": "大会の情報のみ共有します",
       "preview_title": "プレビュー",
       "preview_image_size": "生成画像（1080x1920）",
       "preview_alt": "共有画像プレビュー",
@@ -896,16 +900,19 @@
       }
     },
     "submit_bar": {
-      "summary": "送信待ち {{count}}件"
+      "summary": "未共有 {{count}}件",
+      "cta": "共有する（{{count}}）"
     },
     "submit_dialog": {
-      "title": "送信",
+      "title": "共有",
+      "confirm_message": "未共有の曲を共有します（{{count}}件）",
       "images_title": "送信する画像",
       "images_description": "画像が端末外に共有されます",
-      "target_count": "送信対象: {{count}}件",
+      "target_count": "未共有対象: {{count}}件",
       "message_title": "送信するメッセージ",
       "complete_title": "送信完了にする",
       "complete_description": "共有の成否は自動判定できません。相手に届いたことを確認後に実行してください。",
+      "undo_action": "元に戻す",
       "notice": {
         "saved_images_count": "{{count}}件の画像を保存しました。",
         "save_images_failed": "画像の保存に失敗しました。",
@@ -917,12 +924,16 @@
         "message_share_unsupported": "この環境ではメッセージ共有に対応していません。",
         "message_shared": "送信するメッセージを共有しました。",
         "message_share_failed": "メッセージ共有に失敗しました。",
-        "no_pending": "送信待ちはありません。",
+        "no_pending": "未共有はありません。",
+        "marked_shared": "共有済にしました",
+        "fallback_copy_failed": "画像を保存しましたが、メッセージのコピーに失敗しました。",
+        "undo_applied": "未共有に戻しました。",
+        "undo_failed": "元に戻す処理に失敗しました。",
         "completed_count": "{{count}}件を送信完了にしました。",
         "mark_completed_failed": "送信完了の更新に失敗しました。"
       },
       "error": {
-        "no_sendable_images": "送信できる送信待ち画像がありません。"
+        "no_sendable_images": "共有できる未共有画像がありません。"
       }
     }
   },

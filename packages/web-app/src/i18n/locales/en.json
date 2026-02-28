@@ -813,7 +813,7 @@
   },
   "tournament_detail": {
     "action": {
-      "share_tournament": "Share Score Attack",
+      "share_tournament": "Share Tournament (QR)",
       "open_settings": "Settings",
       "register": "Register",
       "replace": "Replace",
@@ -822,8 +822,8 @@
       "copy_text": "Copy text",
       "copy_logs": "Copy logs",
       "save_to_device": "Save to device",
-      "mark_send_completed": "Mark as sent",
-      "submit": "Send"
+      "mark_send_completed": "Delete",
+      "submit": "Share"
     },
     "status": {
       "upcoming": "Not started",
@@ -835,6 +835,7 @@
       "period": "{{start}}〜{{end}}",
       "period_with_space": "{{start}} 〜 {{end}}",
       "progress": "Registered {{submitted}} / {{total}}",
+      "state_counts": "Shared {{shared}} ・ Unshared {{unshared}} ・ Unregistered {{unregistered}}",
       "last_updated": "Last updated: {{date}}"
     },
     "chart": {
@@ -843,8 +844,11 @@
       "status": {
         "error": "Error",
         "pending": "Not registered",
-        "submitted": "Registered",
-        "send_pending": "Pending send"
+        "submitted": "Shared",
+        "send_pending": "Unshared",
+        "unregistered": "Not registered",
+        "unshared": "Unshared",
+        "shared": "Shared"
       },
       "resolve_issue": {
         "mismatch": "Some charts do not match song data.",
@@ -862,7 +866,7 @@
     },
     "share_dialog": {
       "close_aria_label": "Close share dialog",
-      "definition_only": "Only Score Attack definition is shared (images are not included).",
+      "definition_only": "Only tournament info is shared.",
       "preview_title": "Preview",
       "preview_image_size": "Generated image (1080x1920)",
       "preview_alt": "Shared image preview",
@@ -896,16 +900,19 @@
       }
     },
     "submit_bar": {
-      "summary": "Pending send: {{count}}"
+      "summary": "Unshared: {{count}}",
+      "cta": "Share ({{count}})"
     },
     "submit_dialog": {
-      "title": "Send",
+      "title": "Share",
+      "confirm_message": "Share unshared charts ({{count}}).",
       "images_title": "Images to send",
       "images_description": "Images are shared outside this device.",
-      "target_count": "Targets: {{count}}",
+      "target_count": "Unshared targets: {{count}}",
       "message_title": "Message to send",
       "complete_title": "Mark as sent",
       "complete_description": "Share success cannot be detected automatically. Run this only after confirming the recipient received it.",
+      "undo_action": "Undo",
       "notice": {
         "saved_images_count": "Saved {{count}} image(s).",
         "save_images_failed": "Failed to save images.",
@@ -917,12 +924,16 @@
         "message_share_unsupported": "Message sharing is not supported in this environment.",
         "message_shared": "Message to send was shared.",
         "message_share_failed": "Failed to share message.",
-        "no_pending": "No pending sends.",
+        "no_pending": "No unshared charts.",
+        "marked_shared": "Marked as shared.",
+        "fallback_copy_failed": "Images were downloaded, but copying the message failed.",
+        "undo_applied": "Reverted to unshared.",
+        "undo_failed": "Failed to undo the latest share update.",
         "completed_count": "Marked {{count}} item(s) as sent.",
         "mark_completed_failed": "Failed to update sent status."
       },
       "error": {
-        "no_sendable_images": "There are no pending images that can be sent."
+        "no_sendable_images": "There are no unshared images available for sharing."
       }
     }
   },
