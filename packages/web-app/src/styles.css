@@ -286,23 +286,27 @@ label {
 }
 
 .homeSubheaderSortButton {
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 70%;
+  min-height: 48px;
   border: 0;
   background: transparent;
   color: #0f172a;
   font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px;
-  padding: 4px 2px;
+  padding: 0 10px;
   border-radius: 8px;
   cursor: pointer;
+  text-align: right;
 }
 
 .homeSubheaderSortButtonLabel {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -310,7 +314,12 @@ label {
 }
 
 .homeSubheaderSortButton:hover {
+  background: #e9edf3;
   color: #1d4ed8;
+}
+
+.homeSubheaderSortButton:active {
+  background: #e2e8f0;
 }
 
 .homeSubheaderSortButton:focus-visible {

@@ -199,7 +199,8 @@
       "search_placeholder": "스코어 어택명 / 주최자 / 해시태그",
       "search_chip": "검색: \"{{value}}\"",
       "list_count": "{{count}}건 표시 중",
-      "list_count_loading": "—건 표시 중"
+      "list_count_loading": "—건 표시 중",
+      "sort_change_aria": "정렬 변경"
     },
     "tournament_status": {
       "days_until_start": "시작까지 {{count}}일"

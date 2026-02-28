@@ -199,7 +199,8 @@
       "search_placeholder": "Score Attack / Owner / Hashtag",
       "search_chip": "Search: \"{{value}}\"",
       "list_count": "Showing {{count}}",
-      "list_count_loading": "Showing —"
+      "list_count_loading": "Showing —",
+      "sort_change_aria": "Change sort order"
     },
     "tournament_status": {
       "days_until_start": "Starts in {{count}} days"

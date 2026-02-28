@@ -2197,6 +2197,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               <button
                 type="button"
                 className="homeSubheaderSortButton"
+                aria-label={t('common.home.sort_change_aria')}
                 aria-haspopup="menu"
                 aria-expanded={homeSortMenuOpen ? 'true' : undefined}
                 onClick={openHomeSortMenu}
