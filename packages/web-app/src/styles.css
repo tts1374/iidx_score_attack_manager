@@ -916,6 +916,10 @@ label {
   gap: 6px;
 }
 
+.periodDateField .MuiInputBase-root {
+  background: #ffffff;
+}
+
 .periodPresetShortcutLink {
   margin-left: auto;
   min-height: 32px;
