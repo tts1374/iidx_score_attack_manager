@@ -916,8 +916,11 @@ label {
   gap: 6px;
 }
 
-.periodDateField .MuiInputBase-root {
-  background: #ffffff;
+.periodDateField .MuiOutlinedInput-root,
+.periodDateField .MuiInputBase-root,
+.periodDateField .MuiPickersInputBase-root,
+.periodDateField .MuiPickersOutlinedInput-root {
+  background-color: #ffffff;
 }
 
 .periodPresetShortcutLink {
