@@ -11,6 +11,7 @@ import {
   resolveNextMonthDateRange,
   resolveRangeDayCount,
   resolveSelectedChartOption,
+  restoreCreateTournamentDraft,
   type CreateTournamentDraft,
 } from './create-tournament-draft';
 
@@ -18,6 +19,19 @@ function buildValidDraft(): CreateTournamentDraft {
   const row1 = {
     ...createEmptyChartDraft(),
     key: 'row-1',
+    query: 'Song 1',
+    selectedSong: {
+      musicId: 2001,
+      title: 'Song 1',
+      version: '31',
+    },
+    options: [
+      {
+        musicId: 2001,
+        title: 'Song 1',
+        version: '31',
+      },
+    ],
     selectedChartId: 1001,
     chartOptions: [
       {
@@ -33,6 +47,19 @@ function buildValidDraft(): CreateTournamentDraft {
   const row2 = {
     ...createEmptyChartDraft(),
     key: 'row-2',
+    query: 'Song 2',
+    selectedSong: {
+      musicId: 2002,
+      title: 'Song 2',
+      version: '31',
+    },
+    options: [
+      {
+        musicId: 2002,
+        title: 'Song 2',
+        version: '31',
+      },
+    ],
     selectedChartId: 1002,
     chartOptions: [
       {
@@ -71,6 +98,7 @@ describe('create tournament draft helpers', () => {
     const draft = buildValidDraft();
     const valid = resolveCreateTournamentValidation(draft, '2026-02-15');
     expect(valid.canProceed).toBe(true);
+    expect(valid.incompleteChartRowCount).toBe(0);
     expect(valid.selectedChartIds).toEqual([1001, 1002]);
 
     const duplicated = {
@@ -80,6 +108,18 @@ describe('create tournament draft helpers', () => {
     const invalid = resolveCreateTournamentValidation(duplicated, '2026-02-15');
     expect(invalid.canProceed).toBe(false);
     expect(invalid.duplicateChartIds.has(1001)).toBe(true);
+  });
+
+  it('counts chart cards with missing song or difficulty as incomplete', () => {
+    const draft = buildValidDraft();
+    draft.rows[0] = {
+      ...draft.rows[0]!,
+      selectedSong: null,
+      selectedChartId: null,
+    };
+    const validation = resolveCreateTournamentValidation(draft, '2026-02-15');
+    expect(validation.incompleteChartRowCount).toBe(1);
+    expect(validation.canProceed).toBe(false);
   });
 
   it('treats hash-only hashtag as empty', () => {
@@ -154,5 +194,41 @@ describe('create tournament draft helpers', () => {
     const parsed = parseIsoDate('2026-03-15');
     expect(parsed).not.toBeNull();
     expect(formatIsoDate(parsed!)).toBe('2026-03-15');
+  });
+
+  it('restores draft from persisted payload and sanitizes invalid fields', () => {
+    const restored = restoreCreateTournamentDraft({
+      tournamentUuid: '',
+      name: '  copied  ',
+      owner: 'owner',
+      hashtag: '#hash',
+      startDate: '2026-03-01',
+      endDate: '2026-03-31',
+      rows: [
+        {
+          key: 'row-a',
+          query: 'Song A',
+          selectedSong: { musicId: 5001, title: 'Song A', version: '31' },
+          options: [{ musicId: 5001, title: 'Song A', version: '31' }],
+          playStyle: 'SP',
+          chartOptions: [{ chartId: 7001, musicId: 5001, playStyle: 'SP', difficulty: 'ANOTHER', level: '12', isActive: 1 }],
+          selectedChartId: 7001,
+          loading: false,
+        },
+        {
+          key: '',
+          selectedSong: { musicId: -1, title: '', version: '' },
+          chartOptions: [],
+          selectedChartId: 'abc',
+          playStyle: 'ZZ',
+        },
+      ],
+    });
+    expect(restored).not.toBeNull();
+    expect(restored!.name).toBe('  copied  ');
+    expect(restored!.rows).toHaveLength(2);
+    expect(restored!.rows[0]?.selectedChartId).toBe(7001);
+    expect(restored!.rows[1]?.playStyle).toBe('SP');
+    expect(restored!.rows[1]?.selectedChartId).toBeNull();
   });
 });
