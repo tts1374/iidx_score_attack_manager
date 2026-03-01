@@ -161,26 +161,32 @@ function resolveChartShareState(localSaved: boolean, submitted: boolean): ChartS
 
 function resolveChartTaskStatus(
   chart: TournamentDetailChart,
+  localSaved: boolean,
   t: TranslationFn,
 ): {
   actionLabel: string;
+  actionTone: 'primary' | 'secondary';
   errorText: string | null;
 } {
-  const registerAction = hasEvidence(chart) ? t('tournament_detail.action.replace') : t('tournament_detail.action.register');
+  const registerAction = localSaved ? t('tournament_detail.action.replace') : t('tournament_detail.action.register');
+  const actionTone: 'primary' | 'secondary' = localSaved ? 'secondary' : 'primary';
   if (chart.resolveIssue === 'MASTER_MISSING') {
     return {
       actionLabel: registerAction,
+      actionTone,
       errorText: t('tournament_detail.chart.resolve_issue.master_missing'),
     };
   }
   if (chart.resolveIssue === 'CHART_NOT_FOUND') {
     return {
       actionLabel: registerAction,
+      actionTone,
       errorText: t('tournament_detail.chart.resolve_issue.chart_not_found'),
     };
   }
   return {
     actionLabel: registerAction,
+    actionTone,
     errorText: null,
   };
 }
@@ -1086,9 +1092,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         <ul className="chartList">
           {props.detail.charts.map((chart) => {
             const levelText = resolveChartLevelText(chart.level);
-            const chartStatus = resolveChartTaskStatus(chart, t);
             const chartNeedsSend = resolveNeedsSend(chart);
             const localSaved = resolveChartLocalSaved(chart);
+            const chartStatus = resolveChartTaskStatus(chart, localSaved, t);
             const submitted = resolveChartSubmitted(localSaved, chartNeedsSend);
             const chartShareState = resolveChartShareState(localSaved, submitted);
             const chartHasIssue = Boolean(chartStatus.errorText);
@@ -1123,8 +1129,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                     {isActivePeriod ? (
                       <button
                         type="button"
-                        className={`chartSubmitButton ${hasEvidence(chart) ? 'submitted' : 'pending'}`}
+                        className={`chartSubmitButton chartSubmitButton-${chartStatus.actionTone}`}
                         data-testid="tournament-detail-chart-submit-button"
+                        data-chart-action-tone={chartStatus.actionTone}
                         onClick={() => props.onOpenSubmit(chart.chartId)}
                       >
                         {chartStatus.actionLabel}

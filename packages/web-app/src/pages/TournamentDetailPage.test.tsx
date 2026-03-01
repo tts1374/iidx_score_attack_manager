@@ -201,6 +201,25 @@ describe('TournamentDetailPage', () => {
     expect(screen.getByTestId('tournament-detail-state-summary-text').textContent).toContain('共有済');
   });
 
+  it('emphasizes register only for unregistered chart and keeps replace as secondary', () => {
+    renderPage();
+
+    const actionButtons = screen.getAllByTestId('tournament-detail-chart-submit-button') as HTMLButtonElement[];
+    expect(actionButtons).toHaveLength(3);
+
+    expect(actionButtons[0]?.textContent).toContain('登録する');
+    expect(actionButtons[0]?.getAttribute('data-chart-action-tone')).toBe('primary');
+    expect(actionButtons[0]?.className).toContain('chartSubmitButton-primary');
+
+    expect(actionButtons[1]?.textContent).toContain('差し替え');
+    expect(actionButtons[1]?.getAttribute('data-chart-action-tone')).toBe('secondary');
+    expect(actionButtons[1]?.className).toContain('chartSubmitButton-secondary');
+
+    expect(actionButtons[2]?.textContent).toContain('差し替え');
+    expect(actionButtons[2]?.getAttribute('data-chart-action-tone')).toBe('secondary');
+    expect(actionButtons[2]?.className).toContain('chartSubmitButton-secondary');
+  });
+
   it('renders chart attributes as one line text and removes attribute badges', () => {
     renderPage();
 
