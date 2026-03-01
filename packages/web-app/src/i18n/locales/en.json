@@ -429,6 +429,9 @@
         "start_placeholder": "Start date",
         "end_placeholder": "End date"
       },
+      "tournament_id": {
+        "label_plain": "Tournament ID"
+      },
       "song": {
         "label": "Song title",
         "placeholder": "Enter song title",

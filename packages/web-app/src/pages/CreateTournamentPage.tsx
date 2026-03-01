@@ -1,4 +1,5 @@
 import React from 'react';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { ChartSummary, SongSummary } from '@iidx/db';
 import { PAYLOAD_VERSION, buildTournamentDefHash, normalizeHashtag, normalizeSearchText } from '@iidx/shared';
@@ -144,6 +145,14 @@ function resolveDifficultyShortLabel(difficulty: string, level: string): string 
               : normalizedDifficulty.slice(0, 1) || '?';
   const normalizedLevel = String(level ?? '').trim() || '?';
   return `${abbreviation} ${normalizedLevel}`;
+}
+
+function shortenTournamentId(value: string, visibleLength = 8): string {
+  const normalized = value.trim();
+  if (normalized.length <= visibleLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, visibleLength)}…`;
 }
 
 function isValidDate(value: Date | null): value is Date {
@@ -302,8 +311,8 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
     previousStepRef.current = currentStep;
   }, [currentStep, stepOneReady, stepTwoReady]);
 
-  const debugDefHash = React.useMemo(() => {
-    if (!wizardDebugEnabled || !validation.canProceed) {
+  const tournamentDefHash = React.useMemo(() => {
+    if (!validation.canProceed) {
       return null;
     }
     try {
@@ -320,7 +329,11 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
     } catch {
       return null;
     }
-  }, [draft, validation.canProceed, validation.selectedChartIds, wizardDebugEnabled]);
+  }, [draft, validation.canProceed, validation.selectedChartIds]);
+  const shortTournamentDefHash = React.useMemo(
+    () => (tournamentDefHash ? shortenTournamentId(tournamentDefHash, 8) : t('common.not_available')),
+    [t, tournamentDefHash],
+  );
 
   const isChartSelectedByAnotherRow = React.useCallback(
     (rowKey: string, chartId: number): boolean =>
@@ -507,17 +520,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 />
               </div>
               {validation.hashtagError ? <p className="errorText createInlineError">{t(validation.hashtagError)}</p> : null}
-              <div className="createInlineCopyRow">
-                <p className="createHashtagPreview">{displayHashtag || t('common.not_available')}</p>
-                <button
-                  type="button"
-                  className="createInlineCopyButton"
-                  onClick={() => void copyToClipboard(displayHashtag)}
-                  disabled={displayHashtag.length === 0}
-                >
-                  {t('common.copy')}
-                </button>
-              </div>
             </label>
 
             <div className="createField">
@@ -850,18 +852,25 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.hashtag.label_plain')}</dt>
                   <dd className="createConfirmHashtagValue">{displayHashtag || t('common.not_available')}</dd>
-                  <button
-                    type="button"
-                    className="createInlineCopyButton"
-                    onClick={() => void copyToClipboard(displayHashtag)}
-                    disabled={displayHashtag.length === 0}
-                  >
-                    {t('common.copy')}
-                  </button>
                 </div>
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.period.label_plain')}</dt>
                   <dd>{periodText}</dd>
+                </div>
+                <div className="createConfirmInfoItem">
+                  <dt>{t('create_tournament.field.tournament_id.label_plain')}</dt>
+                  <dd className="createConfirmTournamentIdRow">
+                    <span className="createConfirmTournamentIdText">{shortTournamentDefHash}</span>
+                    <button
+                      type="button"
+                      className="createInlineIconCopyButton"
+                      aria-label={t('common.copy')}
+                      onClick={() => void copyToClipboard(tournamentDefHash ?? '')}
+                      disabled={!tournamentDefHash}
+                    >
+                      <ContentCopyIcon fontSize="inherit" />
+                    </button>
+                  </dd>
                 </div>
               </dl>
             </article>
@@ -880,14 +889,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   <article key={row.key} className="chartRowCard createChartCard createConfirmChartCard">
                     <div className="chartRowHeader">
                       <strong>{t('create_tournament.confirm.chart_title', { index: index + 1 })}</strong>
-                      <button
-                        type="button"
-                        className="createInlineCopyButton"
-                        onClick={() => void copyToClipboard(row.selectedSong?.title ?? '')}
-                        disabled={!row.selectedSong}
-                      >
-                        {t('common.copy')}
-                      </button>
                     </div>
                     <p className="createConfirmChartSong">{row.selectedSong?.title ?? t('common.not_available')}</p>
                     <p className="createConfirmChartMeta" style={difficultyTextColor ? { color: difficultyTextColor } : undefined}>
@@ -906,7 +907,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 <dl className="createConfirmInfoList">
                   <div className="createConfirmInfoItem">
                     <dt>{t('create_tournament.confirm.debug.def_hash')}</dt>
-                    <dd>{debugDefHash ?? t('common.not_available')}</dd>
+                    <dd>{tournamentDefHash ?? t('common.not_available')}</dd>
                   </div>
                   <div className="createConfirmInfoItem">
                     <dt>{t('create_tournament.confirm.debug.source_tournament_uuid')}</dt>

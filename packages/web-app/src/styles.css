@@ -1077,33 +1077,19 @@ label {
   font-size: 13px;
 }
 
-.createInlineCopyRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.createHashtagPreview {
-  margin: 0;
-  flex: 1;
-  min-width: 0;
-  color: #475569;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  overflow-wrap: anywhere;
-}
-
-.createInlineCopyButton {
+.createInlineIconCopyButton {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
   border: 1px solid #cbd5e1;
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 0;
   background: #ffffff;
   color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .createInlineError {
@@ -1134,6 +1120,21 @@ label {
 }
 
 .createConfirmHashtagValue {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+}
+
+.createConfirmTournamentIdRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.createConfirmTournamentIdText {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

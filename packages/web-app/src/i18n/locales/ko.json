@@ -429,6 +429,9 @@
         "start_placeholder": "시작일",
         "end_placeholder": "종료일"
       },
+      "tournament_id": {
+        "label_plain": "대회 ID"
+      },
       "song": {
         "label": "곡명",
         "placeholder": "곡명을 입력",
