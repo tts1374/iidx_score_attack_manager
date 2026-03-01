@@ -213,21 +213,8 @@ function resolveMissingFieldLabels(
   return keys.map((key) => translate(key)).join(separator);
 }
 
-function scrollStepTitleIntoView(stepTitle: HTMLHeadingElement): void {
-  const appBar = document.querySelector<HTMLElement>('header.MuiAppBar-root');
-  const appBarHeight = appBar?.getBoundingClientRect().height ?? 0;
-  const topPadding = 8;
-  const targetTop = window.scrollY + stepTitle.getBoundingClientRect().top - appBarHeight - topPadding;
-  window.scrollTo({ top: Math.max(targetTop, 0) });
-}
-
 function scrollCreatePageTopIntoView(): void {
-  const appBar = document.querySelector<HTMLElement>('header.MuiAppBar-root');
-  const appBarHeight = appBar?.getBoundingClientRect().height ?? 0;
-  const topPadding = 8;
-  const pageRoot = document.querySelector<HTMLElement>('.createTournamentPage');
-  const targetTop = window.scrollY + (pageRoot?.getBoundingClientRect().top ?? 0) - appBarHeight - topPadding;
-  window.scrollTo({ top: Math.max(targetTop, 0), behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Element {
@@ -237,13 +224,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const rows = draft.rows;
   const [currentStep, setCurrentStep] = React.useState<CreateWizardStep>(0);
   const [showChartValidationErrors, setShowChartValidationErrors] = React.useState(false);
-  const stepTitleRefs = React.useRef<Record<CreateWizardStep, HTMLHeadingElement | null>>({
-    0: null,
-    1: null,
-    2: null,
-  });
   const chartRowRefs = React.useRef<Record<string, HTMLElement | null>>({});
-  const previousStepRef = React.useRef<CreateWizardStep>(0);
   const validation = React.useMemo(() => resolveCreateTournamentValidation(draft, props.todayDate), [draft, props.todayDate]);
   const canAddRow = rows.length < MAX_CHART_ROWS;
   const startDateValue = React.useMemo(() => parseIsoDate(draft.startDate), [draft.startDate]);
@@ -309,15 +290,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
     if (!canShowCurrentStep) {
       return;
     }
-    if (previousStepRef.current === currentStep) {
-      return;
-    }
-    const stepTitle = stepTitleRefs.current[currentStep];
-    if (!stepTitle) {
-      return;
-    }
-    scrollStepTitleIntoView(stepTitle);
-    previousStepRef.current = currentStep;
+    scrollCreatePageTopIntoView();
   }, [currentStep, stepOneReady, stepTwoReady]);
 
   const tournamentDefHash = React.useMemo(() => {
@@ -475,12 +448,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
       {currentStep === 0 ? (
         <section className="createSection">
-          <h2
-            className="createSectionTitle"
-            ref={(element) => {
-              stepTitleRefs.current[0] = element;
-            }}
-          >
+          <h2 className="createSectionTitle">
             {t('create_tournament.step.basic_title')}
           </h2>
           <div className="createFieldStack">
@@ -595,12 +563,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       {currentStep === 1 ? (
         <section className="createSection">
           <div className="createSectionHeading">
-            <h2
-              className="createSectionTitle"
-            ref={(element) => {
-              stepTitleRefs.current[1] = element;
-            }}
-          >
+            <h2 className="createSectionTitle">
               {t('create_tournament.step.charts_title', { current: rows.length, max: MAX_CHART_ROWS })}
             </h2>
             <div className="createSectionAction">
@@ -840,12 +803,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       {currentStep === 2 ? (
         <>
           <section className="createSection">
-            <h2
-              className="createSectionTitle"
-            ref={(element) => {
-              stepTitleRefs.current[2] = element;
-            }}
-          >
+            <h2 className="createSectionTitle">
               {t('create_tournament.step.confirm_title')}
             </h2>
             <article className="chartRowCard createConfirmInfoCard">
@@ -938,7 +896,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               className="primaryActionButton"
               onClick={() => {
                 setCurrentStep(1);
-                scrollCreatePageTopIntoView();
               }}
               disabled={!stepOneReady}
             >
@@ -957,7 +914,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 type="button"
                 onClick={() => {
                   setCurrentStep(0);
-                  scrollCreatePageTopIntoView();
                 }}
               >
                 {t('create_tournament.action.back_with_step', {
@@ -976,7 +932,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   }
                   setShowChartValidationErrors(false);
                   setCurrentStep(2);
-                  scrollCreatePageTopIntoView();
                 }}
               >
                 {t('create_tournament.action.next_with_step', {
@@ -1000,7 +955,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 type="button"
                 onClick={() => {
                   setCurrentStep(1);
-                  scrollCreatePageTopIntoView();
                 }}
                 disabled={props.saving}
               >
