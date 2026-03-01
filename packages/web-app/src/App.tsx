@@ -2639,6 +2639,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             todayDate={todayDate}
             saving={createSaving}
             errorMessage={createSaveError}
+            debugModeEnabled={debugModeEnabled}
             onDraftChange={updateCreateDraft}
             onConfirmCreate={confirmCreateTournament}
           />

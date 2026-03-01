@@ -35,6 +35,7 @@ interface CreateTournamentPageProps {
   todayDate: string;
   saving: boolean;
   errorMessage: string | null;
+  debugModeEnabled: boolean;
   onDraftChange: (updater: (draft: CreateTournamentDraft) => CreateTournamentDraft) => void;
   onConfirmCreate: () => Promise<void>;
 }
@@ -127,6 +128,24 @@ function difficultyButtonStyle(difficulty: string, active: boolean): React.CSSPr
   };
 }
 
+function resolveDifficultyShortLabel(difficulty: string, level: string): string {
+  const normalizedDifficulty = String(difficulty ?? '').trim().toUpperCase();
+  const abbreviation =
+    normalizedDifficulty === 'BEGINNER'
+      ? 'B'
+      : normalizedDifficulty === 'NORMAL'
+        ? 'N'
+        : normalizedDifficulty === 'HYPER'
+          ? 'H'
+          : normalizedDifficulty === 'ANOTHER'
+            ? 'A'
+            : normalizedDifficulty === 'LEGGENDARIA'
+              ? 'L'
+              : normalizedDifficulty.slice(0, 1) || '?';
+  const normalizedLevel = String(level ?? '').trim() || '?';
+  return `${abbreviation} ${normalizedLevel}`;
+}
+
 function isValidDate(value: Date | null): value is Date {
   return value instanceof Date && !Number.isNaN(value.getTime());
 }
@@ -199,11 +218,13 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const draft = props.draft;
   const rows = draft.rows;
   const [currentStep, setCurrentStep] = React.useState<CreateWizardStep>(0);
+  const [showChartValidationErrors, setShowChartValidationErrors] = React.useState(false);
   const stepTitleRefs = React.useRef<Record<CreateWizardStep, HTMLHeadingElement | null>>({
     0: null,
     1: null,
     2: null,
   });
+  const chartRowRefs = React.useRef<Record<string, HTMLElement | null>>({});
   const previousStepRef = React.useRef<CreateWizardStep>(0);
   const validation = React.useMemo(() => resolveCreateTournamentValidation(draft, props.todayDate), [draft, props.todayDate]);
   const canAddRow = rows.length < MAX_CHART_ROWS;
@@ -229,7 +250,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const stepOneReady = validation.hasRequiredFields && validation.periodError === null;
   const stepTwoReady = validation.chartStepError === null;
   const maxSelectableStep: CreateWizardStep = stepOneReady ? (stepTwoReady ? 2 : 1) : 0;
-  const wizardDebugEnabled = React.useMemo(() => isCreateWizardDebugEnabled(), []);
+  const wizardDebugEnabled = React.useMemo(
+    () => props.debugModeEnabled && isCreateWizardDebugEnabled(),
+    [props.debugModeEnabled],
+  );
 
   const minEndDateValue = React.useMemo(() => {
     if (!startDateValue && !todayDateValue) {
@@ -254,6 +278,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       setCurrentStep(0);
     }
   }, [currentStep, stepOneReady, stepTwoReady]);
+
+  React.useEffect(() => {
+    if (currentStep !== 1) {
+      setShowChartValidationErrors(false);
+    }
+  }, [currentStep]);
 
   React.useEffect(() => {
     const canShowCurrentStep =
@@ -358,9 +388,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       ? t('create_tournament.validation.missing_items', { items: missingBasicFieldsText })
       : resolveStepButtonReason(validation.periodError, 'create_tournament.validation.check_input', t)
     : null;
-  const stepTwoDisabledReason = !stepTwoReady
-    ? resolveStepButtonReason(validation.chartStepError, 'create_tournament.validation.check_chart_input', t)
-    : null;
   const createDisabledReason = !validation.canProceed
     ? resolveStepButtonReason(validation.periodError ?? validation.chartStepError, 'create_tournament.validation.check_input', t)
     : null;
@@ -374,6 +401,24 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           ? t('create_tournament.status.missing_count', { count: chartMissingCount })
           : t('create_tournament.status.completed')
         : null;
+  const copyToClipboard = React.useCallback(async (value: string) => {
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        return;
+      }
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // ignore clipboard failure
+    }
+  }, []);
+
+  const scrollFirstInvalidChartCard = React.useCallback(() => {
+    const invalidRow = rows.find((row) => row.selectedSong === null || row.selectedChartId === null);
+    if (!invalidRow) {
+      return;
+    }
+    chartRowRefs.current[invalidRow.key]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [rows]);
 
   return (
     <div className="page createTournamentPage">
@@ -462,6 +507,17 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 />
               </div>
               {validation.hashtagError ? <p className="errorText createInlineError">{t(validation.hashtagError)}</p> : null}
+              <div className="createInlineCopyRow">
+                <p className="createHashtagPreview">{displayHashtag || t('common.not_available')}</p>
+                <button
+                  type="button"
+                  className="createInlineCopyButton"
+                  onClick={() => void copyToClipboard(displayHashtag)}
+                  disabled={displayHashtag.length === 0}
+                >
+                  {t('common.copy')}
+                </button>
+              </div>
             </label>
 
             <div className="createField">
@@ -562,9 +618,17 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               const selectableChartCount = row.chartOptions.filter(
                 (chart) => !isChartSelectedByAnotherRow(row.key, chart.chartId),
               ).length;
+              const rowSongMissing = showChartValidationErrors && row.selectedSong === null;
+              const rowDifficultyMissing = showChartValidationErrors && row.selectedSong !== null && row.selectedChartId === null;
 
               return (
-                <article key={row.key} className="chartRowCard createChartCard">
+                <article
+                  key={row.key}
+                  className="chartRowCard createChartCard"
+                  ref={(element) => {
+                    chartRowRefs.current[row.key] = element;
+                  }}
+                >
                   <div className="chartRowHeader">
                     <strong>{t('create_tournament.chart.selection_label', { index: index + 1 })}</strong>
                     <button
@@ -665,6 +729,11 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                         }}
                       />
                     </Box>
+                    {rowSongMissing ? (
+                      <p className="errorText createInlineError createInlineErrorCompact">
+                        {t('create_tournament.validation.chart_song_required')}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="createField">
@@ -733,18 +802,17 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                                   updateRow(row.key, (current) => ({ ...current, selectedChartId: chart.chartId }));
                                 }}
                               >
-                                {t('create_tournament.field.difficulty.value', {
-                                  difficulty: chart.difficulty,
-                                  level: chart.level,
-                                })}
+                                {resolveDifficultyShortLabel(chart.difficulty, chart.level)}
                               </button>
                             );
                           })}
                         </div>
                       </>
                     ) : null}
-                    {row.selectedSong && row.chartOptions.length > 0 && row.selectedChartId === null ? (
-                      <p className="errorText createInlineError">{t('create_tournament.validation.chart_difficulty_required')}</p>
+                    {rowDifficultyMissing ? (
+                      <p className="errorText createInlineError createInlineErrorCompact">
+                        {t('create_tournament.validation.chart_difficulty_required_row')}
+                      </p>
                     ) : null}
                   </div>
 
@@ -781,7 +849,15 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 </div>
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.hashtag.label_plain')}</dt>
-                  <dd>{displayHashtag || t('common.not_available')}</dd>
+                  <dd className="createConfirmHashtagValue">{displayHashtag || t('common.not_available')}</dd>
+                  <button
+                    type="button"
+                    className="createInlineCopyButton"
+                    onClick={() => void copyToClipboard(displayHashtag)}
+                    disabled={displayHashtag.length === 0}
+                  >
+                    {t('common.copy')}
+                  </button>
                 </div>
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.period.label_plain')}</dt>
@@ -804,6 +880,14 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   <article key={row.key} className="chartRowCard createChartCard createConfirmChartCard">
                     <div className="chartRowHeader">
                       <strong>{t('create_tournament.confirm.chart_title', { index: index + 1 })}</strong>
+                      <button
+                        type="button"
+                        className="createInlineCopyButton"
+                        onClick={() => void copyToClipboard(row.selectedSong?.title ?? '')}
+                        disabled={!row.selectedSong}
+                      >
+                        {t('common.copy')}
+                      </button>
                     </div>
                     <p className="createConfirmChartSong">{row.selectedSong?.title ?? t('common.not_available')}</p>
                     <p className="createConfirmChartMeta" style={difficultyTextColor ? { color: difficultyTextColor } : undefined}>
@@ -850,7 +934,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
         {currentStep === 1 ? (
           <>
-            {!stepTwoReady ? <p className="errorText createInlineError">{stepTwoDisabledReason}</p> : null}
             <div className="createConfirmActions">
               <button type="button" onClick={() => setCurrentStep(0)}>
                 {t('create_tournament.action.back_with_step', {
@@ -858,7 +941,19 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   step: t('create_tournament.wizard.step.basic'),
                 })}
               </button>
-              <button type="button" className="primaryActionButton" onClick={() => setCurrentStep(2)} disabled={!stepTwoReady}>
+              <button
+                type="button"
+                className="primaryActionButton"
+                onClick={() => {
+                  if (!stepTwoReady) {
+                    setShowChartValidationErrors(true);
+                    scrollFirstInvalidChartCard();
+                    return;
+                  }
+                  setShowChartValidationErrors(false);
+                  setCurrentStep(2);
+                }}
+              >
                 {t('create_tournament.action.next_with_step', {
                   action: t('common.next'),
                   step: t('create_tournament.wizard.step.confirm'),
