@@ -1,4 +1,5 @@
 import React from 'react';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { ChartSummary, SongSummary } from '@iidx/db';
 import { PAYLOAD_VERSION, buildTournamentDefHash, normalizeHashtag, normalizeSearchText } from '@iidx/shared';
@@ -35,6 +36,7 @@ interface CreateTournamentPageProps {
   todayDate: string;
   saving: boolean;
   errorMessage: string | null;
+  debugModeEnabled: boolean;
   onDraftChange: (updater: (draft: CreateTournamentDraft) => CreateTournamentDraft) => void;
   onConfirmCreate: () => Promise<void>;
 }
@@ -127,6 +129,32 @@ function difficultyButtonStyle(difficulty: string, active: boolean): React.CSSPr
   };
 }
 
+function resolveDifficultyShortLabel(difficulty: string, level: string): string {
+  const normalizedDifficulty = String(difficulty ?? '').trim().toUpperCase();
+  const abbreviation =
+    normalizedDifficulty === 'BEGINNER'
+      ? 'B'
+      : normalizedDifficulty === 'NORMAL'
+        ? 'N'
+        : normalizedDifficulty === 'HYPER'
+          ? 'H'
+          : normalizedDifficulty === 'ANOTHER'
+            ? 'A'
+            : normalizedDifficulty === 'LEGGENDARIA'
+              ? 'L'
+              : normalizedDifficulty.slice(0, 1) || '?';
+  const normalizedLevel = String(level ?? '').trim() || '?';
+  return `${abbreviation} ${normalizedLevel}`;
+}
+
+function shortenTournamentId(value: string, visibleLength = 30): string {
+  const normalized = value.trim();
+  if (normalized.length <= visibleLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, visibleLength)}…`;
+}
+
 function isValidDate(value: Date | null): value is Date {
   return value instanceof Date && !Number.isNaN(value.getTime());
 }
@@ -185,12 +213,8 @@ function resolveMissingFieldLabels(
   return keys.map((key) => translate(key)).join(separator);
 }
 
-function scrollStepTitleIntoView(stepTitle: HTMLHeadingElement): void {
-  const appBar = document.querySelector<HTMLElement>('header.MuiAppBar-root');
-  const appBarHeight = appBar?.getBoundingClientRect().height ?? 0;
-  const topPadding = 8;
-  const targetTop = window.scrollY + stepTitle.getBoundingClientRect().top - appBarHeight - topPadding;
-  window.scrollTo({ top: Math.max(targetTop, 0) });
+function scrollCreatePageTopIntoView(): void {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Element {
@@ -199,12 +223,8 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const draft = props.draft;
   const rows = draft.rows;
   const [currentStep, setCurrentStep] = React.useState<CreateWizardStep>(0);
-  const stepTitleRefs = React.useRef<Record<CreateWizardStep, HTMLHeadingElement | null>>({
-    0: null,
-    1: null,
-    2: null,
-  });
-  const previousStepRef = React.useRef<CreateWizardStep>(0);
+  const [showChartValidationErrors, setShowChartValidationErrors] = React.useState(false);
+  const chartRowRefs = React.useRef<Record<string, HTMLElement | null>>({});
   const validation = React.useMemo(() => resolveCreateTournamentValidation(draft, props.todayDate), [draft, props.todayDate]);
   const canAddRow = rows.length < MAX_CHART_ROWS;
   const startDateValue = React.useMemo(() => parseIsoDate(draft.startDate), [draft.startDate]);
@@ -224,10 +244,15 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const periodText = React.useMemo(() => resolvePeriodText(draft.startDate, draft.endDate, t), [draft.endDate, draft.startDate, t]);
   const missingBasicFieldsText = React.useMemo(() => resolveMissingFieldLabels(validation.missingBasicFields, t), [t, validation.missingBasicFields]);
   const displayHashtag = React.useMemo(() => normalizeHashtagForDisplay(draft.hashtag), [draft.hashtag]);
+  const basicMissingCount = validation.missingBasicFields.length;
+  const chartMissingCount = validation.incompleteChartRowCount;
   const stepOneReady = validation.hasRequiredFields && validation.periodError === null;
   const stepTwoReady = validation.chartStepError === null;
   const maxSelectableStep: CreateWizardStep = stepOneReady ? (stepTwoReady ? 2 : 1) : 0;
-  const wizardDebugEnabled = React.useMemo(() => isCreateWizardDebugEnabled(), []);
+  const wizardDebugEnabled = React.useMemo(
+    () => props.debugModeEnabled && isCreateWizardDebugEnabled(),
+    [props.debugModeEnabled],
+  );
 
   const minEndDateValue = React.useMemo(() => {
     if (!startDateValue && !todayDateValue) {
@@ -254,24 +279,22 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   }, [currentStep, stepOneReady, stepTwoReady]);
 
   React.useEffect(() => {
+    if (currentStep !== 1) {
+      setShowChartValidationErrors(false);
+    }
+  }, [currentStep]);
+
+  React.useEffect(() => {
     const canShowCurrentStep =
       currentStep === 0 || (currentStep === 1 ? stepOneReady : stepTwoReady);
     if (!canShowCurrentStep) {
       return;
     }
-    if (previousStepRef.current === currentStep) {
-      return;
-    }
-    const stepTitle = stepTitleRefs.current[currentStep];
-    if (!stepTitle) {
-      return;
-    }
-    scrollStepTitleIntoView(stepTitle);
-    previousStepRef.current = currentStep;
+    scrollCreatePageTopIntoView();
   }, [currentStep, stepOneReady, stepTwoReady]);
 
-  const debugDefHash = React.useMemo(() => {
-    if (!wizardDebugEnabled || !validation.canProceed) {
+  const tournamentDefHash = React.useMemo(() => {
+    if (!validation.canProceed) {
       return null;
     }
     try {
@@ -288,7 +311,11 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
     } catch {
       return null;
     }
-  }, [draft, validation.canProceed, validation.selectedChartIds, wizardDebugEnabled]);
+  }, [draft, validation.canProceed, validation.selectedChartIds]);
+  const shortTournamentDefHash = React.useMemo(
+    () => (tournamentDefHash ? shortenTournamentId(tournamentDefHash, 30) : t('common.not_available')),
+    [t, tournamentDefHash],
+  );
 
   const isChartSelectedByAnotherRow = React.useCallback(
     (rowKey: string, chartId: number): boolean =>
@@ -356,12 +383,37 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       ? t('create_tournament.validation.missing_items', { items: missingBasicFieldsText })
       : resolveStepButtonReason(validation.periodError, 'create_tournament.validation.check_input', t)
     : null;
-  const stepTwoDisabledReason = !stepTwoReady
-    ? resolveStepButtonReason(validation.chartStepError, 'create_tournament.validation.check_chart_input', t)
-    : null;
   const createDisabledReason = !validation.canProceed
     ? resolveStepButtonReason(validation.periodError ?? validation.chartStepError, 'create_tournament.validation.check_input', t)
     : null;
+  const stepStatusText =
+    currentStep === 0
+      ? basicMissingCount > 0
+        ? t('create_tournament.status.missing_count', { count: basicMissingCount })
+        : t('create_tournament.status.completed')
+      : currentStep === 1
+        ? chartMissingCount > 0
+          ? t('create_tournament.status.missing_count', { count: chartMissingCount })
+          : t('create_tournament.status.completed')
+        : null;
+  const copyToClipboard = React.useCallback(async (value: string) => {
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        return;
+      }
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // ignore clipboard failure
+    }
+  }, []);
+
+  const scrollFirstInvalidChartCard = React.useCallback(() => {
+    const invalidRow = rows.find((row) => row.selectedSong === null || row.selectedChartId === null);
+    if (!invalidRow) {
+      return;
+    }
+    chartRowRefs.current[invalidRow.key]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [rows]);
 
   return (
     <div className="page createTournamentPage">
@@ -381,26 +433,27 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               className={stepClassName}
               onClick={() => setCurrentStep(stepIndex)}
               disabled={stepIndex > maxSelectableStep}
+              aria-label={t('create_tournament.wizard.nav_item', { index: index + 1, label: stepLabel })}
             >
-              {t('create_tournament.wizard.nav_item', { index: index + 1, label: stepLabel })}
+              {stepLabel}
             </button>
           );
         })}
       </nav>
+      {stepStatusText ? (
+        <p className="createStepStatusLine" role="status">
+          {stepStatusText}
+        </p>
+      ) : null}
 
       {currentStep === 0 ? (
         <section className="createSection">
-          <h2
-            className="createSectionTitle"
-            ref={(element) => {
-              stepTitleRefs.current[0] = element;
-            }}
-          >
+          <h2 className="createSectionTitle">
             {t('create_tournament.step.basic_title')}
           </h2>
           <div className="createFieldStack">
             <label className="createField">
-              <span className="fieldChipLabel">{t('create_tournament.field.name.label')}</span>
+              <span className="createFieldLabel">{t('create_tournament.field.name.label')}</span>
               <input
                 maxLength={50}
                 value={draft.name}
@@ -414,7 +467,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             </label>
 
             <label className="createField">
-              <span className="fieldChipLabel">{t('create_tournament.field.owner.label')}</span>
+              <span className="createFieldLabel">{t('create_tournament.field.owner.label')}</span>
               <input
                 maxLength={50}
                 value={draft.owner}
@@ -428,7 +481,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             </label>
 
             <label className="createField">
-              <span className="fieldChipLabel">{t('create_tournament.field.hashtag.label')}</span>
+              <span className="createFieldLabel">{t('create_tournament.field.hashtag.label')}</span>
               <div className="hashtagInputGroup">
                 <span className="hashtagInputPrefix" aria-hidden="true">
                   #
@@ -447,47 +500,47 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             </label>
 
             <div className="createField">
-              <span className="fieldChipLabel">{t('create_tournament.field.period.label')}</span>
-              <div className="periodRangeInputs">
-                <div className="periodDateField">
-                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
-                    <DatePicker
-                      value={startDateValue}
-                      onChange={(value) => {
-                        props.onDraftChange((current) => ({
-                          ...current,
-                          startDate: isValidDate(value) ? formatIsoDate(value) : '',
-                        }));
-                      }}
-                      format="yyyy/MM/dd"
-                      slotProps={{ textField: { placeholder: t('create_tournament.field.period.start_placeholder'), fullWidth: true, size: 'small' } }}
-                    />
-                  </LocalizationProvider>
-                  {validation.startDateError ? <p className="errorText createInlineError">{t(validation.startDateError)}</p> : null}
+              <span className="createFieldLabel">{t('create_tournament.field.period.label')}</span>
+              <div className="periodRangeAndShortcut">
+                <div className="periodRangeInputs">
+                  <div className="periodDateField">
+                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
+                      <DatePicker
+                        value={startDateValue}
+                        onChange={(value) => {
+                          props.onDraftChange((current) => ({
+                            ...current,
+                            startDate: isValidDate(value) ? formatIsoDate(value) : '',
+                          }));
+                        }}
+                        format="yyyy/MM/dd"
+                        slotProps={{ textField: { placeholder: t('create_tournament.field.period.start_placeholder'), fullWidth: true, size: 'small' } }}
+                      />
+                    </LocalizationProvider>
+                    {validation.startDateError ? <p className="errorText createInlineError">{t(validation.startDateError)}</p> : null}
+                  </div>
+                  <span aria-hidden="true">{t('create_tournament.text.period_separator')}</span>
+                  <div className="periodDateField">
+                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
+                      <DatePicker
+                        value={endDateValue}
+                        {...endDatePickerMinProps}
+                        onChange={(value) => {
+                          props.onDraftChange((current) => ({
+                            ...current,
+                            endDate: isValidDate(value) ? formatIsoDate(value) : '',
+                          }));
+                        }}
+                        format="yyyy/MM/dd"
+                        slotProps={{ textField: { placeholder: t('create_tournament.field.period.end_placeholder'), fullWidth: true, size: 'small' } }}
+                      />
+                    </LocalizationProvider>
+                    {validation.endDateError ? <p className="errorText createInlineError">{t(validation.endDateError)}</p> : null}
+                  </div>
                 </div>
-                <span aria-hidden="true">{t('create_tournament.text.period_separator')}</span>
-                <div className="periodDateField">
-                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
-                    <DatePicker
-                      value={endDateValue}
-                      {...endDatePickerMinProps}
-                      onChange={(value) => {
-                        props.onDraftChange((current) => ({
-                          ...current,
-                          endDate: isValidDate(value) ? formatIsoDate(value) : '',
-                        }));
-                      }}
-                      format="yyyy/MM/dd"
-                      slotProps={{ textField: { placeholder: t('create_tournament.field.period.end_placeholder'), fullWidth: true, size: 'small' } }}
-                    />
-                  </LocalizationProvider>
-                  {validation.endDateError ? <p className="errorText createInlineError">{t(validation.endDateError)}</p> : null}
-                </div>
-              </div>
-
-              <div className="periodPresetActions">
                 <button
                   type="button"
+                  className="periodPresetShortcutLink"
                   onClick={() => {
                     const nextMonth = resolveNextMonthDateRange(props.todayDate);
                     props.onDraftChange((current) => ({
@@ -504,27 +557,13 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               <p className="hintText">{periodText}</p>
             </div>
           </div>
-
-          <article className="chartRowCard createProgressCard">
-            <p className="progressLine">{t('create_tournament.progress.completed', { count: validation.basicCompletedCount })}</p>
-            <p className="hintText">
-              {t('create_tournament.progress.missing', {
-                items: validation.missingBasicFields.length > 0 ? missingBasicFieldsText : t('create_tournament.progress.none'),
-              })}
-            </p>
-          </article>
         </section>
       ) : null}
 
       {currentStep === 1 ? (
         <section className="createSection">
           <div className="createSectionHeading">
-            <h2
-              className="createSectionTitle"
-            ref={(element) => {
-              stepTitleRefs.current[1] = element;
-            }}
-          >
+            <h2 className="createSectionTitle">
               {t('create_tournament.step.charts_title', { current: rows.length, max: MAX_CHART_ROWS })}
             </h2>
             <div className="createSectionAction">
@@ -553,9 +592,17 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               const selectableChartCount = row.chartOptions.filter(
                 (chart) => !isChartSelectedByAnotherRow(row.key, chart.chartId),
               ).length;
+              const rowSongMissing = showChartValidationErrors && row.selectedSong === null;
+              const rowDifficultyMissing = showChartValidationErrors && row.selectedSong !== null && row.selectedChartId === null;
 
               return (
-                <article key={row.key} className="chartRowCard createChartCard">
+                <article
+                  key={row.key}
+                  className="chartRowCard createChartCard"
+                  ref={(element) => {
+                    chartRowRefs.current[row.key] = element;
+                  }}
+                >
                   <div className="chartRowHeader">
                     <strong>{t('create_tournament.chart.selection_label', { index: index + 1 })}</strong>
                     <button
@@ -575,7 +622,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">{t('create_tournament.field.song.label')}</span>
+                    <span className="createFieldLabel">{t('create_tournament.field.song.label')}</span>
                     <Box sx={SONG_AUTOCOMPLETE_SX}>
                       <Autocomplete<SongSummary, false, false, false>
                         fullWidth
@@ -656,10 +703,15 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                         }}
                       />
                     </Box>
+                    {rowSongMissing ? (
+                      <p className="errorText createInlineError createInlineErrorCompact">
+                        {t('create_tournament.validation.chart_song_required')}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">{t('create_tournament.field.play_style.label')}</span>
+                    <span className="createFieldLabel">{t('create_tournament.field.play_style.label')}</span>
                     {!row.selectedSong ? <span className="hintText">{t('create_tournament.field.play_style.disabled_hint')}</span> : null}
                     <div className="styleRadioGroup">
                       <label className={`styleOption ${row.playStyle === 'SP' ? 'selected' : ''} ${!row.selectedSong ? 'disabled' : ''}`}>
@@ -698,7 +750,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">{t('create_tournament.field.difficulty.label')}</span>
+                    <span className="createFieldLabel">{t('create_tournament.field.difficulty.label')}</span>
                     {!row.selectedSong ? <span className="hintText">{t('create_tournament.field.difficulty.select_song_hint')}</span> : null}
                     {row.selectedSong && row.chartOptions.length === 0 ? (
                       <span className="hintText">{t('create_tournament.field.difficulty.no_available')}</span>
@@ -724,18 +776,17 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                                   updateRow(row.key, (current) => ({ ...current, selectedChartId: chart.chartId }));
                                 }}
                               >
-                                {t('create_tournament.field.difficulty.value', {
-                                  difficulty: chart.difficulty,
-                                  level: chart.level,
-                                })}
+                                {resolveDifficultyShortLabel(chart.difficulty, chart.level)}
                               </button>
                             );
                           })}
                         </div>
                       </>
                     ) : null}
-                    {row.selectedSong && row.chartOptions.length > 0 && row.selectedChartId === null ? (
-                      <p className="errorText createInlineError">{t('create_tournament.validation.chart_difficulty_required')}</p>
+                    {rowDifficultyMissing ? (
+                      <p className="errorText createInlineError createInlineErrorCompact">
+                        {t('create_tournament.validation.chart_difficulty_required_row')}
+                      </p>
                     ) : null}
                   </div>
 
@@ -752,12 +803,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       {currentStep === 2 ? (
         <>
           <section className="createSection">
-            <h2
-              className="createSectionTitle"
-            ref={(element) => {
-              stepTitleRefs.current[2] = element;
-            }}
-          >
+            <h2 className="createSectionTitle">
               {t('create_tournament.step.confirm_title')}
             </h2>
             <article className="chartRowCard createConfirmInfoCard">
@@ -772,11 +818,26 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 </div>
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.hashtag.label_plain')}</dt>
-                  <dd>{displayHashtag || t('common.not_available')}</dd>
+                  <dd className="createConfirmHashtagValue">{displayHashtag || t('common.not_available')}</dd>
                 </div>
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.period.label_plain')}</dt>
                   <dd>{periodText}</dd>
+                </div>
+                <div className="createConfirmInfoItem">
+                  <dt>{t('create_tournament.field.tournament_id.label_plain')}</dt>
+                  <dd className="createConfirmTournamentIdRow">
+                    <span className="createConfirmTournamentIdText">{shortTournamentDefHash}</span>
+                    <button
+                      type="button"
+                      className="createInlineIconCopyButton"
+                      aria-label={t('common.copy')}
+                      onClick={() => void copyToClipboard(tournamentDefHash ?? '')}
+                      disabled={!tournamentDefHash}
+                    >
+                      <ContentCopyIcon fontSize="inherit" />
+                    </button>
+                  </dd>
                 </div>
               </dl>
             </article>
@@ -784,40 +845,22 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
           <section className="createSection">
             <h2 className="createSectionTitle">{t('create_tournament.confirm.chart_list_title')}</h2>
-            <div className="chartRows">
+            <div className="chartRows createConfirmChartRows">
               {rows.map((row, index) => {
                 const selectedChart = resolveSelectedChartOption(row);
+                const difficultyTextColor = selectedChart ? difficultyColor(selectedChart.difficulty) : undefined;
+                const playInfoText = selectedChart
+                  ? `${row.playStyle}  ${selectedChart.difficulty} ${selectedChart.level}`
+                  : t('common.not_available');
                 return (
-                  <article key={row.key} className="chartRowCard createChartCard">
+                  <article key={row.key} className="chartRowCard createChartCard createConfirmChartCard">
                     <div className="chartRowHeader">
                       <strong>{t('create_tournament.confirm.chart_title', { index: index + 1 })}</strong>
                     </div>
-
-                    <div className="createField">
-                      <span className="fieldChipLabel">{t('create_tournament.field.song.label')}</span>
-                      <p className="createConfirmValue">{row.selectedSong?.title ?? t('common.not_available')}</p>
-                    </div>
-
-                    <div className="createField">
-                      <span className="fieldChipLabel">{t('create_tournament.field.play_style.label')}</span>
-                      <div className="createConfirmStyleGroup">
-                        <span className="styleOption selected createConfirmStyleChip">{row.playStyle}</span>
-                      </div>
-                    </div>
-
-                    <div className="createField">
-                      <span className="fieldChipLabel">{t('create_tournament.field.difficulty.label')}</span>
-                      {selectedChart ? (
-                        <span className="createConfirmDifficulty" style={difficultyButtonStyle(selectedChart.difficulty, true)}>
-                          {t('create_tournament.field.difficulty.value', {
-                            difficulty: selectedChart.difficulty,
-                            level: selectedChart.level,
-                          })}
-                        </span>
-                      ) : (
-                        <p className="createConfirmValue">{t('common.not_available')}</p>
-                      )}
-                    </div>
+                    <p className="createConfirmChartSong">{row.selectedSong?.title ?? t('common.not_available')}</p>
+                    <p className="createConfirmChartMeta" style={difficultyTextColor ? { color: difficultyTextColor } : undefined}>
+                      {playInfoText}
+                    </p>
                   </article>
                 );
               })}
@@ -831,7 +874,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 <dl className="createConfirmInfoList">
                   <div className="createConfirmInfoItem">
                     <dt>{t('create_tournament.confirm.debug.def_hash')}</dt>
-                    <dd>{debugDefHash ?? t('common.not_available')}</dd>
+                    <dd>{tournamentDefHash ?? t('common.not_available')}</dd>
                   </div>
                   <div className="createConfirmInfoItem">
                     <dt>{t('create_tournament.confirm.debug.source_tournament_uuid')}</dt>
@@ -848,7 +891,14 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         {currentStep === 0 ? (
           <>
             {!stepOneReady ? <p className="errorText createInlineError">{stepOneDisabledReason}</p> : null}
-            <button type="button" className="primaryActionButton" onClick={() => setCurrentStep(1)} disabled={!stepOneReady}>
+            <button
+              type="button"
+              className="primaryActionButton"
+              onClick={() => {
+                setCurrentStep(1);
+              }}
+              disabled={!stepOneReady}
+            >
               {t('create_tournament.action.next_with_step', {
                 action: t('common.next'),
                 step: t('create_tournament.wizard.step.charts'),
@@ -859,15 +909,31 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
         {currentStep === 1 ? (
           <>
-            {!stepTwoReady ? <p className="errorText createInlineError">{stepTwoDisabledReason}</p> : null}
             <div className="createConfirmActions">
-              <button type="button" onClick={() => setCurrentStep(0)}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep(0);
+                }}
+              >
                 {t('create_tournament.action.back_with_step', {
                   action: t('common.back'),
                   step: t('create_tournament.wizard.step.basic'),
                 })}
               </button>
-              <button type="button" className="primaryActionButton" onClick={() => setCurrentStep(2)} disabled={!stepTwoReady}>
+              <button
+                type="button"
+                className="primaryActionButton"
+                onClick={() => {
+                  if (!stepTwoReady) {
+                    setShowChartValidationErrors(true);
+                    scrollFirstInvalidChartCard();
+                    return;
+                  }
+                  setShowChartValidationErrors(false);
+                  setCurrentStep(2);
+                }}
+              >
                 {t('create_tournament.action.next_with_step', {
                   action: t('common.next'),
                   step: t('create_tournament.wizard.step.confirm'),
@@ -883,8 +949,15 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             {!props.saving && !validation.canProceed ? (
               <p className="errorText createInlineError">{createDisabledReason}</p>
             ) : null}
+            <p className="createFinalizeWarning">{t('create_tournament.confirm.final_notice')}</p>
             <div className="createConfirmActions">
-              <button type="button" onClick={() => setCurrentStep(1)} disabled={props.saving}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep(1);
+                }}
+                disabled={props.saving}
+              >
                 {t('create_tournament.action.back_with_step', {
                   action: t('common.back'),
                   step: t('create_tournament.wizard.step.charts'),
@@ -898,7 +971,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   void props.onConfirmCreate();
                 }}
               >
-                {props.saving ? t('create_tournament.action.creating') : t('create_tournament.action.create')}
+                {t('create_tournament.action.finalize')}
               </button>
             </div>
           </>

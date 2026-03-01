@@ -3,6 +3,7 @@
     "detail": "詳細",
     "close": "閉じる",
     "copy": "コピー",
+    "copy_this_tournament": "このスコアタをコピー",
     "share": "共有",
     "cancel": "キャンセル",
     "back": "戻る",
@@ -428,6 +429,9 @@
         "start_placeholder": "開始日",
         "end_placeholder": "終了日"
       },
+      "tournament_id": {
+        "label_plain": "大会ID"
+      },
       "song": {
         "label": "曲名",
         "placeholder": "曲名を入力",
@@ -462,8 +466,13 @@
       "set_next_month": "来月（1日〜月末）",
       "next_with_step": "{{action}}（{{step}}）",
       "back_with_step": "{{action}}（{{step}}）",
+      "finalize": "スコアタを確定する",
       "create": "スコアタを作成",
       "creating": "作成中..."
+    },
+    "status": {
+      "missing_count": "未入力：{{count}}件",
+      "completed": "入力完了 ✔"
     },
     "progress": {
       "completed": "入力完了: {{count}}/4",
@@ -485,7 +494,9 @@
       "end_date_after_start": "終了日は開始日以降を指定してください。",
       "end_date_from_today": "終了日には今日以降の日付を指定してください。",
       "chart_required": "譜面を1件以上選択してください。",
+      "chart_song_required": "曲名を選択してください",
       "chart_difficulty_required": "各譜面で難易度を選択してください。",
+      "chart_difficulty_required_row": "難易度を選択してください",
       "chart_duplicate": "同一譜面を重複登録できません。",
       "chart_duplicate_on_page": "同一譜面が重複しています。",
       "check_input": "入力内容を確認してください。",
@@ -495,11 +506,23 @@
     "confirm": {
       "chart_list_title": "譜面一覧",
       "chart_title": "譜面 {{index}}",
+      "final_notice": "確定後は内容を編集できません。",
       "debug": {
         "title": "デバッグ情報",
         "def_hash": "def_hash",
         "source_tournament_uuid": "source_tournament_uuid",
         "null": "null"
+      }
+    },
+    "draft": {
+      "dialog": {
+        "title": "確認",
+        "description": "作成途中の内容があります。",
+        "action": {
+          "resume": "続きから再開",
+          "discard_and_new": "破棄して新規作成",
+          "copy_overwrite": "コピーで上書き"
+        }
       }
     }
   },
@@ -840,6 +863,11 @@
     "summary": {
       "period": "{{start}}〜{{end}}",
       "period_with_space": "{{start}} 〜 {{end}}",
+      "tournament_id": "大会ID: {{value}}",
+      "tournament_id_copy_failed": "大会IDのコピーに失敗しました。",
+      "technical_details": "詳細情報",
+      "debug_def_hash": "def_hash: {{value}}",
+      "debug_source_tournament_uuid": "source_tournament_uuid: {{value}}",
       "progress": "登録 {{submitted}} / {{total}}",
       "state_counts": "共有済 {{shared}} ・ 未共有 {{unshared}} ・ 未登録 {{unregistered}}",
       "last_updated": "最終更新: {{date}}"

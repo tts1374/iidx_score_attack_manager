@@ -3,6 +3,7 @@
     "detail": "상세",
     "close": "닫기",
     "copy": "복사",
+    "copy_this_tournament": "이 스코어 어택 복사",
     "share": "공유",
     "cancel": "취소",
     "back": "뒤로",
@@ -428,6 +429,9 @@
         "start_placeholder": "시작일",
         "end_placeholder": "종료일"
       },
+      "tournament_id": {
+        "label_plain": "대회 ID"
+      },
       "song": {
         "label": "곡명",
         "placeholder": "곡명을 입력",
@@ -462,8 +466,13 @@
       "set_next_month": "다음 달 (1일~말일)",
       "next_with_step": "{{action}} ({{step}})",
       "back_with_step": "{{action}} ({{step}})",
+      "finalize": "스코어 어택 확정",
       "create": "스코어 어택 만들기",
       "creating": "생성 중..."
+    },
+    "status": {
+      "missing_count": "미입력: {{count}}건",
+      "completed": "입력 완료 ✔"
     },
     "progress": {
       "completed": "입력 완료: {{count}}/4",
@@ -485,7 +494,9 @@
       "end_date_after_start": "종료일은 시작일 이후여야 합니다.",
       "end_date_from_today": "종료일은 오늘 이후여야 합니다.",
       "chart_required": "채보를 1개 이상 선택해 주세요.",
+      "chart_song_required": "곡명을 선택해 주세요",
       "chart_difficulty_required": "각 채보의 난이도를 선택해 주세요.",
+      "chart_difficulty_required_row": "난이도를 선택해 주세요",
       "chart_duplicate": "동일 채보를 중복 등록할 수 없습니다.",
       "chart_duplicate_on_page": "동일 채보가 중복 선택되었습니다.",
       "check_input": "입력 내용을 확인해 주세요.",
@@ -495,11 +506,23 @@
     "confirm": {
       "chart_list_title": "채보 목록",
       "chart_title": "채보 {{index}}",
+      "final_notice": "확정 후에는 내용을 수정할 수 없습니다.",
       "debug": {
         "title": "디버그 정보",
         "def_hash": "def_hash",
         "source_tournament_uuid": "source_tournament_uuid",
         "null": "null"
+      }
+    },
+    "draft": {
+      "dialog": {
+        "title": "확인",
+        "description": "작성 중인 내용이 있습니다.",
+        "action": {
+          "resume": "이어서 작성",
+          "discard_and_new": "폐기하고 새로 만들기",
+          "copy_overwrite": "복사 내용으로 덮어쓰기"
+        }
       }
     }
   },
@@ -840,6 +863,11 @@
     "summary": {
       "period": "{{start}}〜{{end}}",
       "period_with_space": "{{start}} 〜 {{end}}",
+      "tournament_id": "대회 ID: {{value}}",
+      "tournament_id_copy_failed": "대회 ID 복사에 실패했습니다.",
+      "technical_details": "상세 정보",
+      "debug_def_hash": "def_hash: {{value}}",
+      "debug_source_tournament_uuid": "source_tournament_uuid: {{value}}",
       "progress": "등록 {{submitted}} / {{total}}",
       "state_counts": "공유 완료 {{shared}} ・ 미공유 {{unshared}} ・ 미등록 {{unregistered}}",
       "last_updated": "최종 업데이트: {{date}}"

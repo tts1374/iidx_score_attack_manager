@@ -92,7 +92,11 @@ function buildDetail(overrides: Partial<TournamentDetailItem> = {}): TournamentD
   };
 }
 
-function renderPage(overrides: Partial<TournamentDetailItem> = {}, todayDate = '2026-02-10'): void {
+function renderPage(
+  overrides: Partial<TournamentDetailItem> = {},
+  todayDate = '2026-02-10',
+  options: { debugModeEnabled?: boolean } = {},
+): void {
   render(
     <TournamentDetailPage
       detail={buildDetail(overrides)}
@@ -100,7 +104,7 @@ function renderPage(overrides: Partial<TournamentDetailItem> = {}, todayDate = '
       onOpenSubmit={() => undefined}
       onUpdated={() => undefined}
       onOpenSettings={() => undefined}
-      debugModeEnabled={false}
+      debugModeEnabled={options.debugModeEnabled ?? false}
       debugLastError={null}
       onReportDebugError={() => undefined}
     />,
@@ -231,6 +235,28 @@ describe('TournamentDetailPage', () => {
     expect(metaLines[2]?.textContent).toContain('DP');
     expect(document.querySelector('.chartDifficultyTag')).toBeNull();
     expect(document.querySelector('.chartLevelTag')).toBeNull();
+  });
+
+  it('shows shortened tournament id and copies full id', async () => {
+    renderPage();
+
+    expect(screen.getByText(new RegExp(detail.tournamentUuid.slice(0, 10)))).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'コピー' }));
+
+    await waitFor(() => {
+      expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith(detail.tournamentUuid);
+    });
+  });
+
+  it('shows technical details only when debug mode is enabled', () => {
+    renderPage();
+    expect(screen.queryByText('詳細情報')).toBeNull();
+    expect(screen.queryByText(`def_hash: ${detail.defHash}`)).toBeNull();
+    cleanup();
+
+    renderPage({}, '2026-02-10', { debugModeEnabled: true });
+    expect(screen.getByText('詳細情報')).toBeTruthy();
+    expect(screen.getByText(`def_hash: ${detail.defHash}`)).toBeTruthy();
   });
 
   it('enables the footer share CTA outside active period when unshared charts exist', () => {

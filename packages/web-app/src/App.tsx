@@ -1,5 +1,5 @@
 import React from 'react';
-import type { TournamentDetailItem, TournamentListItem, TournamentTab } from '@iidx/db';
+import type { SongSummary, TournamentDetailItem, TournamentListItem, TournamentTab } from '@iidx/db';
 import { PAYLOAD_VERSION, encodeTournamentPayload, normalizeHashtag, type TournamentPayload } from '@iidx/shared';
 import { applyPwaUpdate, registerPwa } from '@iidx/pwa';
 import {
@@ -51,8 +51,12 @@ import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage } from './pages/TournamentDetailPage';
 import {
   buildCreateTournamentInput,
+  CREATE_TOURNAMENT_DRAFT_STORAGE_KEY,
+  MAX_CHART_ROWS,
+  createEmptyChartDraft,
   createInitialTournamentDraft,
   resolveCreateTournamentValidation,
+  restoreCreateTournamentDraft,
   type CreateTournamentDraft,
 } from './pages/create-tournament-draft';
 import { useAppServices } from './services/context';
@@ -153,6 +157,93 @@ const BUILD_TIME =
   typeof __BUILD_TIME__ === 'string' && __BUILD_TIME__.trim().length > 0 ? __BUILD_TIME__ : '-';
 const SW_VERSION_REQUEST_TIMEOUT_MS = 1500;
 const DEBUG_MODE_STORAGE_KEY = 'iidx:debug:mode';
+
+type CreateDraftDialogState =
+  | { kind: 'none' }
+  | { kind: 'resume' }
+  | {
+      kind: 'copy-conflict';
+      persistedDraft: CreateTournamentDraft;
+      copyDraft: CreateTournamentDraft;
+    };
+
+function readStoredCreateDraft(): CreateTournamentDraft | null {
+  try {
+    const raw = window.localStorage.getItem(CREATE_TOURNAMENT_DRAFT_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    const restored = restoreCreateTournamentDraft(parsed);
+    if (!restored) {
+      window.localStorage.removeItem(CREATE_TOURNAMENT_DRAFT_STORAGE_KEY);
+      return null;
+    }
+    return restored;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredCreateDraft(draft: CreateTournamentDraft): void {
+  try {
+    window.localStorage.setItem(CREATE_TOURNAMENT_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function clearStoredCreateDraft(): void {
+  try {
+    window.localStorage.removeItem(CREATE_TOURNAMENT_DRAFT_STORAGE_KEY);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function resolveCreatePlayStyle(value: string): 'SP' | 'DP' {
+  return value === 'DP' ? 'DP' : 'SP';
+}
+
+function buildCreateDraftFromDetail(detail: TournamentDetailItem): CreateTournamentDraft {
+  const rows = detail.charts.slice(0, MAX_CHART_ROWS).map((chart) => {
+    const playStyle = resolveCreatePlayStyle(chart.playStyle);
+    const selectedSong: SongSummary = {
+      musicId: chart.chartId,
+      title: chart.title,
+      version: '',
+    };
+    return {
+      key: crypto.randomUUID(),
+      query: chart.title,
+      options: [selectedSong],
+      selectedSong,
+      playStyle,
+      chartOptions: [
+        {
+          chartId: chart.chartId,
+          musicId: chart.chartId,
+          playStyle,
+          difficulty: chart.difficulty,
+          level: chart.level,
+          isActive: 1,
+        },
+      ],
+      selectedChartId: chart.chartId,
+      loading: false,
+    };
+  });
+
+  return {
+    tournamentUuid: crypto.randomUUID(),
+    name: detail.tournamentName,
+    owner: detail.owner,
+    hashtag: normalizeHashtag(detail.hashtag),
+    startDate: detail.startDate,
+    endDate: detail.endDate,
+    rows: rows.length > 0 ? rows : [createEmptyChartDraft()],
+  };
+}
 
 function readDebugMode(): boolean {
   try {
@@ -814,8 +905,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [showCreateFabTooltip, setShowCreateFabTooltip] = React.useState(false);
   const [qrImportDialogOpen, setQrImportDialogOpen] = React.useState(false);
   const [createDraft, setCreateDraft] = React.useState<CreateTournamentDraft | null>(null);
+  const [createDraftDirty, setCreateDraftDirty] = React.useState(false);
   const [createSaving, setCreateSaving] = React.useState(false);
   const [createSaveError, setCreateSaveError] = React.useState<string | null>(null);
+  const [createDraftDialogState, setCreateDraftDialogState] = React.useState<CreateDraftDialogState>({ kind: 'none' });
   const [debugModeEnabled, setDebugModeEnabled] = React.useState(() => readDebugMode());
   const [language, setLanguage] = React.useState<AppLanguage>('ja');
   const [detailTechnicalDialogOpen, setDetailTechnicalDialogOpen] = React.useState(false);
@@ -828,6 +921,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeCategorySectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeTypeSectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeAttrsSectionRef = React.useRef<HTMLDivElement | null>(null);
+  const createDraftSaveTimerRef = React.useRef<number | null>(null);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
@@ -1628,7 +1722,28 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       return;
     }
     setCreateDraft(createInitialTournamentDraft(todayDate));
+    setCreateDraftDirty(false);
   }, [createDraft, route.name, todayDate]);
+
+  React.useEffect(() => {
+    if (createDraftSaveTimerRef.current !== null) {
+      window.clearTimeout(createDraftSaveTimerRef.current);
+      createDraftSaveTimerRef.current = null;
+    }
+    if (!createDraft || !createDraftDirty) {
+      return;
+    }
+    createDraftSaveTimerRef.current = window.setTimeout(() => {
+      writeStoredCreateDraft(createDraft);
+      createDraftSaveTimerRef.current = null;
+    }, 250);
+    return () => {
+      if (createDraftSaveTimerRef.current !== null) {
+        window.clearTimeout(createDraftSaveTimerRef.current);
+        createDraftSaveTimerRef.current = null;
+      }
+    };
+  }, [createDraft, createDraftDirty]);
 
   const reloadDetail = React.useCallback(
     async (tournamentUuid: string) => {
@@ -1845,6 +1960,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
   const updateCreateDraft = React.useCallback(
     (updater: (draft: CreateTournamentDraft) => CreateTournamentDraft) => {
+      setCreateDraftDirty(true);
       setCreateDraft((current) => updater(current ?? createInitialTournamentDraft(todayDate)));
     },
     [todayDate],
@@ -1868,6 +1984,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       await appDb.createTournament(input);
       pushToast(t('notify.saved'));
       await refreshTournamentList();
+      clearStoredCreateDraft();
+      setCreateDraftDirty(false);
       setCreateDraft(null);
       resetRoute({ name: 'home' });
     } catch (error) {
@@ -1961,7 +2079,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       pushToast(t('common.create.require_song_master'));
       return;
     }
-    setCreateDraft(createInitialTournamentDraft(todayDate));
+    const storedDraft = readStoredCreateDraft();
+    if (storedDraft) {
+      setCreateDraft(storedDraft);
+      setCreateDraftDirty(false);
+      setCreateDraftDialogState({ kind: 'resume' });
+    } else {
+      setCreateDraft(createInitialTournamentDraft(todayDate));
+      setCreateDraftDirty(false);
+      setCreateDraftDialogState({ kind: 'none' });
+    }
     setCreateSaving(false);
     setCreateSaveError(null);
     pushRoute({ name: 'create' });
@@ -2013,6 +2140,81 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const closeDetailMenu = React.useCallback(() => {
     setDetailMenuAnchorEl(null);
   }, []);
+
+  const openCopyCreateFromDetail = React.useCallback(() => {
+    closeDetailMenu();
+    if (!detail) {
+      return;
+    }
+    if (!songMasterReady) {
+      pushToast(t('common.create.require_song_master'));
+      return;
+    }
+    const copyDraft = buildCreateDraftFromDetail(detail);
+    const storedDraft = readStoredCreateDraft();
+    if (storedDraft) {
+      setCreateDraftDialogState({
+        kind: 'copy-conflict',
+        persistedDraft: storedDraft,
+        copyDraft,
+      });
+      return;
+    }
+    setCreateDraft(copyDraft);
+    setCreateDraftDirty(true);
+    setCreateSaving(false);
+    setCreateSaveError(null);
+    pushRoute({ name: 'create' });
+  }, [closeDetailMenu, detail, pushRoute, pushToast, songMasterReady, t]);
+
+  const resumeCreateDraftFromDialog = React.useCallback(() => {
+    if (createDraftDialogState.kind === 'none') {
+      return;
+    }
+    if (createDraftDialogState.kind === 'copy-conflict') {
+      setCreateDraft(createDraftDialogState.persistedDraft);
+      setCreateDraftDirty(false);
+      setCreateSaving(false);
+      setCreateSaveError(null);
+      setCreateDraftDialogState({ kind: 'none' });
+      pushRoute({ name: 'create' });
+      return;
+    }
+    const storedDraft = readStoredCreateDraft();
+    if (storedDraft) {
+      setCreateDraft(storedDraft);
+      setCreateDraftDirty(false);
+    }
+    setCreateDraftDialogState({ kind: 'none' });
+  }, [createDraftDialogState, pushRoute]);
+
+  const discardStoredCreateDraftAndStartFresh = React.useCallback(() => {
+    clearStoredCreateDraft();
+    setCreateDraft(createInitialTournamentDraft(todayDate));
+    setCreateDraftDirty(false);
+    setCreateSaving(false);
+    setCreateSaveError(null);
+    setCreateDraftDialogState({ kind: 'none' });
+  }, [todayDate]);
+
+  const overwriteCreateDraftWithCopy = React.useCallback(() => {
+    if (createDraftDialogState.kind !== 'copy-conflict') {
+      return;
+    }
+    setCreateDraft(createDraftDialogState.copyDraft);
+    setCreateDraftDirty(true);
+    setCreateSaving(false);
+    setCreateSaveError(null);
+    setCreateDraftDialogState({ kind: 'none' });
+    pushRoute({ name: 'create' });
+  }, [createDraftDialogState, pushRoute]);
+
+  const cancelCreateDraftCopyConflict = React.useCallback(() => {
+    if (createDraftDialogState.kind !== 'copy-conflict') {
+      return;
+    }
+    setCreateDraftDialogState({ kind: 'none' });
+  }, [createDraftDialogState.kind]);
 
   const openDetailTechnicalDialog = React.useCallback(() => {
     closeDetailMenu();
@@ -2078,10 +2280,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setBusy(true);
     try {
       await appDb.resetLocalData();
+      clearStoredCreateDraft();
       setDetail(null);
       setCreateDraft(null);
+      setCreateDraftDirty(false);
       setCreateSaving(false);
       setCreateSaveError(null);
+      setCreateDraftDialogState({ kind: 'none' });
       setHomeQuery(createDefaultHomeQueryState());
       setHomeSearchMode(false);
       setHomeFilterSheetOpen(false);
@@ -2111,6 +2316,26 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setDetailTechnicalDialogOpen(false);
     setDetailDebugLastError(null);
   }, [route.name]);
+
+  React.useEffect(() => {
+    if (route.name === 'create') {
+      return;
+    }
+    if (createDraftDialogState.kind !== 'resume') {
+      return;
+    }
+    setCreateDraftDialogState({ kind: 'none' });
+  }, [createDraftDialogState.kind, route.name]);
+
+  React.useEffect(() => {
+    if (route.name === 'detail') {
+      return;
+    }
+    if (createDraftDialogState.kind !== 'copy-conflict') {
+      return;
+    }
+    setCreateDraftDialogState({ kind: 'none' });
+  }, [createDraftDialogState.kind, route.name]);
 
   React.useEffect(() => {
     if (debugModeEnabled) {
@@ -2254,6 +2479,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                         <MoreVertIcon />
                       </IconButton>
                       <Menu anchorEl={detailMenuAnchorEl} open={detailMenuOpen} onClose={closeDetailMenu}>
+                        <MenuItem onClick={openCopyCreateFromDetail}>{t('common.copy_this_tournament')}</MenuItem>
                         {debugModeEnabled ? (
                           <MenuItem onClick={openDetailTechnicalDialog}>
                             {t('common.technical_info')}
@@ -2413,6 +2639,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             todayDate={todayDate}
             saving={createSaving}
             errorMessage={createSaveError}
+            debugModeEnabled={debugModeEnabled}
             onDraftChange={updateCreateDraft}
             onConfirmCreate={confirmCreateTournament}
           />
@@ -2712,6 +2939,42 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           </DialogContent>
           <DialogActions>
             <Button onClick={closeDetailTechnicalDialog}>{t('common.close')}</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={createDraftDialogState.kind === 'resume'} onClose={() => undefined} fullWidth maxWidth="xs">
+          <DialogTitle>{t('create_tournament.draft.dialog.title')}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">{t('create_tournament.draft.dialog.description')}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={discardStoredCreateDraftAndStartFresh}>
+              {t('create_tournament.draft.dialog.action.discard_and_new')}
+            </Button>
+            <Button variant="contained" onClick={resumeCreateDraftFromDialog}>
+              {t('create_tournament.draft.dialog.action.resume')}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={createDraftDialogState.kind === 'copy-conflict'}
+          onClose={cancelCreateDraftCopyConflict}
+          fullWidth
+          maxWidth="xs"
+        >
+          <DialogTitle>{t('create_tournament.draft.dialog.title')}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">{t('create_tournament.draft.dialog.description')}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={cancelCreateDraftCopyConflict}>{t('common.cancel')}</Button>
+            <Button onClick={resumeCreateDraftFromDialog}>
+              {t('create_tournament.draft.dialog.action.resume')}
+            </Button>
+            <Button variant="contained" onClick={overwriteCreateDraftWithCopy}>
+              {t('create_tournament.draft.dialog.action.copy_overwrite')}
+            </Button>
           </DialogActions>
         </Dialog>
 
