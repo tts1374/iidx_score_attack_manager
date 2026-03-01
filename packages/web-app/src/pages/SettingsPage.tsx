@@ -473,6 +473,7 @@ function row(label: string, value: string, mono = false, onValueTap?: () => void
             <Box
               component="button"
               type="button"
+              tabIndex={-1}
               aria-label={label}
               data-testid={valueButtonTestId}
               onClick={onValueTap}
@@ -482,8 +483,26 @@ function row(label: string, value: string, mono = false, onValueTap?: () => void
                 color: 'inherit',
                 display: 'inline',
                 cursor: 'default',
+                border: 0,
+                margin: 0,
+                padding: 0,
+                lineHeight: 'inherit',
+                letterSpacing: 'inherit',
                 WebkitTapHighlightColor: 'transparent',
                 touchAction: 'manipulation',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                '&:focus, &:focus-visible': {
+                  outline: 'none',
+                  boxShadow: 'none',
+                  background: 'transparent',
+                },
+                '&:active': {
+                  background: 'transparent',
+                },
+                '&::-moz-focus-inner': {
+                  border: 0,
+                },
               }}
             >
               {value}
