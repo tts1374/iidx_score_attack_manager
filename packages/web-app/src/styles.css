@@ -478,12 +478,34 @@ label {
   outline-offset: 2px;
 }
 
+.tournamentSummaryCard {
+  text-align: left;
+}
+
 .tournamentCardStatusRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.tournamentSummaryCardLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.tournamentSummaryCardMain {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.tournamentSummaryCard-list .tournamentSummaryCardLayout,
+.tournamentSummaryCard-preview .tournamentSummaryCardLayout {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .tournamentStateLabel {
@@ -493,15 +515,8 @@ label {
   white-space: nowrap;
 }
 
-.tournamentCardHeader {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.tournamentCard h3 {
+.tournamentSummaryTitle {
   margin: 0;
-  font-size: 20px;
   font-weight: 700;
   line-height: 1.35;
   overflow: hidden;
@@ -509,7 +524,59 @@ label {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
-  flex: 1;
+}
+
+.tournamentSummaryCard-list .tournamentSummaryTitle {
+  font-size: 20px;
+}
+
+.tournamentSummaryCard-detail .tournamentSummaryTitle,
+.tournamentSummaryCard-preview .tournamentSummaryTitle {
+  font-size: 24px;
+}
+
+.tournamentSummaryPeriod {
+  margin: 0;
+}
+
+.tournamentStatusLabelRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.tournamentStatusLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.tournamentStatusLabel-unregistered {
+  background: #f8fafc;
+  border-color: #d5dde8;
+  color: #475569;
+}
+
+.tournamentStatusLabel-unshared {
+  background: #fff7ed;
+  border-color: #f2d3a2;
+  color: #9a3412;
+}
+
+.tournamentSummaryProgress {
+  margin-top: 2px;
+}
+
+.tournamentSummaryCardSide {
+  min-width: 180px;
 }
 
 .statusBadge {
@@ -582,17 +649,6 @@ label {
 .remainingDays-urgent {
   background: #fde68a;
   color: #78350f;
-}
-
-.tournamentMeta {
-  display: grid;
-  gap: 6px;
-}
-
-.ownerLine {
-  color: #334155;
-  font-size: 14px;
-  font-weight: 500;
 }
 
 .periodLine {
@@ -1241,54 +1297,6 @@ label {
   gap: 10px;
 }
 
-.detailTournamentIdRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.detailTournamentIdText {
-  color: #334155;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.detailInlineCopyButton {
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  padding: 4px 10px;
-  background: #ffffff;
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.detailTechnicalDetails {
-  border: 1px solid #dbe3f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  padding: 6px 10px;
-}
-
-.detailTechnicalDetails summary {
-  cursor: pointer;
-  color: #334155;
-  font-weight: 700;
-}
-
-.detailTechnicalDetailsBody {
-  display: grid;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.detailTechnicalDetailsBody p {
-  margin: 0;
-  color: #475569;
-  font-size: 13px;
-}
-
 .detailStateProgressBar {
   width: 100%;
   height: 10px;
@@ -1404,12 +1412,25 @@ label {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   text-align: left;
   border: 1px solid #d6dfef;
   border-radius: 12px;
-  padding: 12px;
+  padding: 12px 14px;
   background: #ffffff;
+}
+
+.chartListItem-noRight {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.chartListItem-detail {
+  grid-template-columns: 1fr auto;
+  column-gap: 16px;
+}
+
+.chartListItem-detail.chartListItem-noRight {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .chartListItemError {
@@ -1420,12 +1441,20 @@ label {
 .chartText {
   display: grid;
   min-width: 0;
-  gap: 6px;
+  gap: 4px;
+}
+
+.chartListItem-detail .chartText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .chartTitle {
   margin: 0;
-  line-height: 1.35;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.28;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1435,25 +1464,25 @@ label {
 
 .chartMetaLine {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: baseline;
+  gap: 8px;
   flex-wrap: nowrap;
   overflow: hidden;
-  font-size: 13px;
-  line-height: 1.35;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.chartMetaLine-submit {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 8px;
 }
 
 .chartPlayStyleText {
-  display: inline-flex;
-  align-items: center;
-  font-weight: 700;
   color: #334155;
-  white-space: nowrap;
-}
-
-.chartMetaSeparator {
-  color: #94a3b8;
   font-weight: 700;
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -1462,6 +1491,36 @@ label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.chartMetaStatusBadge {
+  justify-self: end;
+  align-self: start;
+  white-space: nowrap;
+}
+
+.chart-diff--beginner {
+  color: var(--difficulty-beginner);
+}
+
+.chart-diff--normal {
+  color: var(--difficulty-normal);
+}
+
+.chart-diff--hyper {
+  color: var(--difficulty-hyper);
+}
+
+.chart-diff--another {
+  color: var(--difficulty-another);
+}
+
+.chart-diff--leggendaria {
+  color: var(--difficulty-leggendaria);
+}
+
+.chart-diff--unknown {
+  color: var(--difficulty-unknown);
 }
 
 .chartStateBadge {
@@ -1492,12 +1551,61 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 24px;
+}
+
+.chartLeftStatusRow {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.chartLeftStatusRow-mobile {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chartInlineActionSlot {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.chartInlineActionSlot .chartSubmitButton {
+  white-space: nowrap;
 }
 
 .chartActions {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   justify-items: end;
+  align-content: start;
+}
+
+.chartActions-withActions {
+  min-width: 112px;
+}
+
+.chartActions-detail {
+  min-width: 112px;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: flex-start;
+}
+
+.chartActionSpacer {
+  min-height: 24px;
+  visibility: hidden;
+}
+
+.chartActionSlot {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .chartSubmitButton {
@@ -1612,89 +1720,6 @@ label {
 
 .submitOverviewCard {
   position: relative;
-}
-
-.submitOverviewMain {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.submitOverviewMainCompact {
-  gap: 8px;
-}
-
-.submitTitleRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 8px;
-}
-
-.submitSongTitle {
-  margin: 0;
-  font-size: 24px;
-  line-height: 1.32;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.submitHeaderStateBadge {
-  margin-top: 2px;
-  flex: 0 0 auto;
-}
-
-.submitChartMetaLineCompact {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.3;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.submitPlayStyle {
-  color: #334155;
-  flex: 0 0 auto;
-}
-
-.submitDifficultyText {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.submitDifficultyText-beginner {
-  color: var(--difficulty-beginner);
-}
-
-.submitDifficultyText-normal {
-  color: var(--difficulty-normal);
-}
-
-.submitDifficultyText-hyper {
-  color: var(--difficulty-hyper);
-}
-
-.submitDifficultyText-another {
-  color: var(--difficulty-another);
-}
-
-.submitDifficultyText-leggendaria {
-  color: var(--difficulty-leggendaria);
-}
-
-.submitDifficultyText-unknown {
-  color: var(--difficulty-unknown);
 }
 
 .submitPickerCard,
@@ -1887,18 +1912,13 @@ label {
 }
 
 .importConfirmSummaryCard,
-.importConfirmChartsCard,
-.importConfirmMergeCard {
+.importConfirmChartsCard {
   display: grid;
   gap: 10px;
 }
 
-.importConfirmChartItem {
-  width: 100%;
-  border: 1px solid #dde4f1;
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: #ffffff;
+.importConfirmDiffSummary {
+  margin-top: -6px;
 }
 
 .importChartTitle {
@@ -1988,20 +2008,27 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .chartListItem-detail {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
   .chartActions {
     width: 100%;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
   }
 
-  .chartStatusLine {
-    flex-wrap: wrap;
+  .chartActions-detail {
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-end;
   }
 
-  .tournamentDetailHeader {
-    flex-direction: column;
-    align-items: stretch;
+  .tournamentSummaryCard-detail .tournamentSummaryCardLayout {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .detailShareArea {

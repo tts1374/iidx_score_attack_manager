@@ -322,7 +322,7 @@
     },
     "confirm": {
       "section": {
-        "charts": "Target charts",
+        "charts_with_count": "Target charts ({{count}})",
         "merge": "Existing Score Attack found (same UUID)",
         "caution": "Caution"
       },
@@ -334,9 +334,13 @@
       "value": {
         "period": "{{from}} - {{to}}",
         "chart_id": "chart:{{chartId}}",
-        "chart_detail": "{{playStyle}} {{difficulty}} Lv{{level}}"
+        "chart_detail": "{{playStyle}} {{difficulty}} {{level}}"
       },
       "chart_missing": "Song master mismatch (chart:{{chartId}})",
+      "summary": {
+        "create_new": "A new tournament will be created",
+        "update_existing": "The existing tournament will be updated (images are kept)"
+      },
       "merge": {
         "mode": "Apply mode: Merge (charts only)",
         "added_charts": "Charts to add: {{count}}",
@@ -344,8 +348,8 @@
         "note": "Score Attack name/owner/period/hashtag will not be updated."
       },
       "caution": {
-        "self_responsibility": "Use imported data at your own risk.",
-        "uuid_conflict": "When UUIDs conflict, Score Attack info is kept and only chart differences are applied."
+        "keep_images": "• Registered images are kept",
+        "update_existing": "• Matching tournament IDs are updated"
       }
     }
   },

@@ -34,8 +34,8 @@ describe('HomePage', () => {
     const firstCard = screen.getAllByRole('listitem')[0]!;
     const statusBadge = firstCard.querySelector('.tournamentStateLabel');
     const remainingDays = firstCard.querySelector('.remainingDays');
-    const progressLine = firstCard.querySelector('.progressLine');
-    const sendWaitingBadge = firstCard.querySelector('.sendWaitingBadge');
+    const unregisteredLabel = screen.queryByTestId('tournament-summary-incomplete-unregistered-list');
+    const unsharedLabel = screen.queryByTestId('tournament-summary-incomplete-unshared-list');
     const sharedSegment = firstCard.querySelector('.progressBarSegment-shared') as HTMLDivElement | null;
     const sendWaitingSegment = firstCard.querySelector('.progressBarSegment-sendWaiting') as HTMLDivElement | null;
     const unregisteredSegment = firstCard.querySelector('.progressBarSegment-unregistered') as HTMLDivElement | null;
@@ -43,9 +43,8 @@ describe('HomePage', () => {
 
     expect(statusBadge?.textContent?.trim()).toBeTruthy();
     expect(remainingDays?.textContent).toBe('残り2日');
-    expect(progressLine?.textContent).toContain('1');
-    expect(progressLine?.classList.contains('progressLine-muted')).toBe(false);
-    expect(sendWaitingBadge?.textContent?.trim()).toBeTruthy();
+    expect(unregisteredLabel?.textContent).toContain('2');
+    expect(unsharedLabel?.textContent?.trim()).toBeTruthy();
     expect(sharedSegment?.style.width).toBe('25%');
     expect(sendWaitingSegment?.style.width).toBe('25%');
     expect(unregisteredSegment?.style.width).toBe('50%');
@@ -53,41 +52,45 @@ describe('HomePage', () => {
   });
 
   it('renders state label for non-active state', () => {
-    const commonItem = {
+    const upcomingItem = {
       tournamentUuid: 't1',
       sourceTournamentUuid: null,
       tournamentName: 'テスト大会',
       owner: 'owner',
       hashtag: 'tag',
-      startDate: '2026-02-01',
-      endDate: '2026-02-12',
+      startDate: '2026-02-20',
+      endDate: '2026-02-25',
       isImported: false,
-      chartCount: 4,
+      chartCount: 2,
       submittedCount: 2,
       sendWaitingCount: 0,
-      pendingCount: 2,
+      pendingCount: 0,
+    };
+    const endedItem = {
+      ...upcomingItem,
+      startDate: '2026-01-01',
+      endDate: '2026-01-05',
     };
 
     const { container, rerender } = render(
       <HomePage
         todayDate="2026-02-10"
         state="upcoming"
-        items={[commonItem]}
+        items={[upcomingItem]}
         onOpenDetail={() => undefined}
       />,
     );
     const upcomingBadge = container.querySelector('.tournamentStateLabel');
     expect(upcomingBadge?.textContent?.trim()).toBeTruthy();
-    expect(container.querySelector('.sendWaitingBadge')).toBeNull();
-    expect(container.querySelector('.progressLine')?.classList.contains('progressLine-muted')).toBe(true);
-    expect(container.querySelector('.remainingDays')).toBeNull();
+    expect(container.querySelector('.remainingDays')?.textContent?.trim()).toBeTruthy();
+    expect(container.querySelector('[data-testid="tournament-summary-incomplete-unshared-list"]')).toBeNull();
     const upcomingLabel = upcomingBadge?.textContent;
 
     rerender(
       <HomePage
         todayDate="2026-02-10"
         state="ended"
-        items={[commonItem]}
+        items={[endedItem]}
         onOpenDetail={() => undefined}
       />,
     );
@@ -95,7 +98,8 @@ describe('HomePage', () => {
     const endedBadge = container.querySelector('.tournamentStateLabel');
     expect(endedBadge?.textContent?.trim()).toBeTruthy();
     expect(endedBadge?.textContent).not.toBe(upcomingLabel);
-    expect(container.querySelector('.sendWaitingBadge')).toBeNull();
+    expect(container.querySelector('.remainingDays')).toBeNull();
+    expect(container.querySelector('[data-testid="tournament-summary-incomplete-unshared-list"]')).toBeNull();
   });
 
   it('hides progress status badge when there is no unshared chart', () => {
@@ -123,9 +127,9 @@ describe('HomePage', () => {
       />,
     );
 
-    expect(container.querySelector('.sendWaitingBadge')).toBeNull();
-    expect(container.querySelector('.pendingBadge')).toBeNull();
-    expect(container.querySelector('.completedBadge')).toBeNull();
+    expect(container.querySelector('[data-testid="tournament-summary-incomplete-unshared-list"]')).toBeNull();
+    expect(container.querySelector('[data-testid="tournament-summary-incomplete-unregistered-list"]')).toBeNull();
+    expect(container.querySelector('[data-testid="tournament-summary-incomplete-row-list"]')).toBeNull();
   });
 
   it('shows open-filter action on empty state', async () => {

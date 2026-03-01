@@ -1,8 +1,10 @@
 import React from 'react';
-import { formatHashtagForDisplay, getTournamentStatus, type TournamentPayload } from '@iidx/shared';
+import type { TournamentPayload } from '@iidx/shared';
 import type { ImportTargetTournament, SongMasterChartDetail } from '@iidx/db';
 import { useTranslation } from 'react-i18next';
 
+import { ChartCard } from '../components/ChartCard';
+import { TournamentSummaryCard } from '../components/TournamentSummaryCard';
 import { useAppServices } from '../services/context';
 import { IMPORT_CONFIRM_PATH } from '../utils/payload-url';
 import {
@@ -10,7 +12,7 @@ import {
   type ImportConfirmError,
   type ImportLocationPayloadResult,
 } from '../utils/import-confirm';
-import { difficultyColor } from '../utils/iidx';
+import { resolveTournamentCardStatus } from '../utils/tournament-status';
 
 interface ImportConfirmPageProps {
   todayDate: string;
@@ -31,45 +33,14 @@ interface PreviewChart {
 
 interface ImportPreview {
   payload: TournamentPayload;
-  statusKey: 'upcoming' | 'active' | 'ended';
-  statusClassName: 'statusBadge-upcoming' | 'statusBadge-active-normal' | 'statusBadge-ended';
   charts: PreviewChart[];
   existing: ImportTargetTournament | null;
-  addedCharts: number;
-  sameCharts: number;
 }
 
 type ImportConfirmState =
   | { status: 'loading' }
   | { status: 'ready'; preview: ImportPreview }
   | { status: 'error'; error: ImportConfirmError; preview?: ImportPreview };
-
-function resolveStatus(start: string, end: string, todayDate: string): {
-  isEnded: boolean;
-  statusKey: ImportPreview['statusKey'];
-  className: ImportPreview['statusClassName'];
-} {
-  const status = getTournamentStatus(start, end, todayDate);
-  if (status === 'upcoming') {
-    return {
-      isEnded: false,
-      statusKey: 'upcoming',
-      className: 'statusBadge-upcoming',
-    };
-  }
-  if (status === 'ended') {
-    return {
-      isEnded: true,
-      statusKey: 'ended',
-      className: 'statusBadge-ended',
-    };
-  }
-  return {
-    isEnded: false,
-    statusKey: 'active',
-    className: 'statusBadge-active-normal',
-  };
-}
 
 function buildPreviewCharts(
   chartIds: number[],
@@ -100,36 +71,6 @@ function buildPreviewCharts(
       missing: false,
     };
   });
-}
-
-function resolveStatusLabelKey(statusKey: ImportPreview['statusKey']): string {
-  if (statusKey === 'upcoming') {
-    return 'import.confirm.status.upcoming';
-  }
-  if (statusKey === 'ended') {
-    return 'import.confirm.status.ended';
-  }
-  return 'import.confirm.status.active';
-}
-
-function summarizeMerge(existing: ImportTargetTournament | null, chartIds: number[]): { addedCharts: number; sameCharts: number } {
-  if (!existing) {
-    return {
-      addedCharts: chartIds.length,
-      sameCharts: 0,
-    };
-  }
-  const existingSet = new Set(existing.chartIds);
-  let sameCharts = 0;
-  let addedCharts = 0;
-  for (const chartId of chartIds) {
-    if (existingSet.has(chartId)) {
-      sameCharts += 1;
-    } else {
-      addedCharts += 1;
-    }
-  }
-  return { addedCharts, sameCharts };
 }
 
 export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
@@ -211,22 +152,18 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       }
       const payload: TournamentPayload = locationPayload.payload;
 
-      const statusInfo = resolveStatus(payload.start, payload.end, props.todayDate);
+      const statusInfo = resolveTournamentCardStatus(payload.start, payload.end, props.todayDate);
       const notAvailableLabel = t('common.not_available');
       const emptyPreview: ImportPreview = {
         payload,
-        statusKey: statusInfo.statusKey,
-        statusClassName: statusInfo.className,
         charts: buildPreviewCharts(payload.charts, new Map(), {
           fallbackTitle: (chartId) => t('import.confirm.value.chart_id', { chartId }),
           notAvailableLabel,
         }),
         existing: null,
-        addedCharts: payload.charts.length,
-        sameCharts: 0,
       };
 
-      if (statusInfo.isEnded) {
+      if (statusInfo.status === 'ended') {
         fail(
           {
             code: 'EXPIRED',
@@ -273,12 +210,9 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       }
 
       const existing = await appDb.findImportTargetTournament(payload.uuid);
-      const mergedSummary = summarizeMerge(existing, payload.charts);
       const completedPreview: ImportPreview = {
         ...previewWithMaster,
         existing,
-        addedCharts: mergedSummary.addedCharts,
-        sameCharts: mergedSummary.sameCharts,
       };
 
       if (existing && (existing.startDate !== payload.start || existing.endDate !== payload.end)) {
@@ -338,6 +272,10 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       : validationState.status === 'error'
         ? validationState.preview
         : undefined;
+  const isExistingTournament = Boolean(preview?.existing);
+  const importDiffSummaryText = isExistingTournament
+    ? t('import.confirm.summary.update_existing')
+    : t('import.confirm.summary.create_new');
 
   return (
     <div className="page importConfirmPage">
@@ -361,62 +299,43 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
 
       {preview ? (
         <>
-          <section className="detailCard importConfirmSummaryCard">
-            <div className="tournamentCardHeader">
-              <h2>{preview.payload.name}</h2>
-              <span className={`statusBadge ${preview.statusClassName}`}>{t(resolveStatusLabelKey(preview.statusKey))}</span>
-            </div>
-            <div className="tournamentMeta">
-              <p>{preview.payload.owner}</p>
-              <p>{t('import.confirm.value.period', { from: preview.payload.start, to: preview.payload.end })}</p>
-              <p>{formatHashtagForDisplay(preview.payload.hashtag) || t('common.not_available')}</p>
-            </div>
-          </section>
+          <TournamentSummaryCard
+            variant="preview"
+            title={preview.payload.name}
+            startDate={preview.payload.start}
+            endDate={preview.payload.end}
+            todayDate={props.todayDate}
+            periodText={t('import.confirm.value.period', { from: preview.payload.start, to: preview.payload.end })}
+            cardClassName="importConfirmSummaryCard"
+          />
+          <p className="hintText importConfirmDiffSummary">{importDiffSummaryText}</p>
 
           <section className="detailCard importConfirmChartsCard">
-            <h3>{t('import.confirm.section.charts')}</h3>
+            <h3>{t('import.confirm.section.charts_with_count', { count: preview.charts.length })}</h3>
             <ul className="chartList">
-              {preview.charts.slice(0, 4).map((chart) => (
+              {preview.charts.map((chart) => (
                 <li key={chart.chartId}>
-                  <div className="importConfirmChartItem">
-                    <div className="chartText">
-                      <strong className={chart.missing ? 'errorText importChartTitle' : 'importChartTitle'}>
-                        {chart.title}
-                      </strong>
-                      <span
-                        className={chart.missing ? 'errorText' : ''}
-                        style={chart.missing ? undefined : { color: difficultyColor(chart.difficulty) }}
-                      >
-                        {t('import.confirm.value.chart_detail', {
-                          playStyle: chart.playStyle,
-                          difficulty: chart.difficulty,
-                          level: chart.level,
-                        })}
-                      </span>
-                      {chart.missing ? (
-                        <span className="errorText">{t('import.confirm.chart_missing', { chartId: chart.chartId })}</span>
-                      ) : null}
-                    </div>
-                  </div>
+                  <ChartCard
+                    title={chart.title}
+                    playStyle={chart.playStyle}
+                    difficulty={chart.difficulty}
+                    level={chart.level}
+                    titleClassName={chart.missing ? 'errorText importChartTitle' : 'importChartTitle'}
+                    playStyleClassName={chart.missing ? 'errorText' : undefined}
+                    difficultyLevelClassName={chart.missing ? 'errorText' : undefined}
+                    note={chart.missing ? t('import.confirm.chart_missing', { chartId: chart.chartId }) : null}
+                    noteClassName="errorText"
+                    variant="preview"
+                  />
                 </li>
               ))}
             </ul>
           </section>
 
-          {preview.existing ? (
-            <section className="detailCard importConfirmMergeCard">
-              <h3>{t('import.confirm.section.merge')}</h3>
-              <p>{t('import.confirm.merge.mode')}</p>
-              <p>{t('import.confirm.merge.added_charts', { count: preview.addedCharts })}</p>
-              <p>{t('import.confirm.merge.same_charts', { count: preview.sameCharts })}</p>
-              <p className="hintText">{t('import.confirm.merge.note')}</p>
-            </section>
-          ) : null}
-
           <section className="detailCard">
             <h3>{t('import.confirm.section.caution')}</h3>
-            <p className="hintText">{t('import.confirm.caution.self_responsibility')}</p>
-            <p className="hintText">{t('import.confirm.caution.uuid_conflict')}</p>
+            <p className="hintText">{t('import.confirm.caution.keep_images')}</p>
+            <p className="hintText">{t('import.confirm.caution.update_existing')}</p>
           </section>
         </>
       ) : null}

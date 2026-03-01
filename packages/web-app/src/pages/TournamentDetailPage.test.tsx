@@ -28,6 +28,7 @@ const originalRevokeObjectUrl = URL.revokeObjectURL;
 const originalNavigatorClipboard = Object.getOwnPropertyDescriptor(window.navigator, 'clipboard');
 const originalNavigatorShare = Object.getOwnPropertyDescriptor(window.navigator, 'share');
 const originalNavigatorCanShare = Object.getOwnPropertyDescriptor(window.navigator, 'canShare');
+const originalMatchMedia = Object.getOwnPropertyDescriptor(window, 'matchMedia');
 
 const detail: TournamentDetailItem = {
   tournamentUuid: '11111111-1111-4111-8111-111111111111',
@@ -125,8 +126,25 @@ function mockWebShareAvailable(): { share: ReturnType<typeof vi.fn>; canShare: R
   return { share, canShare };
 }
 
+function mockMatchMedia(maxWidth599Matches: boolean): void {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width:599px') ? maxWidth599Matches : false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 describe('TournamentDetailPage', () => {
   beforeEach(() => {
+    mockMatchMedia(false);
     Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
       configurable: true,
       writable: true,
@@ -191,18 +209,43 @@ describe('TournamentDetailPage', () => {
     if (originalNavigatorCanShare) {
       Object.defineProperty(window.navigator, 'canShare', originalNavigatorCanShare);
     }
+    if (originalMatchMedia) {
+      Object.defineProperty(window, 'matchMedia', originalMatchMedia);
+    } else {
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        value: undefined,
+      });
+    }
     vi.restoreAllMocks();
     cleanup();
   });
 
-  it('shows exactly one state badge per chart and summary counts for 3 states', () => {
+  it('shows at most one state badge per chart and hides shared status badge', () => {
     renderPage();
 
     const statusLabels = screen.getAllByTestId('tournament-detail-chart-status-label');
-    expect(statusLabels).toHaveLength(3);
-    expect(statusLabels.map((node) => node.getAttribute('data-chart-state'))).toEqual(['unregistered', 'unshared', 'shared']);
+    expect(statusLabels).toHaveLength(2);
+    expect(statusLabels.map((node) => node.getAttribute('data-chart-state'))).toEqual(['unregistered', 'unshared']);
+    const actionAreas = document.querySelectorAll('.chartActions-detail');
+    actionAreas.forEach((area) => {
+      expect(within(area as HTMLElement).queryByTestId('tournament-detail-chart-status-label')).toBeNull();
+    });
+    expect(document.querySelectorAll('.chartLeftStatusRow')).toHaveLength(3);
+    expect(document.querySelectorAll('.chartActionSlot')).toHaveLength(3);
     expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
-    expect(screen.getByTestId('tournament-detail-state-summary-text').textContent).toContain('共有済');
+    expect(screen.getByTestId('tournament-summary-relative-detail').textContent).toBe('残り2日');
+    expect(screen.getByTestId('tournament-summary-incomplete-unregistered-detail').textContent).toContain('1');
+    expect(screen.getByTestId('tournament-summary-incomplete-unshared-detail').textContent).toContain('1');
+  });
+
+  it('uses one-column mobile layout and places actions in the status row', () => {
+    mockMatchMedia(true);
+    renderPage();
+
+    expect(document.querySelectorAll('.chartActions-detail')).toHaveLength(0);
+    expect(document.querySelectorAll('.chartLeftStatusRow-mobile')).toHaveLength(3);
+    expect(document.querySelectorAll('.chartInlineActionSlot')).toHaveLength(3);
   });
 
   it('emphasizes register only for unregistered chart and keeps replace as secondary', () => {
@@ -229,34 +272,21 @@ describe('TournamentDetailPage', () => {
 
     const metaLines = screen.getAllByTestId('tournament-detail-chart-meta-line');
     expect(metaLines).toHaveLength(3);
-    expect(metaLines[0]?.textContent).toContain('SP');
-    expect(metaLines[0]?.textContent).toContain('ANOTHER 12');
-    expect(metaLines[1]?.textContent).toContain('SP');
-    expect(metaLines[2]?.textContent).toContain('DP');
+    expect(metaLines[0]?.textContent).toMatch(/SP\s*ANOTHER 12/);
+    expect(metaLines[1]?.textContent).toMatch(/SP\s*HYPER 10/);
+    expect(metaLines[2]?.textContent).toMatch(/DP\s*NORMAL 8/);
+    expect(metaLines[0]?.textContent).not.toContain('・');
+    expect(metaLines[0]?.textContent).not.toContain('Lv');
     expect(document.querySelector('.chartDifficultyTag')).toBeNull();
     expect(document.querySelector('.chartLevelTag')).toBeNull();
   });
 
-  it('shows shortened tournament id and copies full id', async () => {
-    renderPage();
+  it('does not render tournament id or technical details in summary card', () => {
+    renderPage({}, '2026-02-10', { debugModeEnabled: true });
 
-    expect(screen.getByText(new RegExp(detail.tournamentUuid.slice(0, 10)))).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', { name: 'コピー' }));
-
-    await waitFor(() => {
-      expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith(detail.tournamentUuid);
-    });
-  });
-
-  it('shows technical details only when debug mode is enabled', () => {
-    renderPage();
+    expect(screen.queryByText(new RegExp(detail.tournamentUuid.slice(0, 10)))).toBeNull();
     expect(screen.queryByText('詳細情報')).toBeNull();
     expect(screen.queryByText(`def_hash: ${detail.defHash}`)).toBeNull();
-    cleanup();
-
-    renderPage({}, '2026-02-10', { debugModeEnabled: true });
-    expect(screen.getByText('詳細情報')).toBeTruthy();
-    expect(screen.getByText(`def_hash: ${detail.defHash}`)).toBeTruthy();
   });
 
   it('enables the footer share CTA outside active period when unshared charts exist', () => {
