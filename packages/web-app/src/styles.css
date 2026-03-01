@@ -940,6 +940,10 @@ label {
   gap: 12px;
 }
 
+.createConfirmChartRows {
+  gap: 12px;
+}
+
 .createChartCard {
   padding: 16px;
   border-left: 6px solid #60a5fa;
@@ -1038,6 +1042,7 @@ label {
 }
 
 .createConfirmChartCard {
+  padding: 12px 16px;
   gap: 6px;
 }
 

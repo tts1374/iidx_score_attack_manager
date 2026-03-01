@@ -869,7 +869,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
           <section className="createSection">
             <h2 className="createSectionTitle">{t('create_tournament.confirm.chart_list_title')}</h2>
-            <div className="chartRows">
+            <div className="chartRows createConfirmChartRows">
               {rows.map((row, index) => {
                 const selectedChart = resolveSelectedChartOption(row);
                 const difficultyTextColor = selectedChart ? difficultyColor(selectedChart.difficulty) : undefined;
