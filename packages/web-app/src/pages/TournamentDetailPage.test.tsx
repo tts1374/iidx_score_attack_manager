@@ -6,6 +6,12 @@ import type { TournamentDetailItem } from '@iidx/db';
 
 import { TournamentDetailPage } from './TournamentDetailPage';
 
+vi.mock('qrcode', () => ({
+  default: {
+    toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,mock'),
+  },
+}));
+
 const serviceMocks = vi.hoisted(() => ({
   appDb: {
     getEvidenceRecord: vi.fn(),
@@ -23,8 +29,10 @@ vi.mock('../services/context', () => ({
 }));
 
 const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+const originalCanvasToBlob = HTMLCanvasElement.prototype.toBlob;
 const originalCreateObjectUrl = URL.createObjectURL;
 const originalRevokeObjectUrl = URL.revokeObjectURL;
+const originalImage = window.Image;
 const originalNavigatorClipboard = Object.getOwnPropertyDescriptor(window.navigator, 'clipboard');
 const originalNavigatorShare = Object.getOwnPropertyDescriptor(window.navigator, 'share');
 const originalNavigatorCanShare = Object.getOwnPropertyDescriptor(window.navigator, 'canShare');
@@ -142,6 +150,71 @@ function mockMatchMedia(maxWidth599Matches: boolean): void {
   });
 }
 
+function mockShareImageReady(): void {
+  const gradient = {
+    addColorStop: vi.fn(),
+  } as unknown as CanvasGradient;
+  const contextState: Record<string, unknown> = {
+    createLinearGradient: vi.fn(() => gradient),
+    measureText: vi.fn((text: string) => ({ width: text.length * 11 } as TextMetrics)),
+    fillText: vi.fn(),
+    drawImage: vi.fn(),
+    textBaseline: 'alphabetic',
+    textAlign: 'left',
+    font: '',
+    fillStyle: '#000000',
+    imageSmoothingEnabled: true,
+  };
+  const context = new Proxy(
+    contextState,
+    {
+      get(target, prop) {
+        if (prop in target) {
+          return target[prop as string];
+        }
+        return vi.fn();
+      },
+      set(target, prop, value) {
+        target[prop as string] = value;
+        return true;
+      },
+    },
+  ) as unknown as CanvasRenderingContext2D;
+
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    writable: true,
+    value: vi.fn(() => context),
+  });
+  Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+    configurable: true,
+    writable: true,
+    value: (callback: BlobCallback): void => {
+      callback(new Blob(['png'], { type: 'image/png' }));
+    },
+  });
+
+  class MockImage {
+    onload: ((this: GlobalEventHandlers, ev: Event) => unknown) | null = null;
+
+    onerror: OnErrorEventHandler = null;
+
+    set src(_: string) {
+      queueMicrotask(() => {
+        if (this.onload) {
+          this.onload.call(this as unknown as GlobalEventHandlers, new Event('load'));
+        }
+      });
+    }
+  }
+
+  Object.defineProperty(window, 'Image', {
+    configurable: true,
+    writable: true,
+    value: MockImage,
+  });
+}
+
 describe('TournamentDetailPage', () => {
   beforeEach(() => {
     mockMatchMedia(false);
@@ -185,10 +258,16 @@ describe('TournamentDetailPage', () => {
   });
 
   afterEach(() => {
+    cleanup();
     Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
       configurable: true,
       writable: true,
       value: originalCanvasGetContext,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+      configurable: true,
+      writable: true,
+      value: originalCanvasToBlob,
     });
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
@@ -199,6 +278,11 @@ describe('TournamentDetailPage', () => {
       configurable: true,
       writable: true,
       value: originalRevokeObjectUrl,
+    });
+    Object.defineProperty(window, 'Image', {
+      configurable: true,
+      writable: true,
+      value: originalImage,
     });
     if (originalNavigatorClipboard) {
       Object.defineProperty(window.navigator, 'clipboard', originalNavigatorClipboard);
@@ -218,7 +302,6 @@ describe('TournamentDetailPage', () => {
       });
     }
     vi.restoreAllMocks();
-    cleanup();
   });
 
   it('shows at most one state badge per chart and hides shared status badge', () => {
@@ -396,5 +479,39 @@ describe('TournamentDetailPage', () => {
       expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
     });
     expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
+  });
+
+  it('simplifies share dialog and keeps only required controls', async () => {
+    mockShareImageReady();
+    renderPage();
+
+    await userEvent.click(screen.getByTestId('tournament-detail-share-button'));
+    const dialog = screen.getByTestId('tournament-detail-share-dialog');
+    const dialogScope = within(dialog);
+
+    expect(dialogScope.queryByTestId('tournament-detail-share-definition-alert')).toBeNull();
+    expect(dialogScope.queryByText('生成画像（1080x1920）')).toBeNull();
+    expect(dialogScope.getByRole('button', { name: '投稿文をコピー' })).toBeTruthy();
+    expect(dialogScope.getAllByText('共有')).toHaveLength(1);
+  });
+
+  it('copies post template text including hashtag and import URL', async () => {
+    mockShareImageReady();
+    renderPage();
+
+    await userEvent.click(screen.getByTestId('tournament-detail-share-button'));
+    const copyButton = await screen.findByRole('button', { name: '投稿文をコピー' });
+    await waitFor(() => {
+      expect((copyButton as HTMLButtonElement).disabled).toBe(false);
+    });
+    await userEvent.click(copyButton);
+
+    await waitFor(() => {
+      expect(window.navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
+    });
+    const copiedText = (window.navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(copiedText).toContain('スコアタ開催します！ #SCOREATTACK');
+    expect(copiedText).toContain('/import/confirm?p=');
+    expect(copiedText).toContain('\n');
   });
 });
