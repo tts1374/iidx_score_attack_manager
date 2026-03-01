@@ -501,46 +501,46 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
             <div className="createField">
               <span className="createFieldLabel">{t('create_tournament.field.period.label')}</span>
-              <div className="periodRangeInputs">
-                <div className="periodDateField">
-                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
-                    <DatePicker
-                      value={startDateValue}
-                      onChange={(value) => {
-                        props.onDraftChange((current) => ({
-                          ...current,
-                          startDate: isValidDate(value) ? formatIsoDate(value) : '',
-                        }));
-                      }}
-                      format="yyyy/MM/dd"
-                      slotProps={{ textField: { placeholder: t('create_tournament.field.period.start_placeholder'), fullWidth: true, size: 'small' } }}
-                    />
-                  </LocalizationProvider>
-                  {validation.startDateError ? <p className="errorText createInlineError">{t(validation.startDateError)}</p> : null}
+              <div className="periodRangeAndShortcut">
+                <div className="periodRangeInputs">
+                  <div className="periodDateField">
+                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
+                      <DatePicker
+                        value={startDateValue}
+                        onChange={(value) => {
+                          props.onDraftChange((current) => ({
+                            ...current,
+                            startDate: isValidDate(value) ? formatIsoDate(value) : '',
+                          }));
+                        }}
+                        format="yyyy/MM/dd"
+                        slotProps={{ textField: { placeholder: t('create_tournament.field.period.start_placeholder'), fullWidth: true, size: 'small' } }}
+                      />
+                    </LocalizationProvider>
+                    {validation.startDateError ? <p className="errorText createInlineError">{t(validation.startDateError)}</p> : null}
+                  </div>
+                  <span aria-hidden="true">{t('create_tournament.text.period_separator')}</span>
+                  <div className="periodDateField">
+                    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
+                      <DatePicker
+                        value={endDateValue}
+                        {...endDatePickerMinProps}
+                        onChange={(value) => {
+                          props.onDraftChange((current) => ({
+                            ...current,
+                            endDate: isValidDate(value) ? formatIsoDate(value) : '',
+                          }));
+                        }}
+                        format="yyyy/MM/dd"
+                        slotProps={{ textField: { placeholder: t('create_tournament.field.period.end_placeholder'), fullWidth: true, size: 'small' } }}
+                      />
+                    </LocalizationProvider>
+                    {validation.endDateError ? <p className="errorText createInlineError">{t(validation.endDateError)}</p> : null}
+                  </div>
                 </div>
-                <span aria-hidden="true">{t('create_tournament.text.period_separator')}</span>
-                <div className="periodDateField">
-                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
-                    <DatePicker
-                      value={endDateValue}
-                      {...endDatePickerMinProps}
-                      onChange={(value) => {
-                        props.onDraftChange((current) => ({
-                          ...current,
-                          endDate: isValidDate(value) ? formatIsoDate(value) : '',
-                        }));
-                      }}
-                      format="yyyy/MM/dd"
-                      slotProps={{ textField: { placeholder: t('create_tournament.field.period.end_placeholder'), fullWidth: true, size: 'small' } }}
-                    />
-                  </LocalizationProvider>
-                  {validation.endDateError ? <p className="errorText createInlineError">{t(validation.endDateError)}</p> : null}
-                </div>
-              </div>
-
-              <div className="periodPresetActions">
                 <button
                   type="button"
+                  className="periodPresetShortcutLink"
                   onClick={() => {
                     const nextMonth = resolveNextMonthDateRange(props.todayDate);
                     props.onDraftChange((current) => ({

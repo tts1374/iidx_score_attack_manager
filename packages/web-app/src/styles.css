@@ -885,11 +885,20 @@ label {
   color: #1f2937;
 }
 
+.periodRangeAndShortcut {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .periodRangeInputs {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 8px;
   align-items: start;
+  flex: 1 1 420px;
+  min-width: 0;
 }
 
 .periodRangeInputs > span {
@@ -907,9 +916,31 @@ label {
   gap: 6px;
 }
 
-.periodPresetActions {
-  display: flex;
-  justify-content: flex-start;
+.periodPresetShortcutLink {
+  margin-left: auto;
+  min-height: 32px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.periodPresetShortcutLink:hover,
+.periodPresetShortcutLink:active {
+  text-decoration: underline;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.periodPresetShortcutLink:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  text-decoration: underline;
 }
 
 .createProgressCard {
@@ -1912,6 +1943,11 @@ label {
 
   .createSectionTitle {
     font-size: 18px;
+  }
+
+  .periodPresetShortcutLink {
+    margin-left: 0;
+    margin-top: 4px;
   }
 
   .chartListItem {
