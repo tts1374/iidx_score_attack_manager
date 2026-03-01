@@ -29,7 +29,7 @@ import { useAppServices } from '../services/context';
 import { ChartCard } from '../components/ChartCard';
 import { toSafeArrayBuffer } from '../utils/image';
 import { buildImportUrl } from '../utils/payload-url';
-import { difficultyColor } from '../utils/iidx';
+import { difficultyColorHex } from '../utils/iidx';
 import { resolveTournamentCardStatus } from '../utils/tournament-status';
 import { TournamentSummaryCard } from '../components/TournamentSummaryCard';
 
@@ -440,7 +440,7 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string, t
   posterCharts.forEach((entry, index) => {
     const rowTop = rowTopStart + index * (rowHeight + rowGap);
     const tagText = `${entry.chart.playStyle} ${entry.chart.difficulty}`;
-    const color = difficultyColor(entry.chart.difficulty);
+    const color = difficultyColorHex(entry.chart.difficulty);
     const tagHeight = 34;
     const metaY = rowTop + 12;
 
@@ -1080,18 +1080,25 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         </ul>
       </section>
 
-      <Dialog open={shareDialogOpen} onClose={closeShareDialog} fullWidth maxWidth="sm" data-testid="tournament-detail-share-dialog">
+      <Dialog
+        open={shareDialogOpen}
+        onClose={closeShareDialog}
+        fullWidth
+        maxWidth="sm"
+        data-testid="tournament-detail-share-dialog"
+        PaperProps={{ className: 'detailShareDialogPaper' }}
+      >
         <DialogTitle sx={{ pr: 6 }}>
           {t('tournament_detail.action.share_tournament')}
           <IconButton
             aria-label={t('tournament_detail.share_dialog.close_aria_label')}
             onClick={closeShareDialog}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
+            sx={{ position: 'absolute', right: 8, top: 8, color: 'var(--text-subtle)' }}
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
+        <DialogContent dividers sx={{ display: 'grid', gap: 2, borderColor: 'var(--border)' }}>
           <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -1104,12 +1111,12 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             <Box
               sx={{
                 border: '1px solid',
-                borderColor: 'divider',
+                borderColor: 'var(--border)',
                 borderRadius: 2,
                 p: 1.5,
                 maxHeight: { xs: 420, sm: 520 },
                 overflowY: 'auto',
-                backgroundColor: '#f8fafc',
+                backgroundColor: 'var(--surface-2)',
               }}
             >
               {shareImageStatus === 'loading' ? (
@@ -1134,7 +1141,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                     display: 'block',
                     mx: 'auto',
                     borderRadius: 1.5,
-                    border: '1px solid #cbd5e1',
+                    border: '1px solid var(--border-strong)',
                   }}
                 />
               ) : null}
@@ -1182,7 +1189,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             <Accordion
               disableGutters
               elevation={0}
-              sx={{ border: '1px solid #e2e8f0', borderRadius: 2 }}
+              sx={{ border: '1px solid var(--border)', borderRadius: 2 }}
               data-testid="tournament-detail-share-debug-accordion"
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ borderRadius: 2 }}>
@@ -1212,7 +1219,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
           {shareNotice ? <Alert severity={shareNotice.severity}>{shareNotice.text}</Alert> : null}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ borderTop: '1px solid var(--border)' }}>
           <Button onClick={closeShareDialog}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
@@ -1234,9 +1241,16 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         </DialogActions>
       </Dialog>
 
-      <Dialog open={submitDialogOpen} onClose={() => setSubmitDialogOpen(false)} fullWidth maxWidth="sm" data-testid="tournament-detail-submit-dialog">
+      <Dialog
+        open={submitDialogOpen}
+        onClose={() => setSubmitDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        data-testid="tournament-detail-submit-dialog"
+        PaperProps={{ className: 'detailSubmitDialogPaper' }}
+      >
         <DialogTitle>{t('tournament_detail.submit_dialog.title')}</DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ borderColor: 'var(--border)' }}>
           <Typography variant="body1" data-testid="tournament-detail-submit-confirm-text">
             {submitDialogConfirmText}
           </Typography>
@@ -1246,7 +1260,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             </Typography>
           ) : null}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ borderTop: '1px solid var(--border)' }}>
           <Button onClick={() => setSubmitDialogOpen(false)} disabled={submitBusy}>
             {t('common.cancel')}
           </Button>
