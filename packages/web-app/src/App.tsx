@@ -75,6 +75,7 @@ import {
 import { resolveErrorMessage } from './utils/error-i18n';
 import { consumeWhatsNewVisibility } from './utils/whats-new';
 import { CURRENT_VERSION } from './version';
+import { registerHomeFilterSampleDebugApi } from './debug/home-filter-sample-seed';
 
 function todayJst(): string {
   const now = new Date();
@@ -763,7 +764,7 @@ async function resolveOpfsStatus(): Promise<AppInfoCardData['opfsStatus']> {
 }
 
 export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
-  const { appDb, songMasterService } = useAppServices();
+  const { appDb, opfs, songMasterService } = useAppServices();
   const { t } = useTranslation();
 
   const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
@@ -2151,6 +2152,18 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     }
     setDetailTechnicalDialogOpen(false);
   }, [debugModeEnabled]);
+
+  React.useEffect(() => {
+    return registerHomeFilterSampleDebugApi({
+      enabled: debugModeEnabled,
+      appDb,
+      opfs,
+      todayDate,
+      onDataChanged: async () => {
+        await refreshTournamentList();
+      },
+    });
+  }, [appDb, debugModeEnabled, opfs, refreshTournamentList, todayDate]);
 
   if (fatalError) {
     return <UnsupportedScreen title={t('common.song_master.startup_error_title')} reasons={[fatalError]} />;
