@@ -3,27 +3,29 @@ import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography }
 import { useTranslation } from 'react-i18next';
 
 import { extractQrTextFromImageData } from '../utils/image';
+import { extractRawQueryParam } from '../utils/payload-url';
 
 interface ImportQrScannerDialogProps {
   open: boolean;
   onClose: () => void;
-  onDetected: (qrText: string) => void;
-  onOpenTextImport: () => void;
+  onImportUrl: (url: string) => void;
 }
 
 export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.Element {
   const { t } = useTranslation();
-  const [starting, setStarting] = React.useState(false);
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [cameraState, setCameraState] = React.useState<'initializing' | 'ready' | 'failed'>('initializing');
+  const [cameraError, setCameraError] = React.useState<string | null>(null);
+  const [importUrlInput, setImportUrlInput] = React.useState('');
+  const [importUrlError, setImportUrlError] = React.useState<string | null>(null);
+  const [helpExpanded, setHelpExpanded] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
   const frameRequestRef = React.useRef<number | null>(null);
   const detectedRef = React.useRef(false);
-  const cameraStartFailedPrefix = t('common.import_qr_dialog.error.camera_start_failed_prefix');
+  const helpPanelId = React.useId();
 
   const stopScanner = React.useCallback(() => {
-    detectedRef.current = true;
     if (frameRequestRef.current !== null) {
       window.cancelAnimationFrame(frameRequestRef.current);
       frameRequestRef.current = null;
@@ -44,23 +46,60 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
     }
   }, []);
 
+  const resolveFallbackValidationMessage = React.useCallback(
+    (value: string): string | null => {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        return t('common.import_qr_dialog.fallback.error.empty');
+      }
+
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(trimmed);
+      } catch {
+        return t('common.import_qr_dialog.fallback.error.absolute_url');
+      }
+
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return t('common.import_qr_dialog.fallback.error.absolute_url');
+      }
+
+      const rawPayloadParam = extractRawQueryParam(parsedUrl.search, 'p');
+      if (!parsedUrl.pathname.includes('/import/confirm') || rawPayloadParam === null || rawPayloadParam.length === 0) {
+        return t('common.import_qr_dialog.fallback.error.import_link');
+      }
+
+      return null;
+    },
+    [t],
+  );
+
   React.useEffect(() => {
     if (!props.open) {
       stopScanner();
-      setStarting(false);
+      setCameraState('initializing');
+      setCameraError(null);
+      setImportUrlInput('');
+      setImportUrlError(null);
+      setHelpExpanded(false);
       return;
     }
 
-    setErrorMessage(null);
+    setCameraState('initializing');
+    setCameraError(null);
+    setImportUrlError(null);
+    setHelpExpanded(false);
     detectedRef.current = false;
 
     if (window.isSecureContext !== true || typeof navigator.mediaDevices?.getUserMedia !== 'function') {
-      setErrorMessage(t('common.import_qr_dialog.error.unavailable'));
+      setCameraState('failed');
+      const unavailableReason = window.isSecureContext !== true ? 'NotAllowedError: insecure context' : 'NotFoundError: no camera api';
+      setCameraError(unavailableReason);
+      stopScanner();
       return;
     }
 
     let disposed = false;
-    setStarting(true);
 
     const startScanner = async () => {
       try {
@@ -82,10 +121,11 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
         streamRef.current = stream;
         const video = videoRef.current;
         if (!video) {
-          throw new Error(t('common.import_qr_dialog.error.preview_init_failed'));
+          throw new DOMException('Camera preview element is missing.', 'NotReadableError');
         }
         video.srcObject = stream;
         await video.play();
+        setCameraState('ready');
 
         const scanFrame = () => {
           if (disposed || detectedRef.current) {
@@ -113,7 +153,7 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
                 if (qrText) {
                   detectedRef.current = true;
                   stopScanner();
-                  props.onDetected(qrText);
+                  props.onImportUrl(qrText);
                   return;
                 }
               }
@@ -128,12 +168,13 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
         if (disposed) {
           return;
         }
-        const reason = error instanceof Error ? error.message : String(error);
-        setErrorMessage(t('common.import_qr_dialog.error.camera_start_failed', { reason }));
-      } finally {
-        if (!disposed) {
-          setStarting(false);
-        }
+        stopScanner();
+        const reason =
+          typeof error === 'object' && error !== null && 'name' in error && 'message' in error
+            ? `${String(error.name)}: ${String(error.message)}`
+            : String(error);
+        setCameraError(reason);
+        setCameraState('failed');
       }
     };
 
@@ -143,38 +184,88 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
       disposed = true;
       stopScanner();
     };
-  }, [cameraStartFailedPrefix, props.onDetected, props.open, stopScanner, t]);
+  }, [props.onImportUrl, props.open, stopScanner]);
 
-  const showTextImportButton = errorMessage?.startsWith(cameraStartFailedPrefix) ?? false;
+  const submitDisabled = importUrlInput.trim().length === 0;
+  const showFallback = cameraState === 'failed';
 
   return (
     <Dialog open={props.open} onClose={props.onClose} fullWidth maxWidth="xs">
       <DialogTitle>{t('common.import_qr_dialog.title')}</DialogTitle>
       <DialogContent dividers>
-        <Typography variant="body2" className="hintText">
-          {t('common.import_qr_dialog.description')}
-        </Typography>
-        <div className="importQrScannerViewport">
-          <video ref={videoRef} className="importQrScannerVideo" autoPlay muted playsInline />
-        </div>
-        {starting ? (
-          <Typography variant="body2" className="hintText">
-            {t('common.import_qr_dialog.starting')}
-          </Typography>
-        ) : null}
-        {errorMessage ? (
-          <div className="importQrScannerErrorBlock">
-            <Typography variant="body2" className="errorText">
-              {errorMessage}
+        {!showFallback ? (
+          <>
+            <Typography variant="body2" className="hintText">
+              {t('common.import_qr_dialog.description')}
             </Typography>
-            {showTextImportButton ? (
-              <div className="importQrScannerErrorActions">
-                <Button size="small" onClick={props.onOpenTextImport}>
-                  {t('common.import_qr_dialog.action.text_import')}
-                </Button>
+            <div className="importQrScannerViewport">
+              <video ref={videoRef} className="importQrScannerVideo" autoPlay muted playsInline />
+            </div>
+          </>
+        ) : (
+          <div className="importQrScannerFallback">
+            <Typography component="h3" variant="subtitle1">
+              {t('common.import_qr_dialog.fallback.title')}
+            </Typography>
+            <Typography variant="body2" className="hintText">
+              {t('common.import_qr_dialog.fallback.description')}
+            </Typography>
+            <form
+              className="importQrScannerFallbackForm"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const validationMessage = resolveFallbackValidationMessage(importUrlInput);
+                if (validationMessage) {
+                  setImportUrlError(validationMessage);
+                  return;
+                }
+                setImportUrlError(null);
+                props.onImportUrl(importUrlInput.trim());
+              }}
+            >
+              <input
+                value={importUrlInput}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setImportUrlInput(nextValue);
+                  if (importUrlError) {
+                    setImportUrlError(resolveFallbackValidationMessage(nextValue));
+                  }
+                }}
+                placeholder={t('common.import_qr_dialog.fallback.input_placeholder')}
+                aria-label={t('common.import_qr_dialog.fallback.input_placeholder')}
+              />
+              <Button type="submit" variant="contained" disabled={submitDisabled}>
+                {t('common.import_qr_dialog.fallback.action.import')}
+              </Button>
+            </form>
+            {importUrlError ? (
+              <Typography variant="body2" className="errorText">
+                {importUrlError}
+              </Typography>
+            ) : null}
+            <Button
+              size="small"
+              className="importQrScannerFallbackHelpLink"
+              onClick={() => setHelpExpanded((prev) => !prev)}
+              aria-expanded={helpExpanded}
+              aria-controls={helpPanelId}
+            >
+              {t('common.import_qr_dialog.fallback.help_link')}
+            </Button>
+            {helpExpanded ? (
+              <div id={helpPanelId} className="importQrScannerFallbackHelpPanel">
+                <Typography variant="body2">{t('common.import_qr_dialog.fallback.help.permission')}</Typography>
+                <Typography variant="body2">{t('common.import_qr_dialog.fallback.help.https')}</Typography>
+                <Typography variant="body2">{t('common.import_qr_dialog.fallback.help.in_app_browser')}</Typography>
               </div>
             ) : null}
           </div>
+        )}
+        {cameraState === 'initializing' ? (
+          <Typography variant="body2" className="hintText">
+            {t('common.import_qr_dialog.starting')}
+          </Typography>
         ) : null}
         <canvas ref={canvasRef} className="importQrScannerCanvas" />
       </DialogContent>

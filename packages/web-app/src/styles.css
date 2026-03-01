@@ -1831,6 +1831,33 @@ label {
   display: none;
 }
 
+.importQrScannerFallback {
+  display: grid;
+  gap: 10px;
+}
+
+.importQrScannerFallbackForm {
+  display: grid;
+  gap: 8px;
+}
+
+.importQrScannerFallbackForm input {
+  width: 100%;
+}
+
+.importQrScannerFallbackHelpLink {
+  justify-self: start;
+  min-width: 0;
+  padding-left: 0;
+  text-transform: none;
+  font-size: 12px;
+}
+
+.importQrScannerFallbackHelpPanel {
+  display: grid;
+  gap: 2px;
+}
+
 .importQrScannerErrorBlock {
   display: grid;
   gap: 6px;
