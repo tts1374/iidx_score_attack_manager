@@ -3,6 +3,7 @@ import { sha256Hex } from '@iidx/shared';
 import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
 import { useTranslation } from 'react-i18next';
 
+import { ChartCard } from '../components/ChartCard';
 import { useAppServices } from '../services/context';
 import { reencodeImageToJpeg, toSafeArrayBuffer } from '../utils/image';
 
@@ -28,28 +29,7 @@ type SubmitEvidenceErrorKey =
   | 'submit_evidence.error.save_failed'
   | 'submit_evidence.error.camera_unavailable';
 
-type DifficultyTone = 'beginner' | 'normal' | 'hyper' | 'another' | 'leggendaria' | 'unknown';
 type SubmitChartShareState = 'unregistered' | 'unshared' | 'shared';
-
-function resolveDifficultyTone(difficulty: string): DifficultyTone {
-  const normalized = difficulty.trim().toUpperCase();
-  if (normalized === 'BEGINNER') {
-    return 'beginner';
-  }
-  if (normalized === 'NORMAL') {
-    return 'normal';
-  }
-  if (normalized === 'HYPER') {
-    return 'hyper';
-  }
-  if (normalized === 'ANOTHER') {
-    return 'another';
-  }
-  if (normalized === 'LEGGENDARIA') {
-    return 'leggendaria';
-  }
-  return 'unknown';
-}
 
 function resolveSubmissionFlags(updateSeq: number, fileDeleted: boolean, needsSend: boolean): { localSaved: boolean; submitted: boolean } {
   const localSaved = updateSeq > 0 && !fileDeleted;
@@ -262,41 +242,24 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
     cameraInputRef.current.click();
   }, [showCameraAction, submitState]);
 
-  const difficultyTone = React.useMemo(() => resolveDifficultyTone(props.chart.difficulty), [props.chart.difficulty]);
-  const difficultyWithLevel = React.useMemo(() => {
-    const difficulty = String(props.chart.difficulty ?? '').trim();
-    const level = String(props.chart.level ?? '').trim();
-    return `${difficulty} ${level}`.trim();
-  }, [props.chart.difficulty, props.chart.level]);
   const isProcessing = submitState === SubmitState.PROCESSING;
   const submitChartShareState = React.useMemo(
     () => resolveSubmitChartShareState(localSaved, submitted),
     [localSaved, submitted],
   );
-  const submitChartStateLabel = React.useMemo(
-    () => t(`tournament_detail.chart.status.${submitChartShareState}`),
-    [submitChartShareState, t],
-  );
 
   return (
     <div className="page submitEvidencePage">
-      <section className="detailCard submitOverviewCard">
-        <div className="submitOverviewMain submitOverviewMainCompact">
-          <div className="submitTitleRow">
-            <h2 className="submitSongTitle">{props.chart.title}</h2>
-            <span
-              className={`chartStateBadge chartStateBadge-${submitChartShareState} submitHeaderStateBadge`}
-              data-testid="submit-evidence-header-state-badge"
-              data-chart-state={submitChartShareState}
-            >
-              {submitChartStateLabel}
-            </span>
-          </div>
-          <p className="submitChartMetaLineCompact">
-            <span className="submitPlayStyle">{props.chart.playStyle}</span>
-            <span className={`submitDifficultyText submitDifficultyText-${difficultyTone}`}>{difficultyWithLevel}</span>
-          </p>
-        </div>
+      <section className="submitOverviewCard">
+        <ChartCard
+          title={props.chart.title}
+          playStyle={props.chart.playStyle}
+          difficulty={props.chart.difficulty}
+          level={props.chart.level}
+          status={submitChartShareState}
+          statusTestId="submit-evidence-header-state-badge"
+          variant="submit"
+        />
       </section>
 
       <section className="detailCard submitPickerCard">

@@ -26,10 +26,12 @@ import {
 } from '@mui/material';
 
 import { useAppServices } from '../services/context';
+import { ChartCard } from '../components/ChartCard';
 import { toSafeArrayBuffer } from '../utils/image';
 import { buildImportUrl } from '../utils/payload-url';
 import { difficultyColor } from '../utils/iidx';
 import { resolveTournamentCardStatus } from '../utils/tournament-status';
+import { TournamentSummaryCard } from '../components/TournamentSummaryCard';
 
 interface TournamentDetailPageProps {
   detail: TournamentDetailItem;
@@ -189,48 +191,6 @@ function resolveChartTaskStatus(
     actionTone,
     errorText: null,
   };
-}
-
-function resolveStatusLabel(
-  statusInfo: ReturnType<typeof resolveTournamentCardStatus>,
-  t: TranslationFn,
-): string {
-  if (statusInfo.status === 'upcoming') {
-    return t('tournament_detail.status.upcoming');
-  }
-  if (statusInfo.status === 'ended') {
-    return t('tournament_detail.status.ended');
-  }
-  if (statusInfo.status === 'active-today') {
-    return t('tournament_detail.status.active_today');
-  }
-  return t('tournament_detail.status.active_remaining_days', { count: statusInfo.daysLeft ?? 0 });
-}
-
-function formatDateTime(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return new Intl.DateTimeFormat('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(parsed);
-}
-
-function shortenTournamentId(value: string, visibleLength = 10): string {
-  const normalized = value.trim();
-  if (normalized.length <= visibleLength) {
-    return normalized;
-  }
-  return `${normalized.slice(0, visibleLength)}…`;
 }
 
 function trimTextToWidth(ctx: CanvasRenderingContext2D, value: string, width: number): string {
@@ -704,21 +664,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     submitMode === 'resubmit'
       ? t('tournament_detail.submit_dialog.confirm_message_resubmit', { count: submitTargetChartIds.length })
       : t('tournament_detail.submit_dialog.confirm_message_submit', { count: submitTargetChartIds.length });
-  const statusLabel = React.useMemo(() => resolveStatusLabel(statusInfo, t), [statusInfo, t]);
-  const formattedLastSubmittedAt = React.useMemo(() => formatDateTime(props.detail.lastSubmittedAt), [props.detail.lastSubmittedAt]);
   const isActivePeriod = statusInfo.status.startsWith('active');
   const canOpenSubmitDialog = submitTargetChartIds.length > 0;
-  const remainingTone =
-    statusInfo.daysLeft === null ? 'neutral' : statusInfo.daysLeft < 3 ? 'strong' : statusInfo.daysLeft <= 7 ? 'warning' : 'normal';
   const shareUnavailable = shareImageStatus !== 'ready' || !shareImageBlob;
-  const totalChartCount = Math.max(props.detail.chartCount, 0);
-  const toPercent = React.useCallback(
-    (count: number): number => (totalChartCount > 0 ? (count / totalChartCount) * 100 : 0),
-    [totalChartCount],
-  );
-  const sharedPercent = toPercent(chartStateCounts.shared);
-  const unsharedPercent = toPercent(chartStateCounts.unshared);
-  const unregisteredPercent = toPercent(chartStateCounts.unregistered);
 
   React.useEffect(() => {
     setNeedsSendOverrides({});
@@ -917,19 +865,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     }
   }, []);
 
-  const shortTournamentId = React.useMemo(
-    () => shortenTournamentId(props.detail.tournamentUuid, 10),
-    [props.detail.tournamentUuid],
-  );
-
-  const copyTournamentId = React.useCallback(async () => {
-    const copied = await copyTextToClipboard(props.detail.tournamentUuid);
-    showSubmitToast({
-      severity: copied ? 'success' : 'error',
-      text: copied ? t('notify.copied') : t('tournament_detail.summary.tournament_id_copy_failed'),
-    });
-  }, [copyTextToClipboard, props.detail.tournamentUuid, showSubmitToast, t]);
-
   const downloadFiles = React.useCallback((files: File[]) => {
     files.forEach((file) => {
       const url = URL.createObjectURL(file);
@@ -1058,63 +993,27 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
   return (
     <div className="page detailPageWithSubmitBar">
-      <section className="detailCard tournamentDetailSummaryCard">
-        <div className="tournamentDetailHeader">
-          <div className="tournamentDetailMeta">
-            <h2>{props.detail.tournamentName}</h2>
-            <p className={`detailRemainingBadge detailRemainingBadge-${remainingTone}`}>{statusLabel}</p>
-            <p className="periodLine">
-              {t('tournament_detail.summary.period', { start: props.detail.startDate, end: props.detail.endDate })}
-            </p>
-            <div className="detailTournamentIdRow">
-              <span className="detailTournamentIdText">
-                {t('tournament_detail.summary.tournament_id', { value: shortTournamentId })}
-              </span>
-              <button type="button" className="detailInlineCopyButton" onClick={() => void copyTournamentId()}>
-                {t('common.copy')}
-              </button>
-            </div>
-            {props.debugModeEnabled ? (
-              <details className="detailTechnicalDetails">
-                <summary>{t('tournament_detail.summary.technical_details')}</summary>
-                <div className="detailTechnicalDetailsBody">
-                  <p>{t('tournament_detail.summary.debug_def_hash', { value: props.detail.defHash })}</p>
-                  <p>
-                    {t('tournament_detail.summary.debug_source_tournament_uuid', {
-                      value: props.detail.sourceTournamentUuid ?? t('common.not_available'),
-                    })}
-                  </p>
-                </div>
-              </details>
-            ) : null}
-            <div className="detailStateProgressBar" aria-hidden>
-              <span className="detailStateProgressSegment detailStateProgressSegment-shared" style={{ width: `${sharedPercent}%` }} />
-              <span
-                className="detailStateProgressSegment detailStateProgressSegment-unshared"
-                style={{ width: `${unsharedPercent}%` }}
-              />
-              <span
-                className="detailStateProgressSegment detailStateProgressSegment-unregistered"
-                style={{ width: `${unregisteredPercent}%` }}
-              />
-            </div>
-            <p className="detailStateProgressSummary" data-testid="tournament-detail-state-summary-text">
-              {submitSummaryText}
-            </p>
-            {formattedLastSubmittedAt ? (
-              <p className="detailLastUpdated">{t('tournament_detail.summary.last_updated', { date: formattedLastSubmittedAt })}</p>
-            ) : null}
-          </div>
-          {!props.detail.isImported ? (
+      <TournamentSummaryCard
+        variant="detail"
+        title={props.detail.tournamentName}
+        startDate={props.detail.startDate}
+        endDate={props.detail.endDate}
+        todayDate={props.todayDate}
+        periodText={t('tournament_detail.summary.period', { start: props.detail.startDate, end: props.detail.endDate })}
+        sharedCount={chartStateCounts.shared}
+        unsharedCount={chartStateCounts.unshared}
+        unregisteredCount={chartStateCounts.unregistered}
+        shareAction={
+          !props.detail.isImported ? (
             <div className="detailShareArea">
               <button className="detailShareButton" data-testid="tournament-detail-share-button" onClick={openShareDialog}>
                 {t('tournament_detail.action.share_tournament')}
               </button>
               <p className="detailShareHint">{t('tournament_detail.share_dialog.definition_only')}</p>
             </div>
-          ) : null}
-        </div>
-      </section>
+          ) : null
+        }
+      />
 
       <section>
         <h2>{t('tournament_detail.chart.heading')}</h2>
@@ -1140,35 +1039,22 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             const submitted = resolveChartSubmitted(localSaved, chartNeedsSend);
             const chartShareState = resolveChartShareState(localSaved, submitted);
             const chartHasIssue = Boolean(chartStatus.errorText);
-            const difficultyLevelText = `${chart.difficulty} ${levelText}`;
-            const difficultyTextColor = difficultyColor(chart.difficulty);
             return (
               <li key={chart.chartId}>
-                <div className={`chartListItem ${chartHasIssue ? 'chartListItemError' : ''}`}>
-                  <div className="chartText">
-                    <strong className="chartTitle">{chart.title}</strong>
-                    <div className="chartMetaLine" data-testid="tournament-detail-chart-meta-line">
-                      <span className="chartPlayStyleText">{chart.playStyle}</span>
-                      <span className="chartMetaSeparator" aria-hidden>
-                        ・
-                      </span>
-                      <span className="chartDifficultyLevelText" style={{ color: difficultyTextColor }}>
-                        {difficultyLevelText}
-                      </span>
-                    </div>
-                    {chartStatus.errorText ? <p className="chartResolveIssue">{chartStatus.errorText}</p> : null}
-                  </div>
-                  <div className="chartActions">
-                    <div className="chartStatusLine">
-                      <span
-                        className={`chartStateBadge chartStateBadge-${chartShareState}`}
-                        data-testid="tournament-detail-chart-status-label"
-                        data-chart-state={chartShareState}
-                      >
-                        {t(`tournament_detail.chart.status.${chartShareState}`)}
-                      </span>
-                    </div>
-                    {isActivePeriod ? (
+                <ChartCard
+                  title={chart.title}
+                  playStyle={chart.playStyle}
+                  difficulty={chart.difficulty}
+                  level={levelText}
+                  status={chartShareState}
+                  statusTestId="tournament-detail-chart-status-label"
+                  metaTestId="tournament-detail-chart-meta-line"
+                  note={chartStatus.errorText}
+                  noteClassName="chartResolveIssue"
+                  className={chartHasIssue ? 'chartListItemError' : undefined}
+                  variant="detail"
+                  actions={
+                    isActivePeriod ? (
                       <button
                         type="button"
                         className={`chartSubmitButton chartSubmitButton-${chartStatus.actionTone}`}
@@ -1178,9 +1064,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                       >
                         {chartStatus.actionLabel}
                       </button>
-                    ) : null}
-                  </div>
-                </div>
+                    ) : null
+                  }
+                />
               </li>
             );
           })}

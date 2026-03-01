@@ -306,7 +306,7 @@
     },
     "confirm": {
       "section": {
-        "charts": "대상 보면",
+        "charts_with_count": "대상 보면 ({{count}})",
         "merge": "기존 스코어 어택을 찾았습니다(UUID 일치)",
         "caution": "주의"
       },
@@ -318,9 +318,13 @@
       "value": {
         "period": "{{from}} ~ {{to}}",
         "chart_id": "chart:{{chartId}}",
-        "chart_detail": "{{playStyle}} {{difficulty}} Lv{{level}}"
+        "chart_detail": "{{playStyle}} {{difficulty}} {{level}}"
       },
       "chart_missing": "곡 마스터 불일치 (chart:{{chartId}})",
+      "summary": {
+        "create_new": "새 대회를 생성합니다",
+        "update_existing": "기존 대회를 업데이트합니다 (이미지는 유지)"
+      },
       "merge": {
         "mode": "적용 방식: 병합(보면만)",
         "added_charts": "추가되는 보면 수: {{count}}",
@@ -328,8 +332,8 @@
         "note": "스코어 어택명/개최자/기간/해시태그는 업데이트되지 않습니다."
       },
       "caution": {
-        "self_responsibility": "가져온 데이터는 본인 책임으로 사용하세요.",
-        "uuid_conflict": "UUID가 충돌하면 스코어 어택 정보는 유지하고 보면 차이만 적용합니다."
+        "keep_images": "• 등록된 이미지는 유지됩니다",
+        "update_existing": "• 동일 대회는 업데이트됩니다"
       }
     }
   },

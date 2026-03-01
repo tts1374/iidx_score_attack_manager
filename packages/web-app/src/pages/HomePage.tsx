@@ -2,7 +2,7 @@ import React from 'react';
 import type { TournamentListItem, TournamentTab } from '@iidx/db';
 import { useTranslation } from 'react-i18next';
 
-import { resolveTournamentCardStatus } from '../utils/tournament-status';
+import { TournamentSummaryCard } from '../components/TournamentSummaryCard';
 
 interface HomePageProps {
   todayDate: string;
@@ -12,37 +12,10 @@ interface HomePageProps {
   onOpenFilterInEmpty?: () => void;
 }
 
-type DeadlineTone = 'normal' | 'warning' | 'urgent';
-
-type TournamentStateLabelKey = 'home.state.active' | 'home.state.upcoming' | 'home.state.ended';
-
-function resolveTournamentStateLabel(tab: TournamentTab): TournamentStateLabelKey {
-  if (tab === 'upcoming') {
-    return 'home.state.upcoming';
-  }
-  if (tab === 'ended') {
-    return 'home.state.ended';
-  }
-  return 'home.state.active';
-}
-
-function resolveDeadlineTone(daysLeft: number): DeadlineTone {
-  if (daysLeft <= 2) {
-    return 'urgent';
-  }
-  if (daysLeft <= 7) {
-    return 'warning';
-  }
-  return 'normal';
-}
-
 interface ProgressDistribution {
   sharedCount: number;
   sendWaitingCount: number;
   unregisteredCount: number;
-  sharedRate: number;
-  sendWaitingRate: number;
-  unregisteredRate: number;
 }
 
 function resolveProgressDistribution(item: TournamentListItem): ProgressDistribution {
@@ -52,9 +25,6 @@ function resolveProgressDistribution(item: TournamentListItem): ProgressDistribu
       sharedCount: 0,
       sendWaitingCount: 0,
       unregisteredCount: 0,
-      sharedRate: 0,
-      sendWaitingRate: 0,
-      unregisteredRate: 0,
     };
   }
 
@@ -67,9 +37,6 @@ function resolveProgressDistribution(item: TournamentListItem): ProgressDistribu
     sharedCount,
     sendWaitingCount,
     unregisteredCount,
-    sharedRate: sharedCount / total,
-    sendWaitingRate: sendWaitingCount / total,
-    unregisteredRate: unregisteredCount / total,
   };
 }
 
@@ -108,7 +75,6 @@ export function sortForActiveTab(a: TournamentListItem, b: TournamentListItem): 
 
 export function HomePage(props: HomePageProps): JSX.Element {
   const { t } = useTranslation();
-  const stateLabel = React.useMemo(() => resolveTournamentStateLabel(props.state), [props.state]);
 
   return (
     <div className="page tournamentListPage">
@@ -124,51 +90,21 @@ export function HomePage(props: HomePageProps): JSX.Element {
       ) : (
         <ul className="cardList">
           {props.items.map((item) => {
-            const statusInfo = resolveTournamentCardStatus(item.startDate, item.endDate, props.todayDate);
             const progress = resolveProgressDistribution(item);
-            const showRemainingDays = props.state === 'active' && statusInfo.daysLeft !== null;
-            const deadlineTone = statusInfo.daysLeft !== null ? resolveDeadlineTone(statusInfo.daysLeft) : null;
 
             return (
               <li key={item.tournamentUuid}>
-                <button className="tournamentCard" onClick={() => props.onOpenDetail(item.tournamentUuid)}>
-                  <div className="tournamentCardStatusRow">
-                    <span className="tournamentStateLabel">{t(stateLabel)}</span>
-                    {showRemainingDays && deadlineTone ? (
-                      <span className={`remainingDays remainingDays-${deadlineTone}`}>
-                        {statusInfo.label}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="tournamentCardHeader">
-                    <h3>{item.tournamentName}</h3>
-                  </div>
-                  <div className="tournamentMeta">
-                    <div className="ownerLine">{item.owner}</div>
-                  </div>
-                  <div className="progressSummaryRow">
-                    <div className={`progressLine ${progress.sendWaitingCount === 0 ? 'progressLine-muted' : ''}`}>
-                      {t('home.progress.send_waiting_count', { count: progress.sendWaitingCount })}
-                    </div>
-                    {progress.sendWaitingCount > 0 ? (
-                      <span className="sendWaitingBadge">{t('home.progress.badge.send_waiting')}</span>
-                    ) : null}
-                  </div>
-                  <div className="progressBar stateDistributionBar" aria-hidden>
-                    <div className="progressBarSegment-shared" style={{ width: `${progress.sharedRate * 100}%` }} />
-                    <div className="progressBarSegment-sendWaiting" style={{ width: `${progress.sendWaitingRate * 100}%` }} />
-                    <div
-                      className="progressBarSegment-unregistered"
-                      style={{ width: `${progress.unregisteredRate * 100}%` }}
-                    />
-                  </div>
-                  <div className="cardNavigationHint">
-                    <span>{t('home.action.view_detail')}</span>
-                    <span className="cardArrow" aria-hidden>
-                      →
-                    </span>
-                  </div>
-                </button>
+                <TournamentSummaryCard
+                  variant="list"
+                  title={item.tournamentName}
+                  startDate={item.startDate}
+                  endDate={item.endDate}
+                  todayDate={props.todayDate}
+                  sharedCount={progress.sharedCount}
+                  unsharedCount={progress.sendWaitingCount}
+                  unregisteredCount={progress.unregisteredCount}
+                  onOpenDetail={() => props.onOpenDetail(item.tournamentUuid)}
+                />
               </li>
             );
           })}

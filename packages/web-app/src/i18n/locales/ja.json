@@ -204,7 +204,7 @@
       "sort_change_aria": "並び替えを変更"
     },
     "tournament_status": {
-      "days_until_start": "あと{{count}}日"
+      "days_until_start": "開始まで{{count}}日"
     },
     "home_filter": {
       "section": {
@@ -306,7 +306,7 @@
     },
     "confirm": {
       "section": {
-        "charts": "対象譜面",
+        "charts_with_count": "対象譜面（{{count}}）",
         "merge": "既存スコアタが見つかりました（UUID一致）",
         "caution": "注意"
       },
@@ -318,9 +318,13 @@
       "value": {
         "period": "{{from}} 〜 {{to}}",
         "chart_id": "chart:{{chartId}}",
-        "chart_detail": "{{playStyle}} {{difficulty}} Lv{{level}}"
+        "chart_detail": "{{playStyle}} {{difficulty}} {{level}}"
       },
       "chart_missing": "曲マスタ不一致 (chart:{{chartId}})",
+      "summary": {
+        "create_new": "新規大会を作成します",
+        "update_existing": "既存大会を更新します（画像は保持）"
+      },
       "merge": {
         "mode": "適用方式: マージ（譜面のみ）",
         "added_charts": "追加される譜面数: {{count}}",
@@ -328,8 +332,8 @@
         "note": "スコアタ名/開催者/期間/ハッシュタグは更新されません。"
       },
       "caution": {
-        "self_responsibility": "取り込みデータは自己責任で利用してください。",
-        "uuid_conflict": "UUID衝突時はスコアタ情報を更新せず、譜面差分のみを適用します。"
+        "keep_images": "・登録済みの画像は保持されます",
+        "update_existing": "・同一大会は更新されます"
       }
     }
   },
