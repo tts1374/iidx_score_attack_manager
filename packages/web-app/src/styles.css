@@ -731,7 +731,7 @@ label {
 }
 
 .createTournamentPage {
-  gap: 32px;
+  gap: 0;
   padding-bottom: 120px;
 }
 
@@ -748,6 +748,8 @@ label {
 .createSection {
   display: grid;
   gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 .createWizardSteps {
@@ -758,6 +760,8 @@ label {
   border: 1px solid #d8e1ef;
   border-radius: 12px;
   background: #f8fafc;
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 .createWizardStep {
