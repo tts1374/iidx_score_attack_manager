@@ -147,7 +147,7 @@ function resolveDifficultyShortLabel(difficulty: string, level: string): string 
   return `${abbreviation} ${normalizedLevel}`;
 }
 
-function shortenTournamentId(value: string, visibleLength = 8): string {
+function shortenTournamentId(value: string, visibleLength = 30): string {
   const normalized = value.trim();
   if (normalized.length <= visibleLength) {
     return normalized;
@@ -219,6 +219,15 @@ function scrollStepTitleIntoView(stepTitle: HTMLHeadingElement): void {
   const topPadding = 8;
   const targetTop = window.scrollY + stepTitle.getBoundingClientRect().top - appBarHeight - topPadding;
   window.scrollTo({ top: Math.max(targetTop, 0) });
+}
+
+function scrollCreatePageTopIntoView(): void {
+  const appBar = document.querySelector<HTMLElement>('header.MuiAppBar-root');
+  const appBarHeight = appBar?.getBoundingClientRect().height ?? 0;
+  const topPadding = 8;
+  const pageRoot = document.querySelector<HTMLElement>('.createTournamentPage');
+  const targetTop = window.scrollY + (pageRoot?.getBoundingClientRect().top ?? 0) - appBarHeight - topPadding;
+  window.scrollTo({ top: Math.max(targetTop, 0), behavior: 'smooth' });
 }
 
 export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Element {
@@ -331,7 +340,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
     }
   }, [draft, validation.canProceed, validation.selectedChartIds]);
   const shortTournamentDefHash = React.useMemo(
-    () => (tournamentDefHash ? shortenTournamentId(tournamentDefHash, 8) : t('common.not_available')),
+    () => (tournamentDefHash ? shortenTournamentId(tournamentDefHash, 30) : t('common.not_available')),
     [t, tournamentDefHash],
   );
 
@@ -924,7 +933,15 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         {currentStep === 0 ? (
           <>
             {!stepOneReady ? <p className="errorText createInlineError">{stepOneDisabledReason}</p> : null}
-            <button type="button" className="primaryActionButton" onClick={() => setCurrentStep(1)} disabled={!stepOneReady}>
+            <button
+              type="button"
+              className="primaryActionButton"
+              onClick={() => {
+                setCurrentStep(1);
+                scrollCreatePageTopIntoView();
+              }}
+              disabled={!stepOneReady}
+            >
               {t('create_tournament.action.next_with_step', {
                 action: t('common.next'),
                 step: t('create_tournament.wizard.step.charts'),
@@ -936,7 +953,13 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         {currentStep === 1 ? (
           <>
             <div className="createConfirmActions">
-              <button type="button" onClick={() => setCurrentStep(0)}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep(0);
+                  scrollCreatePageTopIntoView();
+                }}
+              >
                 {t('create_tournament.action.back_with_step', {
                   action: t('common.back'),
                   step: t('create_tournament.wizard.step.basic'),
@@ -953,6 +976,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   }
                   setShowChartValidationErrors(false);
                   setCurrentStep(2);
+                  scrollCreatePageTopIntoView();
                 }}
               >
                 {t('create_tournament.action.next_with_step', {
@@ -972,7 +996,14 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             ) : null}
             <p className="createFinalizeWarning">{t('create_tournament.confirm.final_notice')}</p>
             <div className="createConfirmActions">
-              <button type="button" onClick={() => setCurrentStep(1)} disabled={props.saving}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep(1);
+                  scrollCreatePageTopIntoView();
+                }}
+                disabled={props.saving}
+              >
                 {t('create_tournament.action.back_with_step', {
                   action: t('common.back'),
                   step: t('create_tournament.wizard.step.charts'),
