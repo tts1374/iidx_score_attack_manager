@@ -998,12 +998,13 @@
   },
   "whats_new": {
     "modal": {
-      "title": "What's New (v0.1.3)",
+      "title": "What's New (v0.9.0)",
       "description": "This update includes:"
     },
     "items": [
-      "Improved search and filter flow on the home list.",
-      "Refined chip display and actions for better readability."
+      "Refined the overall screen flow and organization.",
+      "Added support for Japanese, English, and Korean.",
+      "Added a dark theme."
     ]
   }
 }
