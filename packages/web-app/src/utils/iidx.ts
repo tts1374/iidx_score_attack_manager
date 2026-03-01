@@ -1,6 +1,14 @@
 import i18n from '../i18n';
 
 export const DIFFICULTY_COLORS: Record<string, string> = {
+  BEGINNER: 'var(--difficulty-beginner-active)',
+  NORMAL: 'var(--difficulty-normal-active)',
+  HYPER: 'var(--difficulty-hyper-active)',
+  ANOTHER: 'var(--difficulty-another-active)',
+  LEGGENDARIA: 'var(--difficulty-leggendaria-active)',
+};
+
+export const DIFFICULTY_COLORS_HEX: Record<string, string> = {
   BEGINNER: '#79D100',
   NORMAL: '#20A8FF',
   HYPER: '#FF7800',
@@ -47,7 +55,11 @@ const VERSION_LABEL_MAP: Record<string, string> = {
 };
 
 export function difficultyColor(difficulty?: string): string {
-  return DIFFICULTY_COLORS[(difficulty ?? '').toUpperCase()] ?? '#9CA3AF';
+  return DIFFICULTY_COLORS[(difficulty ?? '').toUpperCase()] ?? 'var(--difficulty-unknown-active)';
+}
+
+export function difficultyColorHex(difficulty?: string): string {
+  return DIFFICULTY_COLORS_HEX[(difficulty ?? '').toUpperCase()] ?? '#9CA3AF';
 }
 
 export function versionLabel(version: unknown): string {

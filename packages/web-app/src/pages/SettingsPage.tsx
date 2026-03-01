@@ -141,12 +141,85 @@ const DEBUG_TAP_TARGET_COUNT = 7;
 const DEBUG_TAP_RESET_MS = 1400;
 const cardSx = {
   p: { xs: 2, sm: 2.5 },
-  borderColor: '#dde4f1',
-  boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
+  borderColor: 'var(--border)',
+  boxShadow: 'var(--shadow)',
+  backgroundColor: 'var(--surface)',
+  color: 'var(--text)',
   display: 'grid',
   gap: 2,
+  '& .MuiTypography-root.MuiTypography-colorTextSecondary': {
+    color: 'var(--text-subtle) !important',
+  },
+  '& .MuiDivider-root': {
+    borderColor: 'var(--border)',
+  },
+  '& .MuiInputBase-root': {
+    color: 'var(--text)',
+    backgroundColor: 'var(--surface-2)',
+  },
+  '& .MuiInputLabel-root': {
+    color: 'var(--text-subtle)',
+  },
+  '& .MuiSelect-icon': {
+    color: 'var(--text-subtle)',
+  },
+  '& .MuiFormHelperText-root': {
+    color: 'var(--text-subtle) !important',
+  },
+  '& .MuiChip-root.MuiChip-colorDefault': {
+    backgroundColor: 'var(--surface-3)',
+    color: 'var(--text-muted)',
+    border: '1px solid var(--border)',
+  },
+  '& .MuiChip-root.MuiChip-colorDefault .MuiChip-icon, & .MuiChip-root.MuiChip-colorDefault .MuiChip-deleteIcon': {
+    color: 'var(--text-subtle)',
+  },
+  '& .MuiOutlinedInput-notchedOutline': {
+    borderColor: 'var(--border)',
+  },
+  '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+    borderColor: 'var(--border-strong)',
+  },
+  '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+    borderColor: 'var(--focus)',
+  },
+  '& .MuiFormControlLabel-label': {
+    color: 'var(--text)',
+  },
+  '& .MuiInputLabel-root.Mui-disabled': {
+    color: 'var(--text-faint) !important',
+  },
+  '& .MuiInputBase-input.Mui-disabled': {
+    color: 'var(--text-muted) !important',
+    WebkitTextFillColor: 'var(--text-muted) !important',
+  },
+  '& .MuiInputBase-root.Mui-disabled': {
+    backgroundColor: 'var(--surface-3)',
+  },
+  '& .MuiSwitch-track': {
+    backgroundColor: 'var(--surface-muted)',
+    opacity: '1 !important',
+  },
+  '& .MuiSwitch-thumb': {
+    backgroundColor: 'var(--surface)',
+  },
+  '& .MuiSwitch-switchBase.Mui-checked': {
+    color: 'var(--surface)',
+  },
+  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+    backgroundColor: 'var(--accent-strong)',
+    opacity: '1 !important',
+  },
 } as const;
-const accordionSx = { border: '1px solid #e2e8f0', borderRadius: 2 } as const;
+const accordionSx = {
+  border: '1px solid var(--border)',
+  borderRadius: 2,
+  backgroundColor: 'transparent',
+  color: 'var(--text)',
+  '& .MuiAccordionSummary-expandIconWrapper': {
+    color: 'var(--text-subtle)',
+  },
+} as const;
 
 function clampDays(v: number): number {
   if (!Number.isFinite(v)) return AUTO_DELETE_DAYS_MIN;
@@ -307,9 +380,23 @@ function healthActionLabelKey(a: HealthAction): string {
 }
 
 function healthStyle(l: HealthLevel): { icon: JSX.Element; color: 'success' | 'warning' | 'error'; border: string; bg: string } {
-  if (l === 'normal') return { icon: <CheckCircleOutlineIcon color="success" />, color: 'success', border: '#9ed7ba', bg: '#f5fcf8' };
-  if (l === 'caution') return { icon: <WarningAmberOutlinedIcon color="warning" />, color: 'warning', border: '#f3d48a', bg: '#fffaf1' };
-  return { icon: <ErrorOutlineIcon color="error" />, color: 'error', border: '#efb2b2', bg: '#fff7f7' };
+  if (l === 'normal') {
+    return {
+      icon: <CheckCircleOutlineIcon color="success" />,
+      color: 'success',
+      border: 'var(--success-border)',
+      bg: 'var(--status-shared-bg)',
+    };
+  }
+  if (l === 'caution') {
+    return {
+      icon: <WarningAmberOutlinedIcon color="warning" />,
+      color: 'warning',
+      border: 'var(--status-unshared-border)',
+      bg: 'var(--status-warning-bg)',
+    };
+  }
+  return { icon: <ErrorOutlineIcon color="error" />, color: 'error', border: 'var(--danger-border)', bg: 'var(--danger-bg)' };
 }
 
 function fmtSongResult(r: SongMasterActionResult | null, t: TranslationFn): string {
@@ -330,7 +417,7 @@ function refetchStepState(phase: RefetchPhase, step: 'download' | 'verify' | 'sa
   if (s[step] < p[phase]) return { m: '✓', c: 'success.main' };
   if (s[step] === p[phase] && phase !== 'complete') return { m: '…', c: 'warning.main' };
   if (s[step] === p[phase] && phase === 'complete') return { m: '✓', c: 'success.main' };
-  return { m: '○', c: 'text.disabled' };
+  return { m: '○', c: 'var(--text-subtle)' };
 }
 
 async function copyText(text: string): Promise<void> {
@@ -367,7 +454,7 @@ function row(label: string, value: string, mono = false, onValueTap?: () => void
           columnGap: 2,
         }}
       >
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
           {label}
         </Typography>
         <Typography
@@ -758,7 +845,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           </Box>
           <Stack spacing={0.5}>
             {health.reasons.map((v) => (
-              <Typography key={v.reasonKey} variant="body2" color="text.secondary">
+              <Typography key={v.reasonKey} variant="body2" sx={{ color: 'var(--text-subtle)' }}>
                 {t(v.reasonKey)}
               </Typography>
             ))}
@@ -770,7 +857,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         <Typography variant="h6" component="h2" fontWeight={700}>
           {t('settings.language.title')}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
           {t('settings.language.description')}
         </Typography>
         <TextField
@@ -812,7 +899,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           </Alert>
         ) : null}
         {songStatus === 'check_not_run' ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
             {t('settings.song_data.check_not_run_info')}
           </Typography>
         ) : null}
@@ -847,10 +934,10 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
               )}
             </List>
             <Stack spacing={0.5}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'var(--text-subtle)' }}>
                 {t('settings.song_data.detail.latest_judgement_note')}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'var(--text-subtle)' }}>
                 {t('settings.song_data.detail.failed_cache_note')}
               </Typography>
             </Stack>
@@ -888,7 +975,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
                   {t('settings.song_data.technical.action.copy_logs')}
                 </Button>
                 {copyResult ? (
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{ color: 'var(--text-subtle)' }}>
                     {copyResult === 'copied' ? t('settings.logs.copied') : t('settings.logs.copy_failed')}
                   </Typography>
                 ) : null}
@@ -1074,12 +1161,12 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
               </Stack>
               <Stack spacing={0.5}>
                 {(errorLogs.length > 0 ? errorLogs : shortLogs).map((v) => (
-                  <Typography key={v.id} variant="caption" color="text.secondary">
+                  <Typography key={v.id} variant="caption" sx={{ color: 'var(--text-subtle)' }}>
                     {t('settings.technical.log_line', { timestamp: v.timestamp, level: v.level, message: v.message })}
                   </Typography>
                 ))}
                 {errorLogs.length === 0 && shortLogs.length === 0 ? (
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{ color: 'var(--text-subtle)' }}>
                     {t('settings.technical.no_logs')}
                   </Typography>
                 ) : null}
@@ -1093,8 +1180,8 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         variant="outlined"
         sx={{
           ...cardSx,
-          borderColor: '#efb2b2',
-          backgroundColor: '#fff8f8',
+          borderColor: 'var(--danger-border)',
+          backgroundColor: 'var(--danger-bg)',
         }}
       >
         <Typography variant="h6" component="h2" fontWeight={700} color="error.main">
@@ -1102,13 +1189,13 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         </Typography>
         <Stack spacing={0.5}>
           <Typography variant="body2">{t('settings.danger.description')}</Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
             {t('settings.danger.items.tournament')}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
             {t('settings.danger.items.images')}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
             {t('settings.danger.items.song_data')}
           </Typography>
           <Typography variant="body2" color="error.main">
@@ -1133,7 +1220,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           <Typography variant="body2">{t('settings.danger.items.tournament')}</Typography>
           <Typography variant="body2">{t('settings.danger.items.images')}</Typography>
           <Typography variant="body2">{t('settings.danger.items.song_data')}</Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{ color: 'var(--text-subtle)' }}>
             {t('settings.danger.guide.next_hint')}
           </Typography>
         </DialogContent>
