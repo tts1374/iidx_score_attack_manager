@@ -571,7 +571,14 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const shareUrl = React.useMemo(() => buildImportUrl(payload), [payload]);
   const payloadSizeBytes = React.useMemo(() => new TextEncoder().encode(payload).length, [payload]);
   const shareHashtag = React.useMemo(() => resolveShareHashtag(props.detail.hashtag), [props.detail.hashtag]);
-  const shareText = React.useMemo(() => `#${shareHashtag} ${shareUrl} `, [shareHashtag, shareUrl]);
+  const shareText = React.useMemo(
+    () =>
+      t('tournament_detail.share_dialog.post_text_template', {
+        hashtag: shareHashtag,
+        url: shareUrl,
+      }),
+    [shareHashtag, shareUrl, t],
+  );
   const submitMessageText = React.useMemo(() => `#${shareHashtag} `, [shareHashtag]);
   const statusInfo = React.useMemo(
     () => resolveTournamentCardStatus(props.detail.startDate, props.detail.endDate, props.todayDate),
