@@ -22,6 +22,28 @@ pnpm build
 pnpm test
 ```
 
+## 一覧フィルタ確認用サンプルデータ
+
+ホーム一覧のフィルタ確認用に、デバッグモード限定でサンプル大会を自動生成できます。
+
+1. 設定画面でアプリバージョンを 7 回タップしてデバッグモードを有効化
+2. ブラウザ DevTools Console で以下を実行
+
+```js
+await window.__IIDX_DEBUG__?.seedHomeFilterSamples?.();
+```
+
+- サンプルのみ削除したい場合:
+
+```js
+await window.__IIDX_DEBUG__?.clearHomeFilterSamples?.();
+```
+
+- 生成データは `state(active/upcoming/ended)`、`category(pending/completed)`、
+  `attr(imported/created/send-waiting)` を確認できる構成です。
+- 詳細画面/提出画面の遷移保証のため、投入時は曲マスタから有効な `chart_id` を収集します。
+  曲マスタ未取得状態では seed はエラーになります。
+
 ## i18n 運用ルール
 - 新規の表示文言は必ず i18n キーを追加し、UI 直書きを禁止する
 - i18n キーは不変とし、文言修正時は辞書 (`ja/en/ko`) のみ更新する
