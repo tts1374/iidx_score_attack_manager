@@ -1085,10 +1085,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           </IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
-          <Alert severity="info" icon={false} data-testid="tournament-detail-share-definition-alert">
-            {t('tournament_detail.share_dialog.definition_only')}
-          </Alert>
-
           <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -1098,9 +1094,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                 {t('tournament_detail.action.zoom_preview')}
               </Button>
             </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              {t('tournament_detail.share_dialog.preview_image_size')}
-            </Typography>
             <Box
               sx={{
                 border: '1px solid',
@@ -1147,9 +1140,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           <Divider />
 
           <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              {t('common.share')}
-            </Typography>
             <Button variant="contained" onClick={shareByWebShareApi} disabled={shareUnavailable}>
               {t('common.share')}
             </Button>
