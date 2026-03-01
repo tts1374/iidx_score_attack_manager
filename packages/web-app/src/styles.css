@@ -3,10 +3,33 @@
   font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
   background-color: #f7f8fa;
   color: #111827;
+  --difficulty-beginner: #2f6f00;
+  --difficulty-normal: #005ea8;
+  --difficulty-hyper: #b45309;
+  --difficulty-another: #b91c1c;
+  --difficulty-leggendaria: #7e22ce;
+  --difficulty-unknown: #475569;
+  --difficulty-beginner-dark: #9ee067;
+  --difficulty-normal-dark: #7cc4ff;
+  --difficulty-hyper-dark: #ffbd7a;
+  --difficulty-another-dark: #ff9a9a;
+  --difficulty-leggendaria-dark: #d8a4ff;
+  --difficulty-unknown-dark: #cbd5e1;
 }
 
 * {
   box-sizing: border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --difficulty-beginner: var(--difficulty-beginner-dark);
+    --difficulty-normal: var(--difficulty-normal-dark);
+    --difficulty-hyper: var(--difficulty-hyper-dark);
+    --difficulty-another: var(--difficulty-another-dark);
+    --difficulty-leggendaria: var(--difficulty-leggendaria-dark);
+    --difficulty-unknown: var(--difficulty-unknown-dark);
+  }
 }
 
 body {
@@ -1283,21 +1306,31 @@ label {
 
 .chartSubmitButton {
   min-width: 84px;
+  min-height: 40px;
   border-radius: 10px;
   padding: 7px 12px;
   font-weight: 700;
 }
 
-.chartSubmitButton.pending {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
+.chartSubmitButton-primary {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
 }
 
-.chartSubmitButton.submitted {
-  border-color: #86efac;
-  background: #dcfce7;
-  color: #166534;
+.chartSubmitButton-secondary {
+  border-color: #cbd5e1;
+  background: transparent;
+  color: #475569;
+}
+
+.chartSubmitButton-secondary:hover {
+  background: #f8fafc;
+}
+
+.chartSubmitButton-secondary:focus-visible {
+  outline: 2px solid #94a3b8;
+  outline-offset: 2px;
 }
 
 .chartResolveIssue {
@@ -1377,19 +1410,12 @@ label {
 }
 
 .submitEvidencePage {
-  gap: 14px;
-  padding-bottom: 148px;
+  gap: 12px;
+  padding-bottom: 18px;
 }
 
 .submitOverviewCard {
   position: relative;
-}
-
-.submitOverviewTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
 }
 
 .submitOverviewMain {
@@ -1398,102 +1424,122 @@ label {
   gap: 6px;
 }
 
-.submitOverviewMain h3 {
+.submitOverviewMainCompact {
+  gap: 8px;
+}
+
+.submitTitleRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.submitSongTitle {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.32;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.submitChartMeta {
-  color: #475569;
-  font-size: 13px;
+.submitHeaderStateBadge {
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.submitChartMetaLineCompact {
+  margin: 0;
+  font-size: 16px;
   font-weight: 700;
+  line-height: 1.3;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-.submitOverviewSide {
-  display: grid;
-  gap: 6px;
-  justify-items: end;
-}
-
-.submitStateBadge {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.submitStateBadge-idle {
-  background: #e2e8f0;
+.submitPlayStyle {
   color: #334155;
+  flex: 0 0 auto;
 }
 
-.submitStateBadge-submitted {
-  background: #dcfce7;
-  color: #166534;
+.submitDifficultyText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.submitStateBadge-processing {
-  background: #dbeafe;
-  color: #1d4ed8;
+.submitDifficultyText-beginner {
+  color: var(--difficulty-beginner);
 }
 
-.submitStateBadge-error {
-  background: #fee2e2;
-  color: #b91c1c;
+.submitDifficultyText-normal {
+  color: var(--difficulty-normal);
 }
 
-.submitStepCard {
+.submitDifficultyText-hyper {
+  color: var(--difficulty-hyper);
+}
+
+.submitDifficultyText-another {
+  color: var(--difficulty-another);
+}
+
+.submitDifficultyText-leggendaria {
+  color: var(--difficulty-leggendaria);
+}
+
+.submitDifficultyText-unknown {
+  color: var(--difficulty-unknown);
+}
+
+.submitPickerCard,
+.submitPreviewCard {
   display: grid;
   gap: 10px;
 }
 
-.submitStepTitle {
-  margin: 0;
-  font-size: 18px;
+.submitPickerButtonStack {
+  display: grid;
+  gap: 8px;
 }
 
-.submitPickerArea {
-  min-height: 88px;
-  border: 2px dashed #bfd0ef;
-  border-radius: 14px;
-  background: #f8fbff;
-  color: #1e40af;
-  display: flex;
+.submitPickerActionButton {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 10px 16px;
+}
+
+.submitPickerActionButton-capture {
+  border-color: #1d4ed8;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.submitPickerActionLabel {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  font-weight: 700;
-  padding: 12px;
-  cursor: pointer;
+  gap: 6px;
 }
 
-.submitPickerArea:focus-visible {
-  outline: 2px solid #1d4ed8;
-  outline-offset: 2px;
-}
-
-.submitPickerArea.disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.submitPickerActions,
-.submitPreviewActions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.submitSecondaryButton {
-  border-color: #c7d1e4;
-  background: #ffffff;
-  font-weight: 600;
+.submitPickerCameraIcon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .submitHiddenInput {
@@ -1522,47 +1568,14 @@ label {
   color: #475569;
 }
 
-.submitNoticeCard {
-  display: grid;
-  gap: 4px;
-}
-
-.submitNoticeCard p {
+.submitLocalStorageNote {
   margin: 0;
-  color: #334155;
-  font-size: 14px;
-}
-
-.submitActionBar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 45;
-  max-width: 980px;
-  margin: 0 auto;
-  display: grid;
-  gap: 6px;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-  border-top: 1px solid #d7deea;
-  background: rgba(244, 246, 251, 0.96);
-  backdrop-filter: blur(4px);
-}
-
-.submitPrimaryButton {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 16px;
-}
-
-.submitActionHint {
-  margin: 0;
-  text-align: center;
-  color: #475569;
-  font-size: 13px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .submitActionError {
@@ -1578,23 +1591,8 @@ label {
   font-weight: 700;
 }
 
-.submitProcessingDot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  border: 2px solid transparent;
-}
-
-.submitProcessingDot.active {
-  border-color: #ffffff;
-  border-top-color: rgba(255, 255, 255, 0.35);
-  animation: submitProcessingSpin 0.9s linear infinite;
-}
-
-@keyframes submitProcessingSpin {
-  to {
-    transform: rotate(360deg);
-  }
+.submitActionErrorStandalone {
+  justify-self: center;
 }
 
 .submitScreenLock {
@@ -1789,19 +1787,6 @@ label {
 
   .detailShareButton {
     width: 100%;
-  }
-
-  .submitOverviewTop {
-    flex-direction: column;
-  }
-
-  .submitOverviewSide {
-    width: 100%;
-    justify-items: start;
-  }
-
-  .submitSecondaryButton {
-    flex: 1 1 140px;
   }
 
   .submitPreviewFrame {

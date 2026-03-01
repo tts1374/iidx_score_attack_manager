@@ -508,11 +508,12 @@
       "level": "Lv{{level}}"
     },
     "status": {
-      "processing": "Submitting",
-      "failed": "Submission failed",
-      "submitted": "Submitted",
-      "submitted_with_date": "Submitted {{date}}",
-      "not_submitted": "Not submitted"
+      "processing": "Saving",
+      "saving": "Saving",
+      "failed": "Save failed",
+      "unregistered": "Unregistered",
+      "unshared": "Unshared",
+      "shared": "Shared"
     },
     "step": {
       "select_image": "Step 1) Select image",
@@ -530,10 +531,14 @@
     },
     "note": {
       "local_only": "Images are saved only on this device.",
+      "local_only_inline": "* Images are stored only on this device",
       "not_sent": "Images are not sent to other people."
     },
     "action": {
-      "processing": "Submitting",
+      "processing": "Saving",
+      "saving": "Saving",
+      "take_photo": "Take Photo",
+      "select_image": "Select image",
       "update": "Update",
       "save": "Save"
     },
@@ -547,6 +552,7 @@
       "submit_failed": "Submission failed",
       "quota_exceeded": "Storage full",
       "save_failed": "Failed to save",
+      "camera_unavailable": "Camera capture is not available on this device",
       "delete_failed": "Failed to delete"
     },
     "delete_dialog": {
@@ -822,7 +828,8 @@
       "copy_logs": "Copy logs",
       "save_to_device": "Save to device",
       "mark_send_completed": "Delete",
-      "submit": "Share"
+      "submit": "Submit",
+      "resubmit": "Resubmit"
     },
     "status": {
       "upcoming": "Not started",
@@ -903,8 +910,11 @@
       "cta": "Share ({{count}})"
     },
     "submit_dialog": {
-      "title": "Share",
+      "title": "Submit",
       "confirm_message": "Share unshared charts ({{count}}).",
+      "confirm_message_submit": "Submit unsubmitted saved chart(s) ({{count}}).",
+      "confirm_message_resubmit": "Resubmit saved chart(s) ({{count}}).",
+      "resubmit_overwrite": "Resubmission overwrites the previously submitted content.",
       "images_title": "Images to send",
       "images_description": "Images are shared outside this device.",
       "target_count": "Unshared targets: {{count}}",
@@ -924,6 +934,7 @@
         "message_shared": "Message to send was shared.",
         "message_share_failed": "Failed to share message.",
         "no_pending": "No unshared charts.",
+        "no_local_saved": "There are no images saved on this device.",
         "marked_shared": "Marked as shared.",
         "fallback_copy_failed": "Images were downloaded, but copying the message failed.",
         "undo_applied": "Reverted to unshared.",

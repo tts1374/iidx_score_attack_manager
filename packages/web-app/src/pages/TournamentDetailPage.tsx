@@ -144,35 +144,49 @@ function hasEvidence(chart: TournamentDetailChart): boolean {
   return chart.updateSeq > 0 && !chart.fileDeleted;
 }
 
-function resolveChartShareState(chart: TournamentDetailChart, needsSend: boolean): ChartShareState {
-  if (!hasEvidence(chart)) {
+function resolveChartLocalSaved(chart: TournamentDetailChart): boolean {
+  return hasEvidence(chart);
+}
+
+function resolveChartSubmitted(localSaved: boolean, needsSend: boolean): boolean {
+  return localSaved && !needsSend;
+}
+
+function resolveChartShareState(localSaved: boolean, submitted: boolean): ChartShareState {
+  if (!localSaved) {
     return 'unregistered';
   }
-  return needsSend ? 'unshared' : 'shared';
+  return submitted ? 'shared' : 'unshared';
 }
 
 function resolveChartTaskStatus(
   chart: TournamentDetailChart,
+  localSaved: boolean,
   t: TranslationFn,
 ): {
   actionLabel: string;
+  actionTone: 'primary' | 'secondary';
   errorText: string | null;
 } {
-  const registerAction = hasEvidence(chart) ? t('tournament_detail.action.replace') : t('tournament_detail.action.register');
+  const registerAction = localSaved ? t('tournament_detail.action.replace') : t('tournament_detail.action.register');
+  const actionTone: 'primary' | 'secondary' = localSaved ? 'secondary' : 'primary';
   if (chart.resolveIssue === 'MASTER_MISSING') {
     return {
       actionLabel: registerAction,
+      actionTone,
       errorText: t('tournament_detail.chart.resolve_issue.master_missing'),
     };
   }
   if (chart.resolveIssue === 'CHART_NOT_FOUND') {
     return {
       actionLabel: registerAction,
+      actionTone,
       errorText: t('tournament_detail.chart.resolve_issue.chart_not_found'),
     };
   }
   return {
     actionLabel: registerAction,
+    actionTone,
     errorText: null,
   };
 }
@@ -628,7 +642,10 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     let unshared = 0;
     let unregistered = 0;
     props.detail.charts.forEach((chart) => {
-      const state = resolveChartShareState(chart, resolveNeedsSend(chart));
+      const chartNeedsSend = resolveNeedsSend(chart);
+      const localSaved = resolveChartLocalSaved(chart);
+      const submitted = resolveChartSubmitted(localSaved, chartNeedsSend);
+      const state = resolveChartShareState(localSaved, submitted);
       if (state === 'shared') {
         shared += 1;
         return;
@@ -645,26 +662,44 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       unregistered,
     };
   }, [props.detail.charts, resolveNeedsSend]);
-  const sendPendingCharts = React.useMemo(
-    () =>
-      props.detail.charts.filter((chart) => {
-        const state = resolveChartShareState(chart, resolveNeedsSend(chart));
-        return state === 'unshared';
-      }),
-    [props.detail.charts, resolveNeedsSend],
+  const localSavedCharts = React.useMemo(
+    () => props.detail.charts.filter((chart) => resolveChartLocalSaved(chart)),
+    [props.detail.charts],
   );
-  const sendPendingChartIds = React.useMemo(() => sendPendingCharts.map((chart) => chart.chartId), [sendPendingCharts]);
-  const sendPendingCount = sendPendingCharts.length;
+  const unsubmittedLocalCharts = React.useMemo(
+    () => localSavedCharts.filter((chart) => resolveNeedsSend(chart)),
+    [localSavedCharts, resolveNeedsSend],
+  );
+  const submitMode = React.useMemo<'none' | 'submit' | 'resubmit'>(() => {
+    if (localSavedCharts.length === 0) {
+      return 'none';
+    }
+    if (unsubmittedLocalCharts.length > 0) {
+      return 'submit';
+    }
+    return 'resubmit';
+  }, [localSavedCharts.length, unsubmittedLocalCharts.length]);
+  const submitTargetCharts = React.useMemo(
+    () => (submitMode === 'submit' ? unsubmittedLocalCharts : submitMode === 'resubmit' ? localSavedCharts : []),
+    [localSavedCharts, submitMode, unsubmittedLocalCharts],
+  );
+  const submitTargetChartIds = React.useMemo(() => submitTargetCharts.map((chart) => chart.chartId), [submitTargetCharts]);
+  const sendPendingCount = chartStateCounts.unshared;
+  const localSavedCount = localSavedCharts.length;
   const submitSummaryText = t('tournament_detail.summary.state_counts', {
     shared: chartStateCounts.shared,
     unshared: chartStateCounts.unshared,
     unregistered: chartStateCounts.unregistered,
   });
-  const submitButtonLabel = t('tournament_detail.submit_bar.cta', { count: sendPendingCount });
+  const submitButtonLabel = submitMode === 'resubmit' ? t('tournament_detail.action.resubmit') : t('tournament_detail.action.submit');
+  const submitDialogConfirmText =
+    submitMode === 'resubmit'
+      ? t('tournament_detail.submit_dialog.confirm_message_resubmit', { count: submitTargetChartIds.length })
+      : t('tournament_detail.submit_dialog.confirm_message_submit', { count: submitTargetChartIds.length });
   const statusLabel = React.useMemo(() => resolveStatusLabel(statusInfo, t), [statusInfo, t]);
   const formattedLastSubmittedAt = React.useMemo(() => formatDateTime(props.detail.lastSubmittedAt), [props.detail.lastSubmittedAt]);
   const isActivePeriod = statusInfo.status.startsWith('active');
-  const canOpenSubmitDialog = sendPendingCount > 0;
+  const canOpenSubmitDialog = submitTargetChartIds.length > 0;
   const remainingTone =
     statusInfo.daysLeft === null ? 'neutral' : statusInfo.daysLeft < 3 ? 'strong' : statusInfo.daysLeft <= 7 ? 'warning' : 'normal';
   const shareUnavailable = shareImageStatus !== 'ready' || !shareImageBlob;
@@ -844,9 +879,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     setPreviewZoomOpen(false);
   }, []);
 
-  const collectSubmissionFiles = React.useCallback(async (): Promise<File[]> => {
+  const collectSubmissionFiles = React.useCallback(async (targetCharts: TournamentDetailChart[]): Promise<File[]> => {
     const files: File[] = [];
-    for (const chart of sendPendingCharts) {
+    for (const chart of targetCharts) {
       const evidence = await appDb.getEvidenceRecord(props.detail.tournamentUuid, chart.chartId);
       if (!evidence || evidence.fileDeleted) {
         continue;
@@ -860,7 +895,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       throw new Error(t('tournament_detail.submit_dialog.error.no_sendable_images'));
     }
     return files;
-  }, [appDb, opfs, props.detail.tournamentUuid, sendPendingCharts, t]);
+  }, [appDb, opfs, props.detail.tournamentUuid, t]);
 
   const copyTextToClipboard = React.useCallback(async (value: string): Promise<boolean> => {
     try {
@@ -886,7 +921,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   }, []);
 
   const markChartsAsShared = React.useCallback(
-    async (chartIds: number[]) => {
+    async (chartIds: number[], options?: { allowUndo?: boolean }) => {
       await appDb.markEvidenceSendCompleted(props.detail.tournamentUuid, chartIds);
       setNeedsSendOverrides((current) => {
         const next = { ...current };
@@ -899,7 +934,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       showSubmitToast({
         severity: 'success',
         text: t('tournament_detail.submit_dialog.notice.marked_shared'),
-        undoChartIds: [...chartIds],
+        ...(options?.allowUndo === false ? {} : { undoChartIds: [...chartIds] }),
       });
       props.onReportDebugError(null);
     },
@@ -937,16 +972,18 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     if (submitBusy) {
       return;
     }
-    if (sendPendingChartIds.length === 0) {
-      showSubmitToast({ severity: 'info', text: t('tournament_detail.submit_dialog.notice.no_pending') });
+    if (submitTargetChartIds.length === 0) {
+      showSubmitToast({ severity: 'info', text: t('tournament_detail.submit_dialog.notice.no_local_saved') });
       return;
     }
 
     setSubmitDialogOpen(false);
     setSubmitBusy(true);
-    const targetChartIds = [...sendPendingChartIds];
+    const targetCharts = [...submitTargetCharts];
+    const targetChartIds = targetCharts.map((chart) => chart.chartId);
+    const allowUndo = submitMode === 'submit';
     try {
-      const files = await collectSubmissionFiles();
+      const files = await collectSubmissionFiles(targetCharts);
       const webShareSupported =
         typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files });
 
@@ -957,7 +994,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             text: submitMessageText,
             files,
           });
-          await markChartsAsShared(targetChartIds);
+          await markChartsAsShared(targetChartIds, { allowUndo });
           return;
         } catch (error: unknown) {
           if (error instanceof DOMException && error.name === 'AbortError') {
@@ -975,7 +1012,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         props.onReportDebugError(message);
         return;
       }
-      await markChartsAsShared(targetChartIds);
+      await markChartsAsShared(targetChartIds, { allowUndo });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.share_images_failed');
       showSubmitToast({ severity: 'error', text: message });
@@ -989,9 +1026,11 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     downloadFiles,
     markChartsAsShared,
     props,
-    sendPendingChartIds,
     showSubmitToast,
+    submitMode,
     submitBusy,
+    submitTargetChartIds,
+    submitTargetCharts,
     submitMessageText,
     t,
   ]);
@@ -1053,9 +1092,11 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         <ul className="chartList">
           {props.detail.charts.map((chart) => {
             const levelText = resolveChartLevelText(chart.level);
-            const chartStatus = resolveChartTaskStatus(chart, t);
             const chartNeedsSend = resolveNeedsSend(chart);
-            const chartShareState = resolveChartShareState(chart, chartNeedsSend);
+            const localSaved = resolveChartLocalSaved(chart);
+            const chartStatus = resolveChartTaskStatus(chart, localSaved, t);
+            const submitted = resolveChartSubmitted(localSaved, chartNeedsSend);
+            const chartShareState = resolveChartShareState(localSaved, submitted);
             const chartHasIssue = Boolean(chartStatus.errorText);
             const difficultyLevelText = `${chart.difficulty} ${levelText}`;
             const difficultyTextColor = difficultyColor(chart.difficulty);
@@ -1088,8 +1129,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                     {isActivePeriod ? (
                       <button
                         type="button"
-                        className={`chartSubmitButton ${hasEvidence(chart) ? 'submitted' : 'pending'}`}
+                        className={`chartSubmitButton chartSubmitButton-${chartStatus.actionTone}`}
                         data-testid="tournament-detail-chart-submit-button"
+                        data-chart-action-tone={chartStatus.actionTone}
                         onClick={() => props.onOpenSubmit(chart.chartId)}
                       >
                         {chartStatus.actionLabel}
@@ -1271,8 +1313,13 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         <DialogTitle>{t('tournament_detail.submit_dialog.title')}</DialogTitle>
         <DialogContent dividers>
           <Typography variant="body1" data-testid="tournament-detail-submit-confirm-text">
-            {t('tournament_detail.submit_dialog.confirm_message', { count: sendPendingCount })}
+            {submitDialogConfirmText}
           </Typography>
+          {submitMode === 'resubmit' ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }} data-testid="tournament-detail-submit-resubmit-note">
+              {t('tournament_detail.submit_dialog.resubmit_overwrite')}
+            </Typography>
+          ) : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSubmitDialogOpen(false)} disabled={submitBusy}>
@@ -1281,10 +1328,10 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           <Button
             variant="contained"
             onClick={() => void sharePendingEvidence()}
-            disabled={submitBusy || sendPendingCount === 0}
+            disabled={submitBusy || !canOpenSubmitDialog}
             data-testid="tournament-detail-submit-share-button"
           >
-            {t('tournament_detail.action.submit')}
+            {submitButtonLabel}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1319,20 +1366,22 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
       <footer className="detailSubmitBar">
         <div className="detailSubmitBarInner">
-          <button
-            type="button"
-            className={`detailSubmitPrimaryButton ${sendPendingCount > 0 && canOpenSubmitDialog ? 'emphasis' : ''}`}
-            data-testid="tournament-detail-submit-open-button"
-            onClick={() => {
-              if (!canOpenSubmitDialog) {
-                return;
-              }
-              setSubmitDialogOpen(true);
-            }}
-            disabled={!canOpenSubmitDialog}
-          >
-            {submitButtonLabel}
-          </button>
+          {localSavedCount > 0 ? (
+            <button
+              type="button"
+              className={`detailSubmitPrimaryButton ${submitMode === 'submit' && canOpenSubmitDialog ? 'emphasis' : ''}`}
+              data-testid="tournament-detail-submit-open-button"
+              onClick={() => {
+                if (!canOpenSubmitDialog) {
+                  return;
+                }
+                setSubmitDialogOpen(true);
+              }}
+              disabled={!canOpenSubmitDialog}
+            >
+              {submitButtonLabel}
+            </button>
+          ) : null}
           <p className="detailSubmitSubInfo" data-testid="tournament-detail-submit-summary-text" data-send-pending-count={sendPendingCount}>
             {submitSummaryText}
           </p>
