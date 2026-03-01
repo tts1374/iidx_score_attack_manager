@@ -32,7 +32,7 @@ describe('HomePage', () => {
     );
 
     const firstCard = screen.getAllByRole('listitem')[0]!;
-    const statusBadge = firstCard.querySelector('.statusBadge');
+    const statusBadge = firstCard.querySelector('.tournamentStateLabel');
     const remainingDays = firstCard.querySelector('.remainingDays');
     const progressLine = firstCard.querySelector('.progressLine');
     const sendWaitingBadge = firstCard.querySelector('.sendWaitingBadge');
@@ -52,7 +52,7 @@ describe('HomePage', () => {
     expect(navigationHint?.textContent?.trim()).toBeTruthy();
   });
 
-  it('renders state badge for non-active state', () => {
+  it('renders state label for non-active state', () => {
     const commonItem = {
       tournamentUuid: 't1',
       sourceTournamentUuid: null,
@@ -76,9 +76,9 @@ describe('HomePage', () => {
         onOpenDetail={() => undefined}
       />,
     );
-    const upcomingBadge = container.querySelector('.statusBadge');
+    const upcomingBadge = container.querySelector('.tournamentStateLabel');
     expect(upcomingBadge?.textContent?.trim()).toBeTruthy();
-    expect(container.querySelector('.pendingBadge')?.textContent?.trim()).toBeTruthy();
+    expect(container.querySelector('.sendWaitingBadge')).toBeNull();
     expect(container.querySelector('.progressLine')?.classList.contains('progressLine-muted')).toBe(true);
     expect(container.querySelector('.remainingDays')).toBeNull();
     const upcomingLabel = upcomingBadge?.textContent;
@@ -92,13 +92,13 @@ describe('HomePage', () => {
       />,
     );
 
-    const endedBadge = container.querySelector('.statusBadge');
+    const endedBadge = container.querySelector('.tournamentStateLabel');
     expect(endedBadge?.textContent?.trim()).toBeTruthy();
     expect(endedBadge?.textContent).not.toBe(upcomingLabel);
-    expect(container.querySelector('.pendingBadge')?.textContent?.trim()).toBeTruthy();
+    expect(container.querySelector('.sendWaitingBadge')).toBeNull();
   });
 
-  it('shows completed badge when all charts are shared', () => {
+  it('hides progress status badge when there is no unshared chart', () => {
     const { container } = render(
       <HomePage
         todayDate="2026-02-10"
@@ -123,9 +123,9 @@ describe('HomePage', () => {
       />,
     );
 
-    expect(container.querySelector('.completedBadge')?.textContent?.trim()).toBeTruthy();
     expect(container.querySelector('.sendWaitingBadge')).toBeNull();
     expect(container.querySelector('.pendingBadge')).toBeNull();
+    expect(container.querySelector('.completedBadge')).toBeNull();
   });
 
   it('shows open-filter action on empty state', async () => {

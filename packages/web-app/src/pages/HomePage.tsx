@@ -14,28 +14,16 @@ interface HomePageProps {
 
 type DeadlineTone = 'normal' | 'warning' | 'urgent';
 
-interface TournamentStateBadge {
-  labelKey: 'home.state.active' | 'home.state.upcoming' | 'home.state.ended';
-  className: 'statusBadge-ended';
-}
+type TournamentStateLabelKey = 'home.state.active' | 'home.state.upcoming' | 'home.state.ended';
 
-function resolveTournamentStateBadge(tab: TournamentTab): TournamentStateBadge {
+function resolveTournamentStateLabel(tab: TournamentTab): TournamentStateLabelKey {
   if (tab === 'upcoming') {
-    return {
-      labelKey: 'home.state.upcoming',
-      className: 'statusBadge-ended',
-    };
+    return 'home.state.upcoming';
   }
   if (tab === 'ended') {
-    return {
-      labelKey: 'home.state.ended',
-      className: 'statusBadge-ended',
-    };
+    return 'home.state.ended';
   }
-  return {
-    labelKey: 'home.state.active',
-    className: 'statusBadge-ended',
-  };
+  return 'home.state.active';
 }
 
 function resolveDeadlineTone(daysLeft: number): DeadlineTone {
@@ -47,11 +35,6 @@ function resolveDeadlineTone(daysLeft: number): DeadlineTone {
   }
   return 'normal';
 }
-
-type ProgressStateBadge =
-  | { className: 'sendWaitingBadge'; labelKey: 'home.progress.badge.send_waiting' }
-  | { className: 'pendingBadge'; labelKey: 'home.progress.badge.pending' }
-  | { className: 'completedBadge'; labelKey: 'home.progress.badge.completed' };
 
 interface ProgressDistribution {
   sharedCount: number;
@@ -90,25 +73,6 @@ function resolveProgressDistribution(item: TournamentListItem): ProgressDistribu
   };
 }
 
-function resolveProgressStateBadge(progress: ProgressDistribution): ProgressStateBadge {
-  if (progress.sendWaitingCount > 0) {
-    return {
-      className: 'sendWaitingBadge',
-      labelKey: 'home.progress.badge.send_waiting',
-    };
-  }
-  if (progress.unregisteredCount > 0) {
-    return {
-      className: 'pendingBadge',
-      labelKey: 'home.progress.badge.pending',
-    };
-  }
-  return {
-    className: 'completedBadge',
-    labelKey: 'home.progress.badge.completed',
-  };
-}
-
 function resolveActivePriority(item: TournamentListItem): number {
   if (item.sendWaitingCount > 0) {
     return 0;
@@ -144,7 +108,7 @@ export function sortForActiveTab(a: TournamentListItem, b: TournamentListItem): 
 
 export function HomePage(props: HomePageProps): JSX.Element {
   const { t } = useTranslation();
-  const stateBadge = React.useMemo(() => resolveTournamentStateBadge(props.state), [props.state]);
+  const stateLabel = React.useMemo(() => resolveTournamentStateLabel(props.state), [props.state]);
 
   return (
     <div className="page tournamentListPage">
@@ -164,13 +128,12 @@ export function HomePage(props: HomePageProps): JSX.Element {
             const progress = resolveProgressDistribution(item);
             const showRemainingDays = props.state === 'active' && statusInfo.daysLeft !== null;
             const deadlineTone = statusInfo.daysLeft !== null ? resolveDeadlineTone(statusInfo.daysLeft) : null;
-            const progressBadge = resolveProgressStateBadge(progress);
 
             return (
               <li key={item.tournamentUuid}>
                 <button className="tournamentCard" onClick={() => props.onOpenDetail(item.tournamentUuid)}>
                   <div className="tournamentCardStatusRow">
-                    <span className={`statusBadge ${stateBadge.className}`}>{t(stateBadge.labelKey)}</span>
+                    <span className="tournamentStateLabel">{t(stateLabel)}</span>
                     {showRemainingDays && deadlineTone ? (
                       <span className={`remainingDays remainingDays-${deadlineTone}`}>
                         {statusInfo.label}
@@ -187,9 +150,9 @@ export function HomePage(props: HomePageProps): JSX.Element {
                     <div className={`progressLine ${progress.sendWaitingCount === 0 ? 'progressLine-muted' : ''}`}>
                       {t('home.progress.send_waiting_count', { count: progress.sendWaitingCount })}
                     </div>
-                    <span className={progressBadge.className}>
-                      {t(progressBadge.labelKey)}
-                    </span>
+                    {progress.sendWaitingCount > 0 ? (
+                      <span className="sendWaitingBadge">{t('home.progress.badge.send_waiting')}</span>
+                    ) : null}
                   </div>
                   <div className="progressBar stateDistributionBar" aria-hidden>
                     <div className="progressBarSegment-shared" style={{ width: `${progress.sharedRate * 100}%` }} />

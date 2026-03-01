@@ -769,7 +769,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
   const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
   const [homeQuery, setHomeQuery] = React.useState<HomeQueryState>(() => createDefaultHomeQueryState());
-  const [homeFilterDraft, setHomeFilterDraft] = React.useState<HomeQueryState>(() => createDefaultHomeQueryState());
   const [homeTournamentBuckets, setHomeTournamentBuckets] = React.useState<HomeTournamentBuckets>(EMPTY_HOME_TOURNAMENT_BUCKETS);
   const [homeSearchMode, setHomeSearchMode] = React.useState(false);
   const [homeFilterSheetOpen, setHomeFilterSheetOpen] = React.useState(false);
@@ -917,10 +916,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     () => applyHomeQueryState(homeTournamentBuckets, homeQuery),
     [homeQuery, homeTournamentBuckets],
   );
-  const homeDraftResultCount = React.useMemo(
-    () => applyHomeQueryState(homeTournamentBuckets, homeFilterDraft).length,
-    [homeFilterDraft, homeTournamentBuckets],
-  );
+  const homeResultCount = homeVisibleItems.length;
   const homeHasNonDefaultFilter = !isHomeFilterDefault(homeQuery);
   const homeNormalizedSearch = normalizeHomeSearchForFilter(homeQuery.searchText);
   const homeHasSearchQuery = homeNormalizedSearch.length > 0;
@@ -933,16 +929,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
   const openHomeFilterSheet = React.useCallback(
     (focusSection: HomeFilterSheetFocusSection = null) => {
-      setHomeFilterDraft({
-        ...homeQuery,
-        attrs: [...homeQuery.attrs],
-      });
       setHomeFilterFocusSection(focusSection);
       setHomeFilterSheetOpen(true);
       setHomeSearchMode(false);
       setHomeSortMenuAnchorEl(null);
     },
-    [homeQuery],
+    [],
   );
 
   const closeHomeFilterSheet = React.useCallback(() => {
@@ -950,23 +942,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setHomeFilterFocusSection(null);
   }, []);
 
-  const applyHomeFilterSheet = React.useCallback(() => {
-    setHomeQuery({
-      ...homeFilterDraft,
-      attrs: normalizeHomeAttrs(homeFilterDraft.attrs),
-    });
-    setHomeFilterSheetOpen(false);
-    setHomeFilterFocusSection(null);
-  }, [homeFilterDraft]);
-
   const resetHomeFilterSheet = React.useCallback(() => {
-    setHomeFilterDraft((previous) => createDefaultHomeFilterState(previous.sort));
-  }, []);
-
-  const clearAllHomeQuery = React.useCallback(() => {
     setHomeQuery((previous) => createDefaultHomeFilterState(previous.sort));
-    setHomeFilterDraft((previous) => createDefaultHomeFilterState(previous.sort));
-    setHomeSearchMode(false);
   }, []);
 
   const openHomeSortMenu = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
@@ -980,15 +957,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
   const setHomeSort = React.useCallback((sort: HomeSort) => {
     setHomeQuery((previous) => {
-      if (previous.sort === sort) {
-        return previous;
-      }
-      return {
-        ...previous,
-        sort,
-      };
-    });
-    setHomeFilterDraft((previous) => {
       if (previous.sort === sort) {
         return previous;
       }
@@ -1577,7 +1545,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         await refreshTournamentList();
         if (mounted) {
           setHomeQuery(restoredHomeQuery);
-          setHomeFilterDraft(restoredHomeQuery);
           setHomeQueryReady(true);
         }
 
@@ -2116,7 +2083,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       setCreateSaving(false);
       setCreateSaveError(null);
       setHomeQuery(createDefaultHomeQueryState());
-      setHomeFilterDraft(createDefaultHomeQueryState());
       setHomeSearchMode(false);
       setHomeFilterSheetOpen(false);
       setHomeFilterFocusSection(null);
@@ -2525,12 +2491,25 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           <Box className="homeFilterSheet">
             <span className="homeFilterSheetHandle" aria-hidden />
             <div className="homeFilterSheetFixed">
+              <div className="homeFilterSheetTopRow">
+                <Typography variant="body2" className="homeFilterResultCount">
+                  {t('common.home_filter.result_count', { count: homeResultCount })}
+                </Typography>
+                <button
+                  type="button"
+                  className="homeFilterResetLink"
+                  onClick={resetHomeFilterSheet}
+                  disabled={!homeHasNonDefaultFilter}
+                >
+                  {t('common.reset')}
+                </button>
+              </div>
               <div className="homeFilterSection" ref={homeStateSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                   {t('common.home_filter.section.state')}
                 </Typography>
                 <ToggleButtonGroup
-                  value={homeFilterDraft.state}
+                  value={homeQuery.state}
                   exclusive
                   size="small"
                   fullWidth
@@ -2538,7 +2517,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     if (!value) {
                       return;
                     }
-                    setHomeFilterDraft((previous) => ({
+                    setHomeQuery((previous) => ({
                       ...previous,
                       state: value,
                     }));
@@ -2557,12 +2536,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   {t('common.home_filter.section.category')}
                 </Typography>
                 <ToggleButtonGroup
-                  value={homeFilterDraft.category === 'none' ? null : homeFilterDraft.category}
+                  value={homeQuery.category === 'none' ? null : homeQuery.category}
                   exclusive
                   size="small"
                   fullWidth
                   onChange={(_event, value: HomeFilterCategory | null) => {
-                    setHomeFilterDraft((previous) => ({
+                    setHomeQuery((previous) => ({
                       ...previous,
                       category: value ?? 'none',
                     }));
@@ -2578,12 +2557,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   {t('common.home_filter.section.type')}
                 </Typography>
                 <ToggleButtonGroup
-                  value={homeFilterDraft.attrs.includes('imported') ? 'imported' : homeFilterDraft.attrs.includes('created') ? 'created' : null}
+                  value={homeQuery.attrs.includes('imported') ? 'imported' : homeQuery.attrs.includes('created') ? 'created' : null}
                   exclusive
                   size="small"
                   fullWidth
                   onChange={(_event, value: 'imported' | 'created' | null) => {
-                    setHomeFilterDraft((previous) => {
+                    setHomeQuery((previous) => {
                       const attrsWithoutType = previous.attrs.filter((entry) => entry !== 'imported' && entry !== 'created');
                       return {
                         ...previous,
@@ -2605,9 +2584,9 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   <FormControlLabel
                     control={
                       <Checkbox
-                        checked={homeFilterDraft.attrs.includes('send-waiting')}
+                        checked={homeQuery.attrs.includes('send-waiting')}
                         onChange={(event) => {
-                          setHomeFilterDraft((previous) => ({
+                          setHomeQuery((previous) => ({
                             ...previous,
                             attrs: event.target.checked
                               ? normalizeHomeAttrs([...previous.attrs, 'send-waiting'])
@@ -2619,23 +2598,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     label={t('common.home_filter.attr.send_waiting')}
                   />
                 </FormGroup>
-              </div>
-              <Divider />
-              <Typography variant="body2" className="homeFilterResultCount">
-                {t('common.home_filter.result_count', { count: homeDraftResultCount })}
-              </Typography>
-            </Box>
-            <Box className="homeFilterSheetActions">
-              <Button variant="text" onClick={clearAllHomeQuery} disabled={!homeHasNonDefaultFilter}>
-                {t('common.clear_all')}
-              </Button>
-              <div className="homeFilterSheetActionsRight">
-                <Button variant="text" onClick={resetHomeFilterSheet}>
-                  {t('common.reset')}
-                </Button>
-                <Button variant="contained" onClick={applyHomeFilterSheet}>
-                  {t('common.apply')}
-                </Button>
               </div>
             </Box>
           </Box>
