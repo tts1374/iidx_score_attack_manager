@@ -20,6 +20,7 @@
 - `package.json version` 以外のアプリバージョン表示箇所を棚卸しし、必要最小限を `0.9.0` に統一。
 - `CHANGELOG.md` に `0.9.0` セクションを追加。
 - `packages/web-app/src/i18n/locales/{ja,en,ko}.json` の `whats_new` を `0.9.0` 告知内容へ更新。
+- `release/0.9.0` に最新 `origin/main` をマージして、dark theme を含む最新差分を取り込む。
 
 ## 影響範囲
 
@@ -43,6 +44,7 @@
 - `pnpm lint` / `pnpm test` / `pnpm build` が成功すること。
 - アプリ内バージョン表示が `0.9.0` であること（ビルド成果から確認可能な範囲で検証）。
 - 単一タブ前提（Web Locks名・委譲経路）に差分がないこと。
+- `origin/main` マージ後に競合がないこと、または競合解消が意図どおりであること。
 
 ## ロールバック方針
 
@@ -55,6 +57,8 @@
    - `sync:versions` による version 更新差分のみを含める。
 2. `chore(release): v0.9.0`  
    - `CHANGELOG.md` と `whats_new` 更新、および最小限の版表示調整を含める。
+3. `chore(release): merge latest main`  
+   - `origin/main` 取り込みのマージコミットを含める。
 
 ## 実施手順チェック
 
