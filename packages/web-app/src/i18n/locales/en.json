@@ -3,6 +3,7 @@
     "detail": "Details",
     "close": "Close",
     "copy": "Copy",
+    "copy_this_tournament": "Copy this Score Attack",
     "share": "Share",
     "cancel": "Cancel",
     "back": "Back",
@@ -462,8 +463,13 @@
       "set_next_month": "Next month (1st to end of month)",
       "next_with_step": "{{action}} ({{step}})",
       "back_with_step": "{{action}} ({{step}})",
+      "finalize": "Finalize Score Attack",
       "create": "Create Score Attack",
       "creating": "Creating..."
+    },
+    "status": {
+      "missing_count": "Missing: {{count}}",
+      "completed": "Input complete ✔"
     },
     "progress": {
       "completed": "Completed: {{count}}/4",
@@ -495,11 +501,23 @@
     "confirm": {
       "chart_list_title": "Chart list",
       "chart_title": "Chart {{index}}",
+      "final_notice": "You cannot edit this after finalizing.",
       "debug": {
         "title": "Debug info",
         "def_hash": "def_hash",
         "source_tournament_uuid": "source_tournament_uuid",
         "null": "null"
+      }
+    },
+    "draft": {
+      "dialog": {
+        "title": "Confirm",
+        "description": "There is an unfinished draft.",
+        "action": {
+          "resume": "Resume",
+          "discard_and_new": "Discard and create new",
+          "copy_overwrite": "Overwrite with copy"
+        }
       }
     }
   },
@@ -840,6 +858,11 @@
     "summary": {
       "period": "{{start}}〜{{end}}",
       "period_with_space": "{{start}} 〜 {{end}}",
+      "tournament_id": "Tournament ID: {{value}}",
+      "tournament_id_copy_failed": "Failed to copy tournament ID.",
+      "technical_details": "Details",
+      "debug_def_hash": "def_hash: {{value}}",
+      "debug_source_tournament_uuid": "source_tournament_uuid: {{value}}",
       "progress": "Registered {{submitted}} / {{total}}",
       "state_counts": "Shared {{shared}} ・ Unshared {{unshared}} ・ Unregistered {{unregistered}}",
       "last_updated": "Last updated: {{date}}"

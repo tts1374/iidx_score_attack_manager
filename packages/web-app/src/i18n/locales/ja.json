@@ -3,6 +3,7 @@
     "detail": "詳細",
     "close": "閉じる",
     "copy": "コピー",
+    "copy_this_tournament": "このスコアタをコピー",
     "share": "共有",
     "cancel": "キャンセル",
     "back": "戻る",
@@ -462,8 +463,13 @@
       "set_next_month": "来月（1日〜月末）",
       "next_with_step": "{{action}}（{{step}}）",
       "back_with_step": "{{action}}（{{step}}）",
+      "finalize": "スコアタを確定する",
       "create": "スコアタを作成",
       "creating": "作成中..."
+    },
+    "status": {
+      "missing_count": "未入力：{{count}}件",
+      "completed": "入力完了 ✔"
     },
     "progress": {
       "completed": "入力完了: {{count}}/4",
@@ -495,11 +501,23 @@
     "confirm": {
       "chart_list_title": "譜面一覧",
       "chart_title": "譜面 {{index}}",
+      "final_notice": "確定後は内容を編集できません。",
       "debug": {
         "title": "デバッグ情報",
         "def_hash": "def_hash",
         "source_tournament_uuid": "source_tournament_uuid",
         "null": "null"
+      }
+    },
+    "draft": {
+      "dialog": {
+        "title": "確認",
+        "description": "作成途中の内容があります。",
+        "action": {
+          "resume": "続きから再開",
+          "discard_and_new": "破棄して新規作成",
+          "copy_overwrite": "コピーで上書き"
+        }
       }
     }
   },
@@ -840,6 +858,11 @@
     "summary": {
       "period": "{{start}}〜{{end}}",
       "period_with_space": "{{start}} 〜 {{end}}",
+      "tournament_id": "大会ID: {{value}}",
+      "tournament_id_copy_failed": "大会IDのコピーに失敗しました。",
+      "technical_details": "詳細情報",
+      "debug_def_hash": "def_hash: {{value}}",
+      "debug_source_tournament_uuid": "source_tournament_uuid: {{value}}",
       "progress": "登録 {{submitted}} / {{total}}",
       "state_counts": "共有済 {{shared}} ・ 未共有 {{unshared}} ・ 未登録 {{unregistered}}",
       "last_updated": "最終更新: {{date}}"

@@ -753,29 +753,47 @@ label {
 .createWizardSteps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #d8e1ef;
+  border-radius: 12px;
+  background: #f8fafc;
 }
 
 .createWizardStep {
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
   color: #475569;
   font-weight: 700;
-  padding: 10px 8px;
+  font-size: 14px;
+  padding: 7px 6px;
   text-align: center;
 }
 
 .createWizardStep.isCurrent {
-  border-color: #2563eb;
+  border: 1px solid #2563eb;
   background: #eff6ff;
   color: #1d4ed8;
 }
 
 .createWizardStep.isComplete {
-  border-color: #34d399;
-  background: #ecfdf5;
-  color: #047857;
+  background: #eef2ff;
+  color: #334155;
+}
+
+.createWizardStep:disabled {
+  color: #94a3b8;
+}
+
+.createStepStatusLine {
+  margin: 0;
+  border: 1px solid #dbe3f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 700;
+  padding: 8px 10px;
 }
 
 .createConfirmInfoCard {
@@ -858,13 +876,8 @@ label {
   outline: none;
 }
 
-.fieldChipLabel {
-  justify-self: start;
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid #d3dbeb;
-  background: #f3f7ff;
-  font-size: 13px;
+.createFieldLabel {
+  font-size: 14px;
   font-weight: 700;
   color: #1f2937;
 }
@@ -1024,30 +1037,33 @@ label {
   overflow-wrap: anywhere;
 }
 
-.createConfirmStyleGroup {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.createConfirmChartCard {
+  gap: 6px;
 }
 
-.createConfirmStyleChip {
-  pointer-events: none;
-  cursor: default;
-}
-
-.createConfirmDifficulty {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  border: 2px solid #cbd5e1;
-  border-radius: 999px;
-  padding: 8px 14px;
+.createConfirmChartSong {
+  margin: 0;
+  font-size: 18px;
   font-weight: 700;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.createConfirmChartMeta {
+  margin: 0;
+  font-weight: 700;
+  color: #334155;
 }
 
 .createConfirmNoteCard {
   display: grid;
   gap: 8px;
+}
+
+.createFinalizeWarning {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
 }
 
 .createInlineError {
@@ -1110,6 +1126,54 @@ label {
 
 .tournamentDetailSummaryCard {
   gap: 10px;
+}
+
+.detailTournamentIdRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detailTournamentIdText {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.detailInlineCopyButton {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detailTechnicalDetails {
+  border: 1px solid #dbe3f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 6px 10px;
+}
+
+.detailTechnicalDetails summary {
+  cursor: pointer;
+  color: #334155;
+  font-weight: 700;
+}
+
+.detailTechnicalDetailsBody {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.detailTechnicalDetailsBody p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
 }
 
 .detailStateProgressBar {
@@ -1764,10 +1828,6 @@ label {
 
 @media (max-width: 720px) {
   .formGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .createWizardSteps {
     grid-template-columns: 1fr;
   }
 

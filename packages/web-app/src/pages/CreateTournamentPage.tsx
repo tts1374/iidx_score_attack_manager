@@ -224,6 +224,8 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const periodText = React.useMemo(() => resolvePeriodText(draft.startDate, draft.endDate, t), [draft.endDate, draft.startDate, t]);
   const missingBasicFieldsText = React.useMemo(() => resolveMissingFieldLabels(validation.missingBasicFields, t), [t, validation.missingBasicFields]);
   const displayHashtag = React.useMemo(() => normalizeHashtagForDisplay(draft.hashtag), [draft.hashtag]);
+  const basicMissingCount = validation.missingBasicFields.length;
+  const chartMissingCount = validation.incompleteChartRowCount;
   const stepOneReady = validation.hasRequiredFields && validation.periodError === null;
   const stepTwoReady = validation.chartStepError === null;
   const maxSelectableStep: CreateWizardStep = stepOneReady ? (stepTwoReady ? 2 : 1) : 0;
@@ -362,6 +364,16 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const createDisabledReason = !validation.canProceed
     ? resolveStepButtonReason(validation.periodError ?? validation.chartStepError, 'create_tournament.validation.check_input', t)
     : null;
+  const stepStatusText =
+    currentStep === 0
+      ? basicMissingCount > 0
+        ? t('create_tournament.status.missing_count', { count: basicMissingCount })
+        : t('create_tournament.status.completed')
+      : currentStep === 1
+        ? chartMissingCount > 0
+          ? t('create_tournament.status.missing_count', { count: chartMissingCount })
+          : t('create_tournament.status.completed')
+        : null;
 
   return (
     <div className="page createTournamentPage">
@@ -381,12 +393,18 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               className={stepClassName}
               onClick={() => setCurrentStep(stepIndex)}
               disabled={stepIndex > maxSelectableStep}
+              aria-label={t('create_tournament.wizard.nav_item', { index: index + 1, label: stepLabel })}
             >
-              {t('create_tournament.wizard.nav_item', { index: index + 1, label: stepLabel })}
+              {stepLabel}
             </button>
           );
         })}
       </nav>
+      {stepStatusText ? (
+        <p className="createStepStatusLine" role="status">
+          {stepStatusText}
+        </p>
+      ) : null}
 
       {currentStep === 0 ? (
         <section className="createSection">
@@ -400,7 +418,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           </h2>
           <div className="createFieldStack">
             <label className="createField">
-              <span className="fieldChipLabel">{t('create_tournament.field.name.label')}</span>
+              <span className="createFieldLabel">{t('create_tournament.field.name.label')}</span>
               <input
                 maxLength={50}
                 value={draft.name}
@@ -414,7 +432,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             </label>
 
             <label className="createField">
-              <span className="fieldChipLabel">{t('create_tournament.field.owner.label')}</span>
+              <span className="createFieldLabel">{t('create_tournament.field.owner.label')}</span>
               <input
                 maxLength={50}
                 value={draft.owner}
@@ -428,7 +446,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             </label>
 
             <label className="createField">
-              <span className="fieldChipLabel">{t('create_tournament.field.hashtag.label')}</span>
+              <span className="createFieldLabel">{t('create_tournament.field.hashtag.label')}</span>
               <div className="hashtagInputGroup">
                 <span className="hashtagInputPrefix" aria-hidden="true">
                   #
@@ -447,7 +465,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             </label>
 
             <div className="createField">
-              <span className="fieldChipLabel">{t('create_tournament.field.period.label')}</span>
+              <span className="createFieldLabel">{t('create_tournament.field.period.label')}</span>
               <div className="periodRangeInputs">
                 <div className="periodDateField">
                   <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={datePickerAdapterLocale} localeText={datePickerLocaleText}>
@@ -504,15 +522,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               <p className="hintText">{periodText}</p>
             </div>
           </div>
-
-          <article className="chartRowCard createProgressCard">
-            <p className="progressLine">{t('create_tournament.progress.completed', { count: validation.basicCompletedCount })}</p>
-            <p className="hintText">
-              {t('create_tournament.progress.missing', {
-                items: validation.missingBasicFields.length > 0 ? missingBasicFieldsText : t('create_tournament.progress.none'),
-              })}
-            </p>
-          </article>
         </section>
       ) : null}
 
@@ -575,7 +584,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">{t('create_tournament.field.song.label')}</span>
+                    <span className="createFieldLabel">{t('create_tournament.field.song.label')}</span>
                     <Box sx={SONG_AUTOCOMPLETE_SX}>
                       <Autocomplete<SongSummary, false, false, false>
                         fullWidth
@@ -659,7 +668,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">{t('create_tournament.field.play_style.label')}</span>
+                    <span className="createFieldLabel">{t('create_tournament.field.play_style.label')}</span>
                     {!row.selectedSong ? <span className="hintText">{t('create_tournament.field.play_style.disabled_hint')}</span> : null}
                     <div className="styleRadioGroup">
                       <label className={`styleOption ${row.playStyle === 'SP' ? 'selected' : ''} ${!row.selectedSong ? 'disabled' : ''}`}>
@@ -698,7 +707,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   </div>
 
                   <div className="createField">
-                    <span className="fieldChipLabel">{t('create_tournament.field.difficulty.label')}</span>
+                    <span className="createFieldLabel">{t('create_tournament.field.difficulty.label')}</span>
                     {!row.selectedSong ? <span className="hintText">{t('create_tournament.field.difficulty.select_song_hint')}</span> : null}
                     {row.selectedSong && row.chartOptions.length === 0 ? (
                       <span className="hintText">{t('create_tournament.field.difficulty.no_available')}</span>
@@ -787,37 +796,19 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             <div className="chartRows">
               {rows.map((row, index) => {
                 const selectedChart = resolveSelectedChartOption(row);
+                const difficultyTextColor = selectedChart ? difficultyColor(selectedChart.difficulty) : undefined;
+                const playInfoText = selectedChart
+                  ? `${row.playStyle}  ${selectedChart.difficulty} ${selectedChart.level}`
+                  : t('common.not_available');
                 return (
-                  <article key={row.key} className="chartRowCard createChartCard">
+                  <article key={row.key} className="chartRowCard createChartCard createConfirmChartCard">
                     <div className="chartRowHeader">
                       <strong>{t('create_tournament.confirm.chart_title', { index: index + 1 })}</strong>
                     </div>
-
-                    <div className="createField">
-                      <span className="fieldChipLabel">{t('create_tournament.field.song.label')}</span>
-                      <p className="createConfirmValue">{row.selectedSong?.title ?? t('common.not_available')}</p>
-                    </div>
-
-                    <div className="createField">
-                      <span className="fieldChipLabel">{t('create_tournament.field.play_style.label')}</span>
-                      <div className="createConfirmStyleGroup">
-                        <span className="styleOption selected createConfirmStyleChip">{row.playStyle}</span>
-                      </div>
-                    </div>
-
-                    <div className="createField">
-                      <span className="fieldChipLabel">{t('create_tournament.field.difficulty.label')}</span>
-                      {selectedChart ? (
-                        <span className="createConfirmDifficulty" style={difficultyButtonStyle(selectedChart.difficulty, true)}>
-                          {t('create_tournament.field.difficulty.value', {
-                            difficulty: selectedChart.difficulty,
-                            level: selectedChart.level,
-                          })}
-                        </span>
-                      ) : (
-                        <p className="createConfirmValue">{t('common.not_available')}</p>
-                      )}
-                    </div>
+                    <p className="createConfirmChartSong">{row.selectedSong?.title ?? t('common.not_available')}</p>
+                    <p className="createConfirmChartMeta" style={difficultyTextColor ? { color: difficultyTextColor } : undefined}>
+                      {playInfoText}
+                    </p>
                   </article>
                 );
               })}
@@ -883,6 +874,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
             {!props.saving && !validation.canProceed ? (
               <p className="errorText createInlineError">{createDisabledReason}</p>
             ) : null}
+            <p className="createFinalizeWarning">{t('create_tournament.confirm.final_notice')}</p>
             <div className="createConfirmActions">
               <button type="button" onClick={() => setCurrentStep(1)} disabled={props.saving}>
                 {t('create_tournament.action.back_with_step', {
@@ -898,7 +890,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   void props.onConfirmCreate();
                 }}
               >
-                {props.saving ? t('create_tournament.action.creating') : t('create_tournament.action.create')}
+                {t('create_tournament.action.finalize')}
               </button>
             </div>
           </>

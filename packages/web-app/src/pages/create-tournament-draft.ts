@@ -4,6 +4,7 @@ import { formatHashtagForDisplay, normalizeHashtag } from '@iidx/shared';
 export type CreateTournamentPlayStyle = 'SP' | 'DP';
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
+export const CREATE_TOURNAMENT_DRAFT_STORAGE_KEY = 'draft:score_attack:create';
 
 export interface CreateTournamentChartDraft {
   key: string;
@@ -55,6 +56,7 @@ export interface CreateTournamentValidationResult {
   missingBasicFields: CreateTournamentFieldLabelKey[];
   basicCompletedCount: number;
   hasRequiredFields: boolean;
+  incompleteChartRowCount: number;
   hasUnselectedChart: boolean;
   chartStepError: CreateTournamentValidationMessageKey | null;
   periodError: CreateTournamentValidationMessageKey | null;
@@ -62,6 +64,97 @@ export interface CreateTournamentValidationResult {
 }
 
 export const MAX_CHART_ROWS = 4;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function toNonEmptyString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function toStringValue(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function sanitizeSongSummary(value: unknown): SongSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const musicId = Number(value.musicId);
+  const title = toNonEmptyString(value.title);
+  if (!Number.isFinite(musicId) || musicId <= 0 || !title) {
+    return null;
+  }
+  const versionRaw = value.version;
+  const version = typeof versionRaw === 'string' || typeof versionRaw === 'number' ? versionRaw : '';
+  return {
+    musicId,
+    title,
+    version,
+  };
+}
+
+function sanitizeChartSummary(value: unknown): ChartSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const chartId = Number(value.chartId);
+  const musicId = Number(value.musicId);
+  const playStyle = toNonEmptyString(value.playStyle);
+  const difficulty = toNonEmptyString(value.difficulty);
+  const level = toNonEmptyString(value.level);
+  const isActiveNumber = Number(value.isActive);
+  const isActive = Number.isFinite(isActiveNumber) ? isActiveNumber : 1;
+  if (!Number.isFinite(chartId) || chartId <= 0 || !Number.isFinite(musicId) || musicId <= 0 || !playStyle || !difficulty || !level) {
+    return null;
+  }
+  return {
+    chartId,
+    musicId,
+    playStyle,
+    difficulty,
+    level,
+    isActive,
+  };
+}
+
+function sanitizeChartDraft(value: unknown): CreateTournamentChartDraft | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const selectedSong = value.selectedSong === null ? null : sanitizeSongSummary(value.selectedSong);
+  const options = Array.isArray(value.options)
+    ? value.options
+        .map((entry) => sanitizeSongSummary(entry))
+        .filter((entry): entry is SongSummary => entry !== null)
+    : [];
+  const chartOptions = Array.isArray(value.chartOptions)
+    ? value.chartOptions
+        .map((entry) => sanitizeChartSummary(entry))
+        .filter((entry): entry is ChartSummary => entry !== null)
+    : [];
+  const selectedChartRaw = value.selectedChartId;
+  const selectedChartNumber = Number(selectedChartRaw);
+  const selectedChartId =
+    selectedChartRaw === null || selectedChartRaw === undefined || !Number.isFinite(selectedChartNumber) || selectedChartNumber <= 0
+      ? null
+      : selectedChartNumber;
+  return {
+    key: toNonEmptyString(value.key) ?? crypto.randomUUID(),
+    query: toStringValue(value.query),
+    options,
+    selectedSong,
+    playStyle: value.playStyle === 'DP' ? 'DP' : 'SP',
+    chartOptions,
+    selectedChartId,
+    loading: value.loading === true,
+  };
+}
 
 export function createEmptyChartDraft(): CreateTournamentChartDraft {
   return {
@@ -85,6 +178,27 @@ export function createInitialTournamentDraft(todayDate: string): CreateTournamen
     startDate: todayDate,
     endDate: todayDate,
     rows: [createEmptyChartDraft()],
+  };
+}
+
+export function restoreCreateTournamentDraft(value: unknown): CreateTournamentDraft | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rows = Array.isArray(value.rows)
+    ? value.rows
+        .map((entry) => sanitizeChartDraft(entry))
+        .filter((entry): entry is CreateTournamentChartDraft => entry !== null)
+        .slice(0, MAX_CHART_ROWS)
+    : [];
+  return {
+    tournamentUuid: toNonEmptyString(value.tournamentUuid) ?? crypto.randomUUID(),
+    name: toStringValue(value.name),
+    owner: toStringValue(value.owner),
+    hashtag: toStringValue(value.hashtag),
+    startDate: toStringValue(value.startDate),
+    endDate: toStringValue(value.endDate),
+    rows: rows.length > 0 ? rows : [createEmptyChartDraft()],
   };
 }
 
@@ -189,7 +303,8 @@ export function resolveCreateTournamentValidation(
   const basicCompletedCount = 4 - missingBasicFields.length;
   const hasRequiredFields = missingBasicFields.length === 0 && periodError === null;
 
-  const hasUnselectedChart = draft.rows.some((row) => row.selectedChartId === null);
+  const incompleteChartRowCount = draft.rows.filter((row) => row.selectedSong === null || row.selectedChartId === null).length;
+  const hasUnselectedChart = incompleteChartRowCount > 0;
   const chartStepError: CreateTournamentValidationMessageKey | null =
     draft.rows.length === 0
       ? 'create_tournament.validation.chart_required'
@@ -210,6 +325,7 @@ export function resolveCreateTournamentValidation(
     missingBasicFields,
     basicCompletedCount,
     hasRequiredFields,
+    incompleteChartRowCount,
     hasUnselectedChart,
     chartStepError,
     periodError,

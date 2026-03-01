@@ -225,6 +225,14 @@ function formatDateTime(value: string | null): string | null {
   }).format(parsed);
 }
 
+function shortenTournamentId(value: string, visibleLength = 10): string {
+  const normalized = value.trim();
+  if (normalized.length <= visibleLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, visibleLength)}…`;
+}
+
 function trimTextToWidth(ctx: CanvasRenderingContext2D, value: string, width: number): string {
   if (ctx.measureText(value).width <= width) {
     return value;
@@ -909,6 +917,19 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     }
   }, []);
 
+  const shortTournamentId = React.useMemo(
+    () => shortenTournamentId(props.detail.tournamentUuid, 10),
+    [props.detail.tournamentUuid],
+  );
+
+  const copyTournamentId = React.useCallback(async () => {
+    const copied = await copyTextToClipboard(props.detail.tournamentUuid);
+    showSubmitToast({
+      severity: copied ? 'success' : 'error',
+      text: copied ? t('notify.copied') : t('tournament_detail.summary.tournament_id_copy_failed'),
+    });
+  }, [copyTextToClipboard, props.detail.tournamentUuid, showSubmitToast, t]);
+
   const downloadFiles = React.useCallback((files: File[]) => {
     files.forEach((file) => {
       const url = URL.createObjectURL(file);
@@ -1045,6 +1066,27 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             <p className="periodLine">
               {t('tournament_detail.summary.period', { start: props.detail.startDate, end: props.detail.endDate })}
             </p>
+            <div className="detailTournamentIdRow">
+              <span className="detailTournamentIdText">
+                {t('tournament_detail.summary.tournament_id', { value: shortTournamentId })}
+              </span>
+              <button type="button" className="detailInlineCopyButton" onClick={() => void copyTournamentId()}>
+                {t('common.copy')}
+              </button>
+            </div>
+            {props.debugModeEnabled ? (
+              <details className="detailTechnicalDetails">
+                <summary>{t('tournament_detail.summary.technical_details')}</summary>
+                <div className="detailTechnicalDetailsBody">
+                  <p>{t('tournament_detail.summary.debug_def_hash', { value: props.detail.defHash })}</p>
+                  <p>
+                    {t('tournament_detail.summary.debug_source_tournament_uuid', {
+                      value: props.detail.sourceTournamentUuid ?? t('common.not_available'),
+                    })}
+                  </p>
+                </div>
+              </details>
+            ) : null}
             <div className="detailStateProgressBar" aria-hidden>
               <span className="detailStateProgressSegment detailStateProgressSegment-shared" style={{ width: `${sharedPercent}%` }} />
               <span
