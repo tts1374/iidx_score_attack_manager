@@ -104,8 +104,24 @@
       "title": "QR scan",
       "description": "Hold the QR code in front of the camera.",
       "starting": "Starting camera...",
-      "action": {
-        "text_import": "Text import"
+      "fallback": {
+        "title": "Camera is unavailable",
+        "description": "Open the post link, or paste the import URL.",
+        "input_placeholder": "Paste import URL",
+        "action": {
+          "import": "Import"
+        },
+        "help_link": "Causes and fixes",
+        "help": {
+          "permission": "Allow camera permission in your browser",
+          "https": "Open the page over HTTPS",
+          "in_app_browser": "In-app browsers in social apps may not work"
+        },
+        "error": {
+          "empty": "Enter a URL.",
+          "absolute_url": "Enter a full URL starting with http(s)://.",
+          "import_link": "Enter an import URL."
+        }
       },
       "error": {
         "unavailable": "QR scanning is not available on this device.",

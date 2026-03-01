@@ -104,8 +104,24 @@
       "title": "QR読み取り",
       "description": "QRコードをカメラにかざしてください。",
       "starting": "カメラ起動中...",
-      "action": {
-        "text_import": "テキスト取込"
+      "fallback": {
+        "title": "カメラが利用できません",
+        "description": "投稿のリンクを開くか、インポート用URLを貼り付けてください。",
+        "input_placeholder": "インポート用URLを貼り付け",
+        "action": {
+          "import": "取り込む"
+        },
+        "help_link": "原因と対処",
+        "help": {
+          "permission": "ブラウザのカメラ権限を許可してください",
+          "https": "HTTPSで開いてください",
+          "in_app_browser": "SNS内ブラウザでは動かない場合があります"
+        },
+        "error": {
+          "empty": "URLを入力してください。",
+          "absolute_url": "http(s):// で始まるURLを入力してください。",
+          "import_link": "インポート用URLを入力してください。"
+        }
       },
       "error": {
         "unavailable": "この端末ではQR読み取りを利用できません。",

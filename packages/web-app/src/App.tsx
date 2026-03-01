@@ -927,7 +927,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const isHomeRoute = route.name === 'home';
   const isDetailRoute = route.name === 'detail';
   const isSettingsRoute = route.name === 'settings';
-  const canUseQrImport = window.isSecureContext === true && typeof navigator.mediaDevices?.getUserMedia === 'function';
   const todayDate = todayJst();
   const swStatus = resolveServiceWorkerStatus(pwaUpdate, hasSwController);
   const appInfoSnapshot = React.useMemo<AppInfoCardData>(
@@ -1814,18 +1813,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setQrImportDialogOpen(false);
   }, []);
 
-  const handleDetectedImportQr = React.useCallback(
-    (qrText: string) => {
+  const handleImportUrlFromQrDialog = React.useCallback(
+    (importUrl: string) => {
       setQrImportDialogOpen(false);
-      void importFromQrScan(qrText);
+      void importFromQrScan(importUrl);
     },
     [importFromQrScan],
   );
-
-  const openTextImportFromQrError = React.useCallback(() => {
-    setQrImportDialogOpen(false);
-    pushRoute({ name: 'import' });
-  }, [pushRoute]);
 
   const confirmImport = React.useCallback(
     async (payload: TournamentPayload) => {
@@ -2099,12 +2093,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       pushToast(t('common.import.page_require_song_master'));
       return;
     }
-    if (canUseQrImport) {
-      setQrImportDialogOpen(true);
-      return;
-    }
-    pushRoute({ name: 'import' });
-  }, [canUseQrImport, pushRoute, pushToast, songMasterReady, t]);
+    setQrImportDialogOpen(true);
+  }, [pushToast, songMasterReady, t]);
 
   const openSettingsPage = React.useCallback(() => {
     if (route.name === 'settings') {
@@ -2881,8 +2871,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         <ImportQrScannerDialog
           open={qrImportDialogOpen}
           onClose={closeQrImportDialog}
-          onDetected={handleDetectedImportQr}
-          onOpenTextImport={openTextImportFromQrError}
+          onImportUrl={handleImportUrlFromQrDialog}
         />
 
         <Dialog open={whatsNewDialogOpen} onClose={closeWhatsNewDialog} fullWidth maxWidth="sm">
