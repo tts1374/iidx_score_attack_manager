@@ -508,11 +508,12 @@
       "level": "Lv{{level}}"
     },
     "status": {
-      "processing": "제출 처리 중",
-      "failed": "제출 실패",
-      "submitted": "제출됨",
-      "submitted_with_date": "제출됨 {{date}}",
-      "not_submitted": "미제출"
+      "processing": "저장 중",
+      "saving": "저장 중",
+      "failed": "저장 실패",
+      "unregistered": "미등록",
+      "unshared": "미공유",
+      "shared": "공유됨"
     },
     "step": {
       "select_image": "Step 1) 이미지 선택",
@@ -530,10 +531,14 @@
     },
     "note": {
       "local_only": "이미지는 이 기기 안에만 저장됩니다.",
+      "local_only_inline": "* 이미지는 이 기기 안에만 저장됩니다",
       "not_sent": "다른 사람에게 이미지는 전송되지 않습니다."
     },
     "action": {
-      "processing": "제출 처리 중",
+      "processing": "저장 중",
+      "saving": "저장 중",
+      "take_photo": "촬영하기",
+      "select_image": "이미지 선택",
       "update": "업데이트",
       "save": "저장"
     },
@@ -547,6 +552,7 @@
       "submit_failed": "제출에 실패했습니다",
       "quota_exceeded": "저장 공간이 부족합니다",
       "save_failed": "저장에 실패했습니다",
+      "camera_unavailable": "이 기기에서는 촬영 기능을 사용할 수 없습니다",
       "delete_failed": "삭제에 실패했습니다"
     },
     "delete_dialog": {
@@ -822,7 +828,8 @@
       "copy_logs": "로그 복사",
       "save_to_device": "기기에 저장",
       "mark_send_completed": "삭제",
-      "submit": "공유하기"
+      "submit": "제출하기",
+      "resubmit": "재제출하기"
     },
     "status": {
       "upcoming": "미개최",
@@ -903,8 +910,11 @@
       "cta": "공유하기({{count}})"
     },
     "submit_dialog": {
-      "title": "공유",
+      "title": "제출",
       "confirm_message": "미공유 곡을 공유합니다({{count}}건)",
+      "confirm_message_submit": "저장된 미제출 채보를 제출합니다({{count}}건)",
+      "confirm_message_resubmit": "저장된 채보를 재제출합니다({{count}}건)",
+      "resubmit_overwrite": "재제출은 기존 제출 내용을 덮어씁니다.",
       "images_title": "전송할 이미지",
       "images_description": "이미지가 기기 외부로 공유됩니다",
       "target_count": "미공유 대상: {{count}}건",
@@ -924,6 +934,7 @@
         "message_shared": "전송할 메시지를 공유했습니다.",
         "message_share_failed": "메시지 공유에 실패했습니다.",
         "no_pending": "미공유가 없습니다.",
+        "no_local_saved": "이 기기에 저장된 이미지가 없습니다.",
         "marked_shared": "공유 완료로 처리했습니다.",
         "fallback_copy_failed": "이미지는 저장했지만 메시지 복사에 실패했습니다.",
         "undo_applied": "미공유로 되돌렸습니다.",

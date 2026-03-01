@@ -508,11 +508,12 @@
       "level": "Lv{{level}}"
     },
     "status": {
-      "processing": "提出処理中",
-      "failed": "提出失敗",
-      "submitted": "提出済み",
-      "submitted_with_date": "提出済み {{date}}",
-      "not_submitted": "未提出"
+      "processing": "保存中",
+      "saving": "保存中",
+      "failed": "保存失敗",
+      "unregistered": "未登録",
+      "unshared": "未共有",
+      "shared": "共有済"
     },
     "step": {
       "select_image": "Step 1) 画像を選ぶ",
@@ -530,10 +531,14 @@
     },
     "note": {
       "local_only": "画像はこの端末の中だけに保存されます",
+      "local_only_inline": "※画像はこの端末内にのみ保存されます",
       "not_sent": "他の人に画像は送られません"
     },
     "action": {
-      "processing": "提出処理中",
+      "processing": "保存中",
+      "saving": "保存中",
+      "take_photo": "撮影する",
+      "select_image": "画像を選ぶ",
       "update": "更新する",
       "save": "保存する"
     },
@@ -547,6 +552,7 @@
       "submit_failed": "提出に失敗しました",
       "quota_exceeded": "容量不足",
       "save_failed": "保存に失敗しました",
+      "camera_unavailable": "この端末では撮影機能を利用できません",
       "delete_failed": "削除に失敗しました"
     },
     "delete_dialog": {
@@ -822,7 +828,8 @@
       "copy_logs": "ログコピー",
       "save_to_device": "端末に保存",
       "mark_send_completed": "削除",
-      "submit": "共有する"
+      "submit": "提出する",
+      "resubmit": "再提出する"
     },
     "status": {
       "upcoming": "未開催",
@@ -903,8 +910,11 @@
       "cta": "共有する（{{count}}）"
     },
     "submit_dialog": {
-      "title": "共有",
+      "title": "提出",
       "confirm_message": "未共有の曲を共有します（{{count}}件）",
+      "confirm_message_submit": "保存済みの未提出譜面を提出します（{{count}}件）",
+      "confirm_message_resubmit": "保存済みの譜面を再提出します（{{count}}件）",
+      "resubmit_overwrite": "再提出は提出内容の上書きになります。",
       "images_title": "送信する画像",
       "images_description": "画像が端末外に共有されます",
       "target_count": "未共有対象: {{count}}件",
@@ -924,6 +934,7 @@
         "message_shared": "送信するメッセージを共有しました。",
         "message_share_failed": "メッセージ共有に失敗しました。",
         "no_pending": "未共有はありません。",
+        "no_local_saved": "この端末に保存済みの画像がありません。",
         "marked_shared": "共有済にしました",
         "fallback_copy_failed": "画像を保存しましたが、メッセージのコピーに失敗しました。",
         "undo_applied": "未共有に戻しました。",
