@@ -221,7 +221,7 @@ describe('TournamentDetailPage', () => {
     expect(footerShareButton.disabled).toBe(false);
   });
 
-  it('disables the footer share CTA when unshared count is zero', () => {
+  it('shows resubmit CTA when unshared count is zero but local-saved charts exist', () => {
     renderPage({
       charts: detail.charts.map((chart) => ({
         ...chart,
@@ -230,21 +230,55 @@ describe('TournamentDetailPage', () => {
     });
 
     const footerShareButton = screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement;
-    expect(footerShareButton.disabled).toBe(true);
+    expect(footerShareButton.disabled).toBe(false);
+    expect(footerShareButton.textContent).toContain('再提出');
+  });
+
+  it('hides the footer submit CTA when no local-saved charts exist', () => {
+    renderPage({
+      charts: detail.charts.map((chart) => ({
+        ...chart,
+        submitted: false,
+        updateSeq: 0,
+        needsSend: false,
+        fileDeleted: false,
+      })),
+    });
+
+    expect(screen.queryByTestId('tournament-detail-submit-open-button')).toBeNull();
   });
 
   it('opens submit share confirm dialog with cancel and one submit action', async () => {
     renderPage();
 
+    const footerShareButton = screen.getByTestId('tournament-detail-submit-open-button');
+    expect(footerShareButton.textContent).toContain('提出する');
+
     await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
     const dialog = screen.getByTestId('tournament-detail-submit-dialog');
     expect(dialog).toBeTruthy();
-    expect(screen.getByTestId('tournament-detail-submit-confirm-text').textContent).toContain('未共有の曲を共有します');
+    expect(screen.getByTestId('tournament-detail-submit-confirm-text').textContent).toContain('保存済みの未提出譜面を提出します');
     const dialogScope = within(dialog);
     expect(dialogScope.getByRole('button', { name: 'キャンセル' })).toBeTruthy();
     expect(dialogScope.getByTestId('tournament-detail-submit-share-button')).toBeTruthy();
     expect(screen.queryByTestId('tournament-detail-submit-message-input')).toBeNull();
     expect(screen.queryByTestId('tournament-detail-mark-send-completed-button')).toBeNull();
+  });
+
+  it('shows overwrite notice in resubmit mode', async () => {
+    renderPage({
+      charts: detail.charts.map((chart) => ({
+        ...chart,
+        needsSend: false,
+      })),
+    });
+
+    const footerShareButton = screen.getByTestId('tournament-detail-submit-open-button');
+    expect(footerShareButton.textContent).toContain('再提出');
+
+    await userEvent.click(footerShareButton);
+    expect(screen.getByTestId('tournament-detail-submit-confirm-text').textContent).toContain('再提出します');
+    expect(screen.getByTestId('tournament-detail-submit-resubmit-note').textContent).toContain('上書き');
   });
 
   it('marks as shared only on success and allows undo for the latest operation', async () => {
