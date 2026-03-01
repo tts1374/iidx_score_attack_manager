@@ -2352,7 +2352,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
   return (
     <>
-      <AppBar position="sticky" color="inherit" elevation={1}>
+      <AppBar position="sticky" color="inherit" elevation={1} sx={{ backgroundColor: 'var(--header-bg)', color: 'var(--text)' }}>
         <Toolbar sx={{ maxWidth: 980, width: '100%', margin: '0 auto' }}>
           {isHomeRoute ? (
             homeSearchMode ? (
@@ -2364,13 +2364,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    border: '1px solid #d0d8e8',
+                    border: '1px solid var(--border)',
                     borderRadius: 99,
                     pl: 1.5,
                     pr: 0.5,
                     py: 0.25,
                     minHeight: 40,
-                    backgroundColor: '#ffffff',
+                    backgroundColor: 'var(--surface)',
                   }}
                 >
                   <InputBase
@@ -2384,7 +2384,15 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                         setHomeSearchMode(false);
                       }
                     }}
-                    sx={{ flex: 1, fontSize: 15 }}
+                    sx={{
+                      flex: 1,
+                      fontSize: 15,
+                      color: 'var(--text)',
+                      '& .MuiInputBase-input::placeholder': {
+                        color: 'var(--home-search-placeholder)',
+                        opacity: 1,
+                      },
+                    }}
                   />
                   {homeQuery.searchText.length > 0 ? (
                     <IconButton
@@ -2417,8 +2425,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 <IconButton edge="end" color="inherit" aria-label="global-settings-menu" onClick={openHomeMenu}>
                   <MoreVertIcon />
                 </IconButton>
-                <Menu anchorEl={homeMenuAnchorEl} open={homeMenuOpen} onClose={closeHomeMenu}>
+                <Menu
+                  anchorEl={homeMenuAnchorEl}
+                  open={homeMenuOpen}
+                  onClose={closeHomeMenu}
+                  PaperProps={{ className: 'appMenuPaper' }}
+                >
                   <MenuItem
+                    className="appMenuItem"
                     onClick={() => {
                       closeHomeMenu();
                       openSettingsPage();
@@ -2468,14 +2482,25 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       <IconButton edge="end" color="inherit" aria-label="detail-actions-menu" onClick={openDetailMenu}>
                         <MoreVertIcon />
                       </IconButton>
-                      <Menu anchorEl={detailMenuAnchorEl} open={detailMenuOpen} onClose={closeDetailMenu}>
-                        <MenuItem onClick={openCopyCreateFromDetail}>{t('common.copy_this_tournament')}</MenuItem>
+                      <Menu
+                        anchorEl={detailMenuAnchorEl}
+                        open={detailMenuOpen}
+                        onClose={closeDetailMenu}
+                        PaperProps={{ className: 'appMenuPaper' }}
+                      >
+                        <MenuItem className="appMenuItem" onClick={openCopyCreateFromDetail}>
+                          {t('common.copy_this_tournament')}
+                        </MenuItem>
                         {debugModeEnabled ? (
-                          <MenuItem onClick={openDetailTechnicalDialog}>
+                          <MenuItem className="appMenuItem" onClick={openDetailTechnicalDialog}>
                             {t('common.technical_info')}
                           </MenuItem>
                         ) : null}
-                        <MenuItem disabled={deleteTournamentBusy} onClick={openDeleteTournamentDialog}>
+                        <MenuItem
+                          className="appMenuItem"
+                          disabled={deleteTournamentBusy}
+                          onClick={openDeleteTournamentDialog}
+                        >
                           {t('common.delete')}
                         </MenuItem>
                       </Menu>
@@ -2567,10 +2592,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 onClose={closeHomeSortMenu}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                PaperProps={{ className: 'appMenuPaper' }}
               >
                 {HOME_SORT_OPTIONS.map((option) => (
                   <MenuItem
                     key={option.value}
+                    className="appMenuItem"
                     selected={homeQuery.sort === option.value}
                     onClick={() => {
                       setHomeSort(option.value);
@@ -2693,7 +2720,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           anchor="bottom"
           open={isHomeRoute && homeFilterSheetOpen}
           onClose={closeHomeFilterSheet}
-          ModalProps={{ keepMounted: true }}
+          ModalProps={{
+            keepMounted: true,
+            BackdropProps: {
+              sx: { backgroundColor: 'var(--home-filter-backdrop)' },
+            },
+          }}
           PaperProps={{
             sx: {
               width: '100%',
@@ -2702,6 +2734,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               borderTopLeftRadius: 16,
               borderTopRightRadius: 16,
               maxHeight: '70dvh',
+              backgroundColor: 'var(--home-filter-sheet-bg)',
+              color: 'var(--home-filter-sheet-text)',
             },
           }}
         >

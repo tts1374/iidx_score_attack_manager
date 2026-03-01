@@ -190,9 +190,33 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
   const showFallback = cameraState === 'failed';
 
   return (
-    <Dialog open={props.open} onClose={props.onClose} fullWidth maxWidth="xs">
+    <Dialog
+      open={props.open}
+      onClose={props.onClose}
+      fullWidth
+      maxWidth="xs"
+      PaperProps={{
+        sx: {
+          backgroundColor: 'var(--surface)',
+          color: 'var(--text)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow)',
+          '& .MuiTypography-root': {
+            color: 'var(--text)',
+          },
+          '& .hintText': {
+            color: 'var(--text-subtle)',
+          },
+        },
+      }}
+    >
       <DialogTitle>{t('common.import_qr_dialog.title')}</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent
+        dividers
+        sx={{
+          borderColor: 'var(--border)',
+        }}
+      >
         {!showFallback ? (
           <>
             <Typography variant="body2" className="hintText">
@@ -269,7 +293,7 @@ export function ImportQrScannerDialog(props: ImportQrScannerDialogProps): JSX.El
         ) : null}
         <canvas ref={canvasRef} className="importQrScannerCanvas" />
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ borderTop: '1px solid var(--border)' }}>
         <Button onClick={props.onClose}>{t('common.close')}</Button>
       </DialogActions>
     </Dialog>

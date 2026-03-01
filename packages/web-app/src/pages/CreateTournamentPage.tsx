@@ -49,6 +49,20 @@ const CREATE_WIZARD_DEBUG_STORAGE_KEY = 'iidx:debug:create-wizard';
 const SONG_AUTOCOMPLETE_SX = {
   width: '100%',
   maxWidth: '100%',
+  '& .MuiOutlinedInput-root': {
+    backgroundColor: 'var(--surface)',
+    color: 'var(--text)',
+  },
+  '& .MuiInputBase-input::placeholder': {
+    color: 'var(--text-faint)',
+    opacity: 1,
+  },
+  '& .MuiAutocomplete-popupIndicator': {
+    color: 'var(--create-song-popup-icon)',
+  },
+  '& .MuiAutocomplete-clearIndicator': {
+    color: 'var(--text-subtle)',
+  },
 } as const;
 const DATE_PICKER_LOCALE_TEXT_BY_LANGUAGE = {
   ja: jaJP.components.MuiLocalizationProvider.defaultProps.localeText as any,
@@ -119,12 +133,12 @@ function difficultyButtonStyle(difficulty: string, active: boolean): React.CSSPr
     return {
       borderColor: color,
       backgroundColor: color,
-      color: '#ffffff',
+      color: 'var(--difficulty-pill-active-text)',
     };
   }
   return {
     borderColor: color,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'var(--difficulty-pill-inactive-bg)',
     color,
   };
 }
@@ -554,7 +568,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 </button>
               </div>
 
-              <p className="hintText">{periodText}</p>
+              <p className="hintText periodSummaryText">{periodText}</p>
             </div>
           </div>
         </section>
@@ -625,9 +639,15 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                     <span className="createFieldLabel">{t('create_tournament.field.song.label')}</span>
                     <Box sx={SONG_AUTOCOMPLETE_SX}>
                       <Autocomplete<SongSummary, false, false, false>
+                        className="createSongAutocompleteRoot"
                         fullWidth
                         openOnFocus
                         options={row.options}
+                        slotProps={{
+                          popper: {
+                            className: 'createSongAutocompletePopper',
+                          },
+                        }}
                         filterOptions={(options) => options}
                         value={row.selectedSong}
                         inputValue={row.query}
@@ -691,7 +711,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                               {...liProps}
                             >
                               <Box sx={{ display: 'grid', gap: 0.5 }}>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" className="createSongAutocompleteOptionVersion">
                                   [{versionLabel(option.version)}]
                                 </Typography>
                                 <Typography variant="body2" sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
