@@ -982,8 +982,7 @@ label {
   padding-bottom: 120px;
 }
 
-.createTournamentPage input,
-.createTournamentPage .MuiInputBase-root {
+.createTournamentPage input {
   min-height: 44px;
 }
 
@@ -1154,39 +1153,9 @@ label {
   align-self: center;
 }
 
-.periodRangeInputs .MuiFormControl-root {
-  width: 100%;
-}
-
 .periodDateField {
   display: grid;
   gap: 6px;
-}
-
-.periodDateField .MuiOutlinedInput-root,
-.periodDateField .MuiInputBase-root,
-.periodDateField .MuiPickersInputBase-root,
-.periodDateField .MuiPickersOutlinedInput-root {
-  background-color: var(--surface);
-  color: var(--text);
-}
-
-.periodDateField .MuiInputBase-input,
-.periodDateField .MuiPickersInputBase-input,
-.periodDateField .MuiPickersSectionList-root,
-.periodDateField .MuiPickersSectionList-section {
-  color: var(--text) !important;
-  -webkit-text-fill-color: var(--text);
-}
-
-.periodDateField .MuiInputBase-input::placeholder {
-  color: var(--text-faint);
-  opacity: 1;
-}
-
-.periodDateField .MuiIconButton-root,
-.periodDateField .MuiSvgIcon-root {
-  color: var(--text-subtle);
 }
 
 .periodSummaryText {
@@ -1319,35 +1288,6 @@ label {
   display: flex;
   gap: 4px;
   align-items: center;
-}
-
-.createSongAutocompletePopper .MuiPaper-root {
-  background: var(--create-song-dropdown-bg);
-  color: var(--text);
-  border: 1px solid var(--create-song-dropdown-border);
-  box-shadow: var(--shadow);
-}
-
-.createSongAutocompletePopper .MuiAutocomplete-listbox {
-  background: var(--create-song-dropdown-bg);
-  color: var(--text);
-}
-
-.createSongAutocompletePopper .MuiAutocomplete-option {
-  color: var(--text);
-}
-
-.createSongAutocompletePopper .MuiAutocomplete-option:hover,
-.createSongAutocompletePopper .MuiAutocomplete-option.Mui-focused {
-  background: var(--create-song-dropdown-hover);
-}
-
-.createSongAutocompletePopper .MuiAutocomplete-option[aria-selected='true'] {
-  background: var(--create-song-dropdown-selected);
-}
-
-.createSongAutocompletePopper .MuiAutocomplete-option[aria-selected='true'].Mui-focused {
-  background: var(--create-song-dropdown-selected);
 }
 
 .createSongAutocompleteOptionVersion {

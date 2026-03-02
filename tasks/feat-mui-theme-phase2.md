@@ -4,6 +4,7 @@
 
 - Phase1 後に `styles.css` に残っているホーム画面フィルタ周辺の MUI クラス依存配色を削減する。
 - `App.tsx` 側の MUI `sx` に寄せ、MUI配色責務をコンポーネント側へ集約する。
+- Create大会画面に残っている DatePicker / Autocomplete Popper の MUI クラス依存配色を `sx` へ移管する。
 - 見た目・挙動を変えず、テーマ移管の後続作業（Phase2）として差分を最小化する。
 
 ## 非目的
@@ -18,6 +19,9 @@
 - ホーム適用チップ (`Chip`) の MUI サブ要素配色（label/deleteIcon/hover）を `App.tsx` の `sx` に移管。
 - ホームフィルタBottomSheet内の MUI要素配色（`ToggleButtonGroup` / `Divider` / `Checkbox`）を `sx` に移管。
 - 上記移管により不要になった `styles.css` の `.homeAppliedChip* .Mui*` / `.homeFilterSheet .Mui*` ルールを削除。
+- Create大会画面の DatePicker 入力配色（背景/文字/placeholder/アイコン）を `DatePicker` の `slotProps.textField.sx` に移管。
+- Create大会画面の曲名 `Autocomplete` 候補ポップアップ配色を `slotProps.popper.sx` に移管。
+- 上記移管により不要になった `styles.css` の `.periodDateField .Mui*` / `.createSongAutocompletePopper .Mui*` ルールを削除。
 
 ## 影響範囲
 
@@ -36,14 +40,22 @@
   - BottomSheet 内 `ToggleButtonGroup` / `Divider` / `Checkbox` へ `sx` を追加する。
 - `packages/web-app/src/styles.css`
   - `homeAppliedChip` と `homeFilterSheet` 配下の `.Mui*` 依存ルールを削除し、レイアウト系クラスのみ残す。
+- `packages/web-app/src/pages/CreateTournamentPage.tsx`
+  - DatePicker の `slotProps.textField.sx` を共通化し、既存CSSのMUI配色ルールを移管する。
+  - `Autocomplete` の `slotProps.popper.sx` を追加し、候補ポップアップの配色を移管する。
+- `packages/web-app/src/styles.css`
+  - `periodDateField` と `createSongAutocompletePopper` 配下の `.Mui*` 依存ルールを削除する。
 
 ## テスト観点
 
 - 見た目:
   - ホーム適用チップ（status/condition/type/overflow）の背景・文字・削除アイコン色が従来と一致する。
   - BottomSheet のセグメント（selected/hover）、divider、checkbox 未選択色が従来と一致する。
+  - Create大会画面の期間DatePicker入力（背景/文字/placeholder/アイコン）配色が従来と一致する。
+  - Create大会画面の曲候補ポップアップ（paper/listbox/option hover/selected）配色が従来と一致する。
 - 回帰:
   - フィルタ選択・解除、検索チップ削除、ソート変更の挙動が不変。
+  - Create大会画面の期間入力、曲検索候補表示、曲選択の挙動が不変。
   - `pnpm lint` / `pnpm test` / `pnpm build` が通過する。
 
 ## ロールバック方針
@@ -56,11 +68,15 @@
 1. `App.tsx` にホームフィルタ周辺の MUI `sx` を追加。
 2. `styles.css` の不要 `.Mui*` 依存ルールを削除。
 3. `lint/test/build` 実行と差分確認。
+4. `CreateTournamentPage.tsx` に DatePicker / Autocomplete Popper の MUI `sx` を追加。
+5. `styles.css` の Create画面向け不要 `.Mui*` 依存ルールを削除。
+6. `lint/test/build` 実行と差分確認。
 
 ## Scope Declaration
 
 - 変更対象を以下に固定する。
   - `tasks/feat-mui-theme-phase2.md`
   - `packages/web-app/src/App.tsx`
+  - `packages/web-app/src/pages/CreateTournamentPage.tsx`
   - `packages/web-app/src/styles.css`
 - 上記以外の変更は禁止。必要が出た場合は本tasksを更新してから実施する。
