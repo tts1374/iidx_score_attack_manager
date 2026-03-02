@@ -64,51 +64,6 @@ const DATE_PICKER_TEXT_FIELD_SX = {
     color: 'var(--text-subtle)',
   },
 } as const;
-const SONG_AUTOCOMPLETE_SX = {
-  width: '100%',
-  maxWidth: '100%',
-  '& .MuiInputBase-root': {
-    minHeight: 44,
-  },
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: 'var(--surface)',
-    color: 'var(--text)',
-  },
-  '& .MuiInputBase-input::placeholder': {
-    color: 'var(--text-faint)',
-    opacity: 1,
-  },
-  '& .MuiAutocomplete-popupIndicator': {
-    color: 'var(--create-song-popup-icon)',
-  },
-  '& .MuiAutocomplete-clearIndicator': {
-    color: 'var(--text-subtle)',
-  },
-} as const;
-const SONG_AUTOCOMPLETE_POPPER_SX = {
-  '& .MuiPaper-root': {
-    background: 'var(--create-song-dropdown-bg)',
-    color: 'var(--text)',
-    border: '1px solid var(--create-song-dropdown-border)',
-    boxShadow: 'var(--shadow)',
-  },
-  '& .MuiAutocomplete-listbox': {
-    background: 'var(--create-song-dropdown-bg)',
-    color: 'var(--text)',
-  },
-  '& .MuiAutocomplete-option': {
-    color: 'var(--text)',
-  },
-  '& .MuiAutocomplete-option:hover, & .MuiAutocomplete-option.Mui-focused': {
-    background: 'var(--create-song-dropdown-hover)',
-  },
-  "& .MuiAutocomplete-option[aria-selected='true']": {
-    background: 'var(--create-song-dropdown-selected)',
-  },
-  "& .MuiAutocomplete-option[aria-selected='true'].Mui-focused": {
-    background: 'var(--create-song-dropdown-selected)',
-  },
-} as const;
 const DATE_PICKER_LOCALE_TEXT_BY_LANGUAGE = {
   ja: jaJP.components.MuiLocalizationProvider.defaultProps.localeText as any,
   en: enUS.components.MuiLocalizationProvider.defaultProps.localeText as any,
@@ -696,92 +651,85 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
                   <div className="createField">
                     <span className="createFieldLabel">{t('create_tournament.field.song.label')}</span>
-                    <Box sx={SONG_AUTOCOMPLETE_SX}>
-                      <Autocomplete<SongSummary, false, false, false>
-                        className="createSongAutocompleteRoot"
-                        fullWidth
-                        openOnFocus
-                        options={row.options}
-                        slotProps={{
-                          popper: {
-                            sx: SONG_AUTOCOMPLETE_POPPER_SX,
-                          },
-                        }}
-                        filterOptions={(options) => options}
-                        value={row.selectedSong}
-                        inputValue={row.query}
-                        loading={row.loading}
-                        onOpen={() => {
-                          if (row.options.length === 0 && row.query.trim().length > 0) {
-                            void handleSearch(row.key, row.query);
-                          }
-                        }}
-                        noOptionsText={
-                          row.query.trim().length === 0
-                            ? t('create_tournament.field.song.no_options_empty_query')
-                            : t('create_tournament.field.song.no_options_not_found')
+                    <Autocomplete<SongSummary, false, false, false>
+                      className="createSongAutocompleteRoot"
+                      fullWidth
+                      openOnFocus
+                      options={row.options}
+                      filterOptions={(options) => options}
+                      value={row.selectedSong}
+                      inputValue={row.query}
+                      loading={row.loading}
+                      onOpen={() => {
+                        if (row.options.length === 0 && row.query.trim().length > 0) {
+                          void handleSearch(row.key, row.query);
                         }
-                        loadingText={t('create_tournament.field.song.loading')}
-                        isOptionEqualToValue={(option, value) => option.musicId === value.musicId}
-                        getOptionLabel={(option) => option.title}
-                        onInputChange={(_, value, reason) => {
-                          if (reason === 'input' || reason === 'clear') {
-                            void handleSearch(row.key, value);
-                            return;
-                          }
-                          updateRow(row.key, (current) => ({
-                            ...current,
-                            query: value,
-                          }));
-                        }}
-                        onChange={(_, selectedSong) => {
-                          updateRow(row.key, (current) => ({
-                            ...current,
-                            selectedSong,
-                            query: selectedSong?.title ?? '',
-                            chartOptions: [],
-                            selectedChartId: null,
-                          }));
-                          if (selectedSong) {
-                            void loadCharts(row.key, selectedSong.musicId, row.playStyle);
-                          }
-                        }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...(params as any)}
-                            placeholder={t('create_tournament.field.song.placeholder')}
-                            InputProps={{
-                              ...params.InputProps,
-                              endAdornment: (
-                                <>
-                                  {row.loading ? <CircularProgress color="inherit" size={16} /> : null}
-                                  {params.InputProps.endAdornment}
-                                </>
-                              ),
-                            }}
-                          />
-                        )}
-                        renderOption={(optionProps, option) => {
-                          const { key: optionKey, ...liProps } = optionProps as Record<string, unknown> & { key?: React.Key };
-                          return (
-                            <Box
-                              component="li"
-                              key={option.musicId > 0 ? `music-${option.musicId}` : String(optionKey ?? option.title)}
-                              {...liProps}
-                            >
-                              <Box sx={{ display: 'grid', gap: 0.5 }}>
-                                <Typography variant="caption" className="createSongAutocompleteOptionVersion">
-                                  [{versionLabel(option.version)}]
-                                </Typography>
-                                <Typography variant="body2" sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                                  {option.title}
-                                </Typography>
-                              </Box>
+                      }}
+                      noOptionsText={
+                        row.query.trim().length === 0
+                          ? t('create_tournament.field.song.no_options_empty_query')
+                          : t('create_tournament.field.song.no_options_not_found')
+                      }
+                      loadingText={t('create_tournament.field.song.loading')}
+                      isOptionEqualToValue={(option, value) => option.musicId === value.musicId}
+                      getOptionLabel={(option) => option.title}
+                      onInputChange={(_, value, reason) => {
+                        if (reason === 'input' || reason === 'clear') {
+                          void handleSearch(row.key, value);
+                          return;
+                        }
+                        updateRow(row.key, (current) => ({
+                          ...current,
+                          query: value,
+                        }));
+                      }}
+                      onChange={(_, selectedSong) => {
+                        updateRow(row.key, (current) => ({
+                          ...current,
+                          selectedSong,
+                          query: selectedSong?.title ?? '',
+                          chartOptions: [],
+                          selectedChartId: null,
+                        }));
+                        if (selectedSong) {
+                          void loadCharts(row.key, selectedSong.musicId, row.playStyle);
+                        }
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...(params as any)}
+                          placeholder={t('create_tournament.field.song.placeholder')}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {row.loading ? <CircularProgress color="inherit" size={16} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      renderOption={(optionProps, option) => {
+                        const { key: optionKey, ...liProps } = optionProps as Record<string, unknown> & { key?: React.Key };
+                        return (
+                          <Box
+                            component="li"
+                            key={option.musicId > 0 ? `music-${option.musicId}` : String(optionKey ?? option.title)}
+                            {...liProps}
+                          >
+                            <Box sx={{ display: 'grid', gap: 0.5 }}>
+                              <Typography variant="caption" className="createSongAutocompleteOptionVersion">
+                                [{versionLabel(option.version)}]
+                              </Typography>
+                              <Typography variant="body2" sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                {option.title}
+                              </Typography>
                             </Box>
-                          );
-                        }}
-                      />
-                    </Box>
+                          </Box>
+                        );
+                      }}
+                    />
                     {rowSongMissing ? (
                       <p className="errorText createInlineError createInlineErrorCompact">
                         {t('create_tournament.validation.chart_song_required')}
