@@ -7,6 +7,7 @@
 - Create大会画面に残っている DatePicker / Autocomplete Popper の MUI クラス依存配色を `sx` へ移管する。
 - Create大会画面で局所定義している `Autocomplete` 配色 `sx` を MUIテーマ（`mui-theme.ts`）へ移管し、画面側の配色責務をさらに削減する。
 - Create大会画面で局所定義している DatePicker の `slotProps.textField.sx` を MUIテーマ（`mui-theme.ts`）へ移管し、画面側の配色責務をさらに削減する。
+- 全画面確認のうえ `styles.css` に残存する MUIクラス依存セレクタ（`button` グローバルの `.MuiButtonBase-root` 除外）を削減する。
 - 見た目・挙動を変えず、テーマ移管の後続作業（Phase2）として差分を最小化する。
 
 ## 非目的
@@ -26,6 +27,7 @@
 - 上記移管により不要になった `styles.css` の `.periodDateField .Mui*` / `.createSongAutocompletePopper .Mui*` ルールを削除。
 - Create大会画面に残る `SONG_AUTOCOMPLETE_SX` / `SONG_AUTOCOMPLETE_POPPER_SX` を削除し、同等配色を `mui-theme.ts` の `MuiAutocomplete` overrideに統合する。
 - Create大会画面に残る `DATE_PICKER_TEXT_FIELD_SX` を削除し、同等配色を `mui-theme.ts` の `MuiPickersTextField` overrideへ統合する。
+- `styles.css` の `button` グローバル配色を低特異性 `:where(...)` へ置換し、`.MuiButtonBase-root` 依存を除去する。
 
 ## 影響範囲
 
@@ -56,6 +58,8 @@
 - `packages/web-app/src/pages/CreateTournamentPage.tsx`
   - テーマ移管した `DATE_PICKER_TEXT_FIELD_SX` 定義と `slotProps.textField.sx` 適用を削除し、`className` でテーマ適用対象を指定する。
 - `packages/web-app/src/styles.css`
+  - `button` グローバルルールの `.MuiButtonBase-root` 除外依存を撤去し、低特異性セレクタへ置換する。
+- `packages/web-app/src/styles.css`
   - `periodDateField` と `createSongAutocompletePopper` 配下の `.Mui*` 依存ルールを削除する。
 
 ## テスト観点
@@ -66,6 +70,8 @@
   - Create大会画面の期間DatePicker入力（背景/文字/placeholder/アイコン）配色が従来と一致する。
   - Create大会画面の曲候補ポップアップ（paper/listbox/option hover/selected）配色が従来と一致する。
   - Create大会画面の曲名入力（背景/placeholder/右側アイコン色）が従来と一致する。
+  - 全画面で `styles.css` に `.Mui*` セレクタが残存しないこと。
+  - Light時に主要ボタン（赤/青/FAB含む）のhover白飛びが再発しないこと。
 - 回帰:
   - フィルタ選択・解除、検索チップ削除、ソート変更の挙動が不変。
   - Create大会画面の期間入力、曲検索候補表示、曲選択の挙動が不変。
@@ -88,6 +94,8 @@
 8. `lint/test/build` 実行と差分確認。
 9. `mui-theme.ts` に `MuiPickersTextField` override を追加し、Create画面のローカルDatePicker配色 `sx` を削除。
 10. `lint/test/build` 実行と差分確認。
+11. `styles.css` の残存MUIクラス依存セレクタを低特異性 `:where(...)` へ置換。
+12. `lint/test/build` 実行と差分確認。
 
 ## Scope Declaration
 

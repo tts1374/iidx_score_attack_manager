@@ -237,7 +237,7 @@ textarea {
   font: inherit;
 }
 
-:where(button):not(:where(.MuiButtonBase-root)) {
+:where(button) {
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--surface);
@@ -246,16 +246,16 @@ textarea {
   cursor: pointer;
 }
 
-:where(button):not(:where(.MuiButtonBase-root)):hover:not(:disabled) {
+:where(button:hover:not(:disabled)) {
   background: var(--surface-hover);
 }
 
-:where(button):not(:where(.MuiButtonBase-root)):disabled {
+:where(button:disabled) {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-:where(button):not(:where(.MuiButtonBase-root)):focus-visible {
+:where(button:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
