@@ -354,6 +354,70 @@ const EMPTY_HOME_TOURNAMENT_BUCKETS: HomeTournamentBuckets = {
 
 const HOME_FILTER_ATTR_VALUES: readonly HomeFilterAttr[] = ['send-waiting', 'imported', 'created'];
 const HOME_APPLIED_CHIP_MAX_VISIBLE = 3;
+const homeAppliedChipBaseSx = {
+  maxWidth: '100%',
+  '& .MuiChip-label': {
+    fontWeight: 600,
+  },
+} as const;
+const homeAppliedChipTonalSx = {
+  backgroundColor: 'var(--home-chip-tonal-bg)',
+  color: 'var(--home-chip-tonal-text)',
+  '&:hover': {
+    backgroundColor: 'var(--home-chip-hover)',
+  },
+  '& .MuiChip-label': {
+    color: 'var(--home-chip-tonal-text)',
+  },
+  '& .MuiChip-deleteIcon': {
+    color: 'var(--home-chip-delete)',
+    opacity: 1,
+  },
+  '& .MuiChip-deleteIcon:hover': {
+    color: 'var(--home-chip-tonal-text)',
+    opacity: 1,
+  },
+} as const;
+const homeAppliedChipOutlineSx = {
+  borderColor: 'var(--home-chip-outline-border)',
+  color: 'var(--home-chip-outline-text)',
+  backgroundColor: 'var(--home-chip-outline-bg)',
+  '& .MuiChip-label': {
+    color: 'var(--home-chip-outline-text)',
+  },
+  '& .MuiChip-deleteIcon': {
+    color: 'var(--home-chip-delete)',
+    opacity: 1,
+  },
+  '& .MuiChip-deleteIcon:hover': {
+    color: 'var(--home-chip-outline-text)',
+    opacity: 1,
+  },
+} as const;
+const homeFilterToggleButtonGroupSx = {
+  '& .MuiToggleButtonGroup-grouped': {
+    backgroundColor: 'transparent',
+    border: '1px solid var(--home-filter-sheet-segment-border)',
+    color: 'var(--home-filter-sheet-segment-text)',
+  },
+  '& .MuiToggleButtonGroup-grouped.Mui-selected': {
+    backgroundColor: 'var(--home-filter-sheet-segment-selected-bg)',
+    borderColor: 'var(--home-filter-sheet-segment-selected-border)',
+    color: 'var(--home-filter-sheet-segment-selected-text)',
+  },
+  '& .MuiToggleButtonGroup-grouped.Mui-selected:hover': {
+    backgroundColor: 'var(--home-filter-sheet-segment-selected-bg)',
+  },
+  '& .MuiToggleButtonGroup-grouped:hover': {
+    backgroundColor: 'var(--home-filter-sheet-hover)',
+  },
+} as const;
+const homeFilterDividerSx = {
+  borderColor: 'var(--home-filter-sheet-divider)',
+} as const;
+const homeFilterCheckboxSx = {
+  color: 'var(--home-filter-checkbox-unchecked)',
+} as const;
 
 function normalizeAsciiLowercase(value: string): string {
   return value.replace(/[A-Z]/g, (char) => char.toLowerCase());
@@ -2545,6 +2609,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       ]
                         .filter((className) => className.length > 0)
                         .join(' ')}
+                      sx={[
+                        homeAppliedChipBaseSx,
+                        chip.variant === 'tonal' && homeAppliedChipTonalSx,
+                        chip.category === 'type' && homeAppliedChipOutlineSx,
+                      ]}
                       label={chip.label}
                       onClick={chip.onClick}
                       {...(chip.onRemove ? { onDelete: chip.onRemove } : {})}
@@ -2556,6 +2625,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                       clickable
                       variant="outlined"
                       className="homeAppliedChip homeAppliedChip-overflow"
+                      sx={[homeAppliedChipBaseSx, homeAppliedChipOutlineSx]}
                       label={`+${homeHiddenAppliedChipCount}`}
                       onClick={() => openHomeFilterSheet()}
                     />
@@ -2758,6 +2828,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   exclusive
                   size="small"
                   fullWidth
+                  sx={homeFilterToggleButtonGroupSx}
                   onChange={(_event, value: TournamentTab | null) => {
                     if (!value) {
                       return;
@@ -2773,7 +2844,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   <ToggleButton value="ended">{t('common.home_filter.state.ended')}</ToggleButton>
                 </ToggleButtonGroup>
               </div>
-              <Divider />
+              <Divider sx={homeFilterDividerSx} />
             </div>
             <Box className="homeFilterSheetBody">
               <div className="homeFilterSection" ref={homeCategorySectionRef}>
@@ -2785,6 +2856,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   exclusive
                   size="small"
                   fullWidth
+                  sx={homeFilterToggleButtonGroupSx}
                   onChange={(_event, value: HomeFilterCategory | null) => {
                     setHomeQuery((previous) => ({
                       ...previous,
@@ -2796,7 +2868,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   <ToggleButton value="completed">{t('common.home_filter.category.completed')}</ToggleButton>
                 </ToggleButtonGroup>
               </div>
-              <Divider />
+              <Divider sx={homeFilterDividerSx} />
               <div className="homeFilterSection" ref={homeTypeSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                   {t('common.home_filter.section.type')}
@@ -2806,6 +2878,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   exclusive
                   size="small"
                   fullWidth
+                  sx={homeFilterToggleButtonGroupSx}
                   onChange={(_event, value: 'imported' | 'created' | null) => {
                     setHomeQuery((previous) => {
                       const attrsWithoutType = previous.attrs.filter((entry) => entry !== 'imported' && entry !== 'created');
@@ -2820,7 +2893,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   <ToggleButton value="created">{t('common.home_filter.type.created')}</ToggleButton>
                 </ToggleButtonGroup>
               </div>
-              <Divider />
+              <Divider sx={homeFilterDividerSx} />
               <div className="homeFilterSection" ref={homeAttrsSectionRef}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                   {t('common.home_filter.section.attr')}
@@ -2829,6 +2902,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   <FormControlLabel
                     control={
                       <Checkbox
+                        sx={homeFilterCheckboxSx}
                         checked={homeQuery.attrs.includes('send-waiting')}
                         onChange={(event) => {
                           setHomeQuery((previous) => ({

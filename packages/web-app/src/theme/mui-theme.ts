@@ -1,8 +1,10 @@
 import { createTheme } from '@mui/material/styles';
+import type {} from '@mui/x-date-pickers/themeAugmentation';
 
 const SURFACE_2 = 'var(--surface-2)';
 const SURFACE_3 = 'var(--surface-3)';
 const SURFACE_MUTED = 'var(--surface-muted)';
+const SURFACE = 'var(--surface)';
 const BACKDROP = 'var(--backdrop)';
 const SHADOW = 'var(--shadow)';
 const SHADOW_HOVER = 'var(--shadow-hover)';
@@ -424,6 +426,83 @@ export const muiTheme = createTheme({
             '&.Mui-selected, &.Mui-selected:hover': {
               backgroundColor: palette.action.selected,
               color: palette.text.primary,
+            },
+          };
+        },
+      },
+    },
+    MuiAutocomplete: {
+      styleOverrides: {
+        root: ({ theme }) => {
+          const palette = paletteVars(theme);
+          return {
+            '& .MuiInputBase-root': {
+              minHeight: 44,
+            },
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: SURFACE,
+              color: palette.text.primary,
+            },
+            '& .MuiInputBase-input::placeholder': {
+              color: 'var(--text-faint)',
+              opacity: 1,
+            },
+            '& .MuiAutocomplete-popupIndicator': {
+              color: 'var(--create-song-popup-icon)',
+            },
+            '& .MuiAutocomplete-clearIndicator': {
+              color: 'var(--text-subtle)',
+            },
+          };
+        },
+        popper: ({ theme }) => {
+          const palette = paletteVars(theme);
+          return {
+            '& .MuiPaper-root': {
+              background: 'var(--create-song-dropdown-bg)',
+              color: palette.text.primary,
+              border: `1px solid var(--create-song-dropdown-border)`,
+              boxShadow: SHADOW,
+            },
+            '& .MuiAutocomplete-listbox': {
+              background: 'var(--create-song-dropdown-bg)',
+              color: palette.text.primary,
+            },
+            '& .MuiAutocomplete-option': {
+              color: palette.text.primary,
+              '&:hover, &.Mui-focused': {
+                background: 'var(--create-song-dropdown-hover)',
+              },
+              "&[aria-selected='true'], &[aria-selected='true'].Mui-focused": {
+                background: 'var(--create-song-dropdown-selected)',
+              },
+            },
+          };
+        },
+      },
+    },
+    MuiPickersTextField: {
+      styleOverrides: {
+        root: ({ theme }) => {
+          const palette = paletteVars(theme);
+          return {
+            '&.createPeriodDatePickerTextField .MuiOutlinedInput-root, &.createPeriodDatePickerTextField .MuiInputBase-root, &.createPeriodDatePickerTextField .MuiPickersInputBase-root, &.createPeriodDatePickerTextField .MuiPickersOutlinedInput-root':
+              {
+                backgroundColor: SURFACE,
+                color: palette.text.primary,
+                minHeight: 44,
+              },
+            '&.createPeriodDatePickerTextField .MuiInputBase-input, &.createPeriodDatePickerTextField .MuiPickersInputBase-input, &.createPeriodDatePickerTextField .MuiPickersSectionList-root, &.createPeriodDatePickerTextField .MuiPickersSectionList-section':
+              {
+                color: `${palette.text.primary} !important`,
+                WebkitTextFillColor: palette.text.primary,
+              },
+            '&.createPeriodDatePickerTextField .MuiInputBase-input::placeholder': {
+              color: 'var(--text-faint)',
+              opacity: 1,
+            },
+            '&.createPeriodDatePickerTextField .MuiIconButton-root, &.createPeriodDatePickerTextField .MuiSvgIcon-root': {
+              color: 'var(--text-subtle)',
             },
           };
         },
