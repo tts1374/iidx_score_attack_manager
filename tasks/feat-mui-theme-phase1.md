@@ -85,6 +85,11 @@
 4. ダイアログ/設定/QR取込のMUI配色をテーマへ移管し、重複CSS/`sx` を削減。
 5. lint/test/build 実施と差分スコープ確認。
 
+### Commit Plan 実施結果
+
+- 上記1-5は密結合のため、途中段階で配色崩れを残さないことを優先し、単一コミットに集約して実施した。
+- 変更対象ファイルは Scope Declaration 内に限定し、検証（lint/test/build）完了後にコミットした。
+
 ## Scope Declaration
 
 - 変更対象を以下に固定する。
