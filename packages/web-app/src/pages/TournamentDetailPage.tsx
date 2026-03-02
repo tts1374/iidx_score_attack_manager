@@ -1086,7 +1086,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         fullWidth
         maxWidth="sm"
         data-testid="tournament-detail-share-dialog"
-        PaperProps={{ className: 'detailShareDialogPaper' }}
       >
         <DialogTitle sx={{ pr: 6 }}>
           {t('tournament_detail.action.share_tournament')}
@@ -1098,7 +1097,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers sx={{ display: 'grid', gap: 2, borderColor: 'var(--border)' }}>
+        <DialogContent dividers sx={{ display: 'grid', gap: 2 }}>
           <Box>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -1219,7 +1218,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
           {shareNotice ? <Alert severity={shareNotice.severity}>{shareNotice.text}</Alert> : null}
         </DialogContent>
-        <DialogActions sx={{ borderTop: '1px solid var(--border)' }}>
+        <DialogActions>
           <Button onClick={closeShareDialog}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
@@ -1247,10 +1246,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         fullWidth
         maxWidth="sm"
         data-testid="tournament-detail-submit-dialog"
-        PaperProps={{ className: 'detailSubmitDialogPaper' }}
       >
         <DialogTitle>{t('tournament_detail.submit_dialog.title')}</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: 'var(--border)' }}>
+        <DialogContent dividers>
           <Typography variant="body1" data-testid="tournament-detail-submit-confirm-text">
             {submitDialogConfirmText}
           </Typography>
@@ -1260,7 +1258,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             </Typography>
           ) : null}
         </DialogContent>
-        <DialogActions sx={{ borderTop: '1px solid var(--border)' }}>
+        <DialogActions>
           <Button onClick={() => setSubmitDialogOpen(false)} disabled={submitBusy}>
             {t('common.cancel')}
           </Button>

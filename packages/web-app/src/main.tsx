@@ -2,12 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { acquireSingleTabLock, checkRuntimeCapabilities } from '@iidx/db';
 import type { TournamentPayload } from '@iidx/shared';
+import { ThemeProvider } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 
 import { App, AppFallbackUnsupported } from './App';
 import i18n, { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage } from './i18n';
 import { createAppServices } from './services/app-services';
 import { AppServicesProvider } from './services/context';
+import { muiTheme } from './theme/mui-theme';
 import { resolveImportPayloadFromLocation } from './utils/import-confirm';
 import {
   IMPORT_DELEGATION_BROADCAST_ACK_TIMEOUT_MS,
@@ -57,6 +59,14 @@ interface ImportDelegationScreenProps {
 interface InvalidImportLinkScreenProps {
   code: string;
   message: string;
+}
+
+function renderWithMuiTheme(root: ReturnType<typeof ReactDOM.createRoot>, content: React.ReactNode): void {
+  root.render(
+    <React.StrictMode>
+      <ThemeProvider theme={muiTheme}>{content}</ThemeProvider>
+    </React.StrictMode>,
+  );
 }
 
 function safeSetLocalStorage(key: string, value: string): boolean {
@@ -546,11 +556,7 @@ async function waitForLocalConsent(root: ReturnType<typeof ReactDOM.createRoot>)
       resolve();
     };
 
-    root.render(
-      <React.StrictMode>
-        <LocalConsentScreen onStart={handleStart} />
-      </React.StrictMode>,
-    );
+    renderWithMuiTheme(root, <LocalConsentScreen onStart={handleStart} />);
   });
 }
 
@@ -573,20 +579,12 @@ async function bootstrap(): Promise<void> {
 
   await waitForLocalConsent(root);
 
-  root.render(
-    <React.StrictMode>
-      <SetupLoadingScreen />
-    </React.StrictMode>,
-  );
+  renderWithMuiTheme(root, <SetupLoadingScreen />);
 
   if (!import.meta.env.DEV) {
     const swSetupResult = await ensureServiceWorkerController(swUrl, swWarmupAttempt);
     if (swSetupResult.status === 'failed') {
-      root.render(
-        <React.StrictMode>
-          <ServiceWorkerFailureScreen reason={swSetupResult.reason} errorMessage={swSetupResult.errorMessage} />
-        </React.StrictMode>,
-      );
+      renderWithMuiTheme(root, <ServiceWorkerFailureScreen reason={swSetupResult.reason} errorMessage={swSetupResult.errorMessage} />);
       return;
     }
 
@@ -599,15 +597,14 @@ async function bootstrap(): Promise<void> {
         });
       }
 
-      root.render(
-        <React.StrictMode>
-          <AppFallbackUnsupported
-            reasons={[
-              'Cross-Origin-Isolation (COOP/COEP)',
-              i18n.t('common.bootstrap.cross_origin_isolated_unavailable_after_setup'),
-            ]}
-          />
-        </React.StrictMode>,
+      renderWithMuiTheme(
+        root,
+        <AppFallbackUnsupported
+          reasons={[
+            'Cross-Origin-Isolation (COOP/COEP)',
+            i18n.t('common.bootstrap.cross_origin_isolated_unavailable_after_setup'),
+          ]}
+        />,
       );
       return;
     }
@@ -632,11 +629,7 @@ async function bootstrap(): Promise<void> {
   }
 
   if (reasons.length > 0) {
-    root.render(
-      <React.StrictMode>
-        <AppFallbackUnsupported reasons={reasons} />
-      </React.StrictMode>,
-    );
+    renderWithMuiTheme(root, <AppFallbackUnsupported reasons={reasons} />);
     return;
   }
 
@@ -645,29 +638,20 @@ async function bootstrap(): Promise<void> {
     releaseLock = await acquireSingleTabLock('iidx-score-attack-web-lock');
   } catch {
     if (importPayloadResult.status === 'invalid') {
-      root.render(
-        <React.StrictMode>
-          <InvalidImportLinkScreen code={importPayloadResult.error.code} message={importPayloadResult.error.message} />
-        </React.StrictMode>,
-      );
+      renderWithMuiTheme(root, <InvalidImportLinkScreen code={importPayloadResult.error.code} message={importPayloadResult.error.message} />);
       return;
     }
     if (importPayloadResult.status === 'ready') {
-      root.render(
-        <React.StrictMode>
-          <ImportDelegationScreen
-            rawPayloadParam={importPayloadResult.rawPayloadParam}
-            payloadPreview={importPayloadResult.payload}
-          />
-        </React.StrictMode>,
+      renderWithMuiTheme(
+        root,
+        <ImportDelegationScreen
+          rawPayloadParam={importPayloadResult.rawPayloadParam}
+          payloadPreview={importPayloadResult.payload}
+        />,
       );
       return;
     }
-    root.render(
-      <React.StrictMode>
-        <AppFallbackUnsupported reasons={[i18n.t('common.bootstrap.already_running_in_other_tab')]} />
-      </React.StrictMode>,
-    );
+    renderWithMuiTheme(root, <AppFallbackUnsupported reasons={[i18n.t('common.bootstrap.already_running_in_other_tab')]} />);
     return;
   }
 
@@ -689,12 +673,11 @@ async function bootstrap(): Promise<void> {
       void services.appDb.dispose();
     });
 
-    root.render(
-      <React.StrictMode>
-        <AppServicesProvider services={services}>
-          <App webLockAcquired />
-        </AppServicesProvider>
-      </React.StrictMode>,
+    renderWithMuiTheme(
+      root,
+      <AppServicesProvider services={services}>
+        <App webLockAcquired />
+      </AppServicesProvider>,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -702,11 +685,7 @@ async function bootstrap(): Promise<void> {
       ? i18n.t('common.bootstrap.opfs_vfs_init_failed')
       : i18n.t('common.bootstrap.initialization_error', { message });
 
-    root.render(
-      <React.StrictMode>
-        <AppFallbackUnsupported reasons={[reason]} />
-      </React.StrictMode>,
-    );
+    renderWithMuiTheme(root, <AppFallbackUnsupported reasons={[reason]} />);
   }
 }
 

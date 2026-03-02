@@ -86,12 +86,6 @@
   --difficulty-pill-active-text: #ffffff;
   --difficulty-pill-disabled-bg: var(--surface-2);
   --difficulty-pill-disabled-text: var(--text-faint);
-  --menu-surface: var(--surface);
-  --menu-text: var(--text);
-  --menu-border: var(--border);
-  --menu-hover: var(--surface-3);
-  --menu-selected: var(--surface-3);
-  --menu-disabled: var(--text-faint);
   --progress-track: #e2e8f0;
   --progress-unregistered: #cfd8e3;
   --progress-unshared: #f2d3a2;
@@ -213,12 +207,6 @@
     --difficulty-pill-active-text: #0f172a;
     --difficulty-pill-disabled-bg: #364052;
     --difficulty-pill-disabled-text: #94a3b8;
-    --menu-surface: #1f2937;
-    --menu-text: #e5e7eb;
-    --menu-border: rgba(255, 255, 255, 0.12);
-    --menu-hover: rgba(255, 255, 255, 0.08);
-    --menu-selected: #334155;
-    --menu-disabled: #9ca3af;
     --progress-track: #455266;
     --progress-unregistered: #7788a2;
     --progress-unshared: #b8915f;
@@ -249,7 +237,7 @@ textarea {
   font: inherit;
 }
 
-button {
+:where(button):not(:where(.MuiButtonBase-root)) {
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--surface);
@@ -258,16 +246,16 @@ button {
   cursor: pointer;
 }
 
-button:hover:not(:disabled) {
+:where(button):not(:where(.MuiButtonBase-root)):hover:not(:disabled) {
   background: var(--surface-hover);
 }
 
-button:disabled {
+:where(button):not(:where(.MuiButtonBase-root)):disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-button:focus-visible {
+:where(button):not(:where(.MuiButtonBase-root)):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -535,34 +523,6 @@ label {
 .homeAppliedChip-type.MuiChip-root.MuiChip-deletable .MuiChip-deleteIcon:hover {
   color: var(--home-chip-outline-text) !important;
   opacity: 1 !important;
-}
-
-.appMenuPaper.MuiPaper-root {
-  background: var(--menu-surface);
-  color: var(--menu-text);
-  border: 1px solid var(--menu-border);
-  box-shadow: var(--shadow);
-}
-
-.appMenuItem.MuiMenuItem-root {
-  color: var(--menu-text);
-}
-
-.appMenuItem.MuiMenuItem-root:hover {
-  background: var(--menu-hover);
-}
-
-.appMenuItem.MuiMenuItem-root.Mui-selected {
-  background: var(--menu-selected);
-}
-
-.appMenuItem.MuiMenuItem-root.Mui-selected:hover {
-  background: var(--menu-selected);
-}
-
-.appMenuItem.MuiMenuItem-root.Mui-disabled {
-  color: var(--menu-disabled);
-  opacity: 1;
 }
 
 .homeSubheaderRow {
@@ -1634,6 +1594,16 @@ label {
   padding: 10px 16px;
 }
 
+.primaryActionButton:hover:not(:disabled) {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.primaryActionButton:active:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
 .primaryActionButton:disabled {
   border-color: var(--disabled-bg);
   background: var(--disabled-bg);
@@ -1746,59 +1716,6 @@ label {
   margin: 0;
   color: var(--text-subtle);
   font-size: 12px;
-}
-
-.detailShareDialogPaper.MuiPaper-root,
-.detailSubmitDialogPaper.MuiPaper-root {
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-}
-
-.detailShareDialogPaper .MuiDialogTitle-root,
-.detailShareDialogPaper .MuiDialogContent-root,
-.detailShareDialogPaper .MuiDialogActions-root,
-.detailSubmitDialogPaper .MuiDialogTitle-root,
-.detailSubmitDialogPaper .MuiDialogContent-root,
-.detailSubmitDialogPaper .MuiDialogActions-root {
-  color: var(--text);
-}
-
-.detailShareDialogPaper .MuiTypography-root.MuiTypography-colorTextSecondary,
-.detailSubmitDialogPaper .MuiTypography-root.MuiTypography-colorTextSecondary {
-  color: var(--text-subtle) !important;
-}
-
-.detailShareDialogPaper .MuiDivider-root,
-.detailSubmitDialogPaper .MuiDivider-root {
-  border-color: var(--border);
-}
-
-.detailShareDialogPaper .MuiInputBase-root,
-.detailSubmitDialogPaper .MuiInputBase-root {
-  color: var(--text);
-  background: var(--surface-2);
-}
-
-.detailShareDialogPaper .MuiInputLabel-root,
-.detailSubmitDialogPaper .MuiInputLabel-root {
-  color: var(--text-subtle);
-}
-
-.detailShareDialogPaper .MuiOutlinedInput-notchedOutline,
-.detailSubmitDialogPaper .MuiOutlinedInput-notchedOutline {
-  border-color: var(--border);
-}
-
-.detailShareDialogPaper .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
-.detailSubmitDialogPaper .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: var(--border-strong);
-}
-
-.detailShareDialogPaper .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
-.detailSubmitDialogPaper .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: var(--focus);
 }
 
 .detailLastUpdated {
@@ -2040,6 +1957,16 @@ label {
   color: var(--on-accent);
 }
 
+.chartSubmitButton-primary:hover:not(:disabled) {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.chartSubmitButton-primary:active:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
 .chartSubmitButton-secondary {
   border-color: var(--border-strong);
   background: transparent;
@@ -2094,6 +2021,16 @@ label {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--on-accent);
+}
+
+.detailSubmitPrimaryButton.emphasis:hover:not(:disabled) {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.detailSubmitPrimaryButton.emphasis:active:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .detailSubmitSubInfo {
@@ -2167,6 +2104,11 @@ label {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.submitPickerActionButton-capture:hover:not(:disabled) {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
 }
 
 .submitPickerActionLabel {

@@ -147,78 +147,12 @@ const cardSx = {
   color: 'var(--text)',
   display: 'grid',
   gap: 2,
-  '& .MuiTypography-root.MuiTypography-colorTextSecondary': {
-    color: 'var(--text-subtle) !important',
-  },
-  '& .MuiDivider-root': {
-    borderColor: 'var(--border)',
-  },
-  '& .MuiInputBase-root': {
-    color: 'var(--text)',
-    backgroundColor: 'var(--surface-2)',
-  },
-  '& .MuiInputLabel-root': {
-    color: 'var(--text-subtle)',
-  },
-  '& .MuiSelect-icon': {
-    color: 'var(--text-subtle)',
-  },
-  '& .MuiFormHelperText-root': {
-    color: 'var(--text-subtle) !important',
-  },
-  '& .MuiChip-root.MuiChip-colorDefault': {
-    backgroundColor: 'var(--surface-3)',
-    color: 'var(--text-muted)',
-    border: '1px solid var(--border)',
-  },
-  '& .MuiChip-root.MuiChip-colorDefault .MuiChip-icon, & .MuiChip-root.MuiChip-colorDefault .MuiChip-deleteIcon': {
-    color: 'var(--text-subtle)',
-  },
-  '& .MuiOutlinedInput-notchedOutline': {
-    borderColor: 'var(--border)',
-  },
-  '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
-    borderColor: 'var(--border-strong)',
-  },
-  '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
-    borderColor: 'var(--focus)',
-  },
-  '& .MuiFormControlLabel-label': {
-    color: 'var(--text)',
-  },
-  '& .MuiInputLabel-root.Mui-disabled': {
-    color: 'var(--text-faint) !important',
-  },
-  '& .MuiInputBase-input.Mui-disabled': {
-    color: 'var(--text-muted) !important',
-    WebkitTextFillColor: 'var(--text-muted) !important',
-  },
-  '& .MuiInputBase-root.Mui-disabled': {
-    backgroundColor: 'var(--surface-3)',
-  },
-  '& .MuiSwitch-track': {
-    backgroundColor: 'var(--surface-muted)',
-    opacity: '1 !important',
-  },
-  '& .MuiSwitch-thumb': {
-    backgroundColor: 'var(--surface)',
-  },
-  '& .MuiSwitch-switchBase.Mui-checked': {
-    color: 'var(--surface)',
-  },
-  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-    backgroundColor: 'var(--accent-strong)',
-    opacity: '1 !important',
-  },
 } as const;
 const accordionSx = {
   border: '1px solid var(--border)',
   borderRadius: 2,
   backgroundColor: 'transparent',
   color: 'var(--text)',
-  '& .MuiAccordionSummary-expandIconWrapper': {
-    color: 'var(--text-subtle)',
-  },
 } as const;
 
 function clampDays(v: number): number {

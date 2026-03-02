@@ -2429,10 +2429,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   anchorEl={homeMenuAnchorEl}
                   open={homeMenuOpen}
                   onClose={closeHomeMenu}
-                  PaperProps={{ className: 'appMenuPaper' }}
                 >
                   <MenuItem
-                    className="appMenuItem"
                     onClick={() => {
                       closeHomeMenu();
                       openSettingsPage();
@@ -2486,18 +2484,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                         anchorEl={detailMenuAnchorEl}
                         open={detailMenuOpen}
                         onClose={closeDetailMenu}
-                        PaperProps={{ className: 'appMenuPaper' }}
                       >
-                        <MenuItem className="appMenuItem" onClick={openCopyCreateFromDetail}>
+                        <MenuItem onClick={openCopyCreateFromDetail}>
                           {t('common.copy_this_tournament')}
                         </MenuItem>
                         {debugModeEnabled ? (
-                          <MenuItem className="appMenuItem" onClick={openDetailTechnicalDialog}>
+                          <MenuItem onClick={openDetailTechnicalDialog}>
                             {t('common.technical_info')}
                           </MenuItem>
                         ) : null}
                         <MenuItem
-                          className="appMenuItem"
                           disabled={deleteTournamentBusy}
                           onClick={openDeleteTournamentDialog}
                         >
@@ -2592,12 +2588,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 onClose={closeHomeSortMenu}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                PaperProps={{ className: 'appMenuPaper' }}
               >
                 {HOME_SORT_OPTIONS.map((option) => (
                   <MenuItem
                     key={option.value}
-                    className="appMenuItem"
                     selected={homeQuery.sort === option.value}
                     onClick={() => {
                       setHomeSort(option.value);
