@@ -476,55 +476,6 @@ label {
   max-width: 100%;
 }
 
-.homeAppliedChip .MuiChip-label {
-  font-weight: 600;
-}
-
-.homeAppliedChip-tonal.MuiChip-root {
-  background: var(--home-chip-tonal-bg);
-  color: var(--home-chip-tonal-text);
-}
-
-.homeAppliedChip-tonal.MuiChip-root:hover {
-  background: var(--home-chip-hover);
-}
-
-.homeAppliedChip-tonal .MuiChip-label {
-  color: var(--home-chip-tonal-text);
-}
-
-.homeAppliedChip-tonal.MuiChip-root.MuiChip-deletable .MuiChip-deleteIcon {
-  color: var(--home-chip-delete) !important;
-  opacity: 1 !important;
-}
-
-.homeAppliedChip-tonal.MuiChip-root.MuiChip-deletable .MuiChip-deleteIcon:hover {
-  color: var(--home-chip-tonal-text) !important;
-  opacity: 1 !important;
-}
-
-.homeAppliedChip-type.MuiChip-root,
-.homeAppliedChip-overflow.MuiChip-root {
-  border-color: var(--home-chip-outline-border);
-  color: var(--home-chip-outline-text);
-  background: var(--home-chip-outline-bg);
-}
-
-.homeAppliedChip-type .MuiChip-label,
-.homeAppliedChip-overflow .MuiChip-label {
-  color: var(--home-chip-outline-text);
-}
-
-.homeAppliedChip-type.MuiChip-root.MuiChip-deletable .MuiChip-deleteIcon {
-  color: var(--home-chip-delete) !important;
-  opacity: 1 !important;
-}
-
-.homeAppliedChip-type.MuiChip-root.MuiChip-deletable .MuiChip-deleteIcon:hover {
-  color: var(--home-chip-outline-text) !important;
-  opacity: 1 !important;
-}
-
 .homeSubheaderRow {
   position: sticky;
   top: 56px;
@@ -606,34 +557,6 @@ label {
   max-height: 70dvh;
   background: var(--home-filter-sheet-bg);
   color: var(--home-filter-sheet-text);
-}
-
-.homeFilterSheet .MuiDivider-root {
-  border-color: var(--home-filter-sheet-divider);
-}
-
-.homeFilterSheet .MuiToggleButtonGroup-grouped {
-  background: transparent;
-  border: 1px solid var(--home-filter-sheet-segment-border);
-  color: var(--home-filter-sheet-segment-text);
-}
-
-.homeFilterSheet .MuiToggleButtonGroup-grouped.Mui-selected {
-  background: var(--home-filter-sheet-segment-selected-bg);
-  border-color: var(--home-filter-sheet-segment-selected-border);
-  color: var(--home-filter-sheet-segment-selected-text);
-}
-
-.homeFilterSheet .MuiToggleButtonGroup-grouped.Mui-selected:hover {
-  background: var(--home-filter-sheet-segment-selected-bg);
-}
-
-.homeFilterSheet .MuiToggleButtonGroup-grouped:hover {
-  background: var(--home-filter-sheet-hover);
-}
-
-.homeFilterSheet .MuiCheckbox-root {
-  color: var(--home-filter-checkbox-unchecked);
 }
 
 .homeFilterSheetHandle {
