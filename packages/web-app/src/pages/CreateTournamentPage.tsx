@@ -46,24 +46,6 @@ type AppLanguage = 'ja' | 'en' | 'ko';
 
 const SONG_SEARCH_DEBUG_STORAGE_KEY = 'iidx:debug:song-search';
 const CREATE_WIZARD_DEBUG_STORAGE_KEY = 'iidx:debug:create-wizard';
-const DATE_PICKER_TEXT_FIELD_SX = {
-  '& .MuiOutlinedInput-root, & .MuiInputBase-root, & .MuiPickersInputBase-root, & .MuiPickersOutlinedInput-root': {
-    backgroundColor: 'var(--surface)',
-    color: 'var(--text)',
-    minHeight: 44,
-  },
-  '& .MuiInputBase-input, & .MuiPickersInputBase-input, & .MuiPickersSectionList-root, & .MuiPickersSectionList-section': {
-    color: 'var(--text) !important',
-    WebkitTextFillColor: 'var(--text)',
-  },
-  '& .MuiInputBase-input::placeholder': {
-    color: 'var(--text-faint)',
-    opacity: 1,
-  },
-  '& .MuiIconButton-root, & .MuiSvgIcon-root': {
-    color: 'var(--text-subtle)',
-  },
-} as const;
 const DATE_PICKER_LOCALE_TEXT_BY_LANGUAGE = {
   ja: jaJP.components.MuiLocalizationProvider.defaultProps.localeText as any,
   en: enUS.components.MuiLocalizationProvider.defaultProps.localeText as any,
@@ -533,7 +515,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                             placeholder: t('create_tournament.field.period.start_placeholder'),
                             fullWidth: true,
                             size: 'small',
-                            sx: DATE_PICKER_TEXT_FIELD_SX,
+                            className: 'createPeriodDatePickerTextField',
                           },
                         }}
                       />
@@ -558,7 +540,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                             placeholder: t('create_tournament.field.period.end_placeholder'),
                             fullWidth: true,
                             size: 'small',
-                            sx: DATE_PICKER_TEXT_FIELD_SX,
+                            className: 'createPeriodDatePickerTextField',
                           },
                         }}
                       />

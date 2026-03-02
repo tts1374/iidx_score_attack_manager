@@ -1,4 +1,5 @@
 import { createTheme } from '@mui/material/styles';
+import type {} from '@mui/x-date-pickers/themeAugmentation';
 
 const SURFACE_2 = 'var(--surface-2)';
 const SURFACE_3 = 'var(--surface-3)';
@@ -475,6 +476,33 @@ export const muiTheme = createTheme({
               "&[aria-selected='true'], &[aria-selected='true'].Mui-focused": {
                 background: 'var(--create-song-dropdown-selected)',
               },
+            },
+          };
+        },
+      },
+    },
+    MuiPickersTextField: {
+      styleOverrides: {
+        root: ({ theme }) => {
+          const palette = paletteVars(theme);
+          return {
+            '&.createPeriodDatePickerTextField .MuiOutlinedInput-root, &.createPeriodDatePickerTextField .MuiInputBase-root, &.createPeriodDatePickerTextField .MuiPickersInputBase-root, &.createPeriodDatePickerTextField .MuiPickersOutlinedInput-root':
+              {
+                backgroundColor: SURFACE,
+                color: palette.text.primary,
+                minHeight: 44,
+              },
+            '&.createPeriodDatePickerTextField .MuiInputBase-input, &.createPeriodDatePickerTextField .MuiPickersInputBase-input, &.createPeriodDatePickerTextField .MuiPickersSectionList-root, &.createPeriodDatePickerTextField .MuiPickersSectionList-section':
+              {
+                color: `${palette.text.primary} !important`,
+                WebkitTextFillColor: palette.text.primary,
+              },
+            '&.createPeriodDatePickerTextField .MuiInputBase-input::placeholder': {
+              color: 'var(--text-faint)',
+              opacity: 1,
+            },
+            '&.createPeriodDatePickerTextField .MuiIconButton-root, &.createPeriodDatePickerTextField .MuiSvgIcon-root': {
+              color: 'var(--text-subtle)',
             },
           };
         },
