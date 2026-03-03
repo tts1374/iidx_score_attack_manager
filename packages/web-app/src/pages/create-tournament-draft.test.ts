@@ -139,12 +139,22 @@ describe('create tournament draft helpers', () => {
     expect(input).toEqual({
       tournamentUuid: 'd57d0df0-9a1c-4c5f-a1a2-90f4d183edc1',
       tournamentName: 'Test Tournament',
-      owner: 'Organizer',
+      owner: '',
       hashtag: 'hash_tag',
       startDate: '2026-02-01',
       endDate: '2026-02-28',
       chartIds: [1001, 1002],
     });
+  });
+
+  it('does not require owner for create validation', () => {
+    const draft = {
+      ...buildValidDraft(),
+      owner: '   ',
+    };
+    const validation = resolveCreateTournamentValidation(draft, '2026-02-15');
+    expect(validation.canProceed).toBe(true);
+    expect(validation.missingBasicFields).not.toContain('create_tournament.field.owner.label_plain');
   });
 
   it('formats hashtag and resolves selected chart', () => {
@@ -226,6 +236,7 @@ describe('create tournament draft helpers', () => {
     });
     expect(restored).not.toBeNull();
     expect(restored!.name).toBe('  copied  ');
+    expect(restored!.owner).toBe('');
     expect(restored!.rows).toHaveLength(2);
     expect(restored!.rows[0]?.selectedChartId).toBe(7001);
     expect(restored!.rows[1]?.playStyle).toBe('SP');
