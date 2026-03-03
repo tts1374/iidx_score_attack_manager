@@ -495,7 +495,7 @@
       "completed": "Input complete ✔"
     },
     "progress": {
-      "completed": "Completed: {{count}}/4",
+      "completed": "Completed: {{count}}/3",
       "missing": "Missing: {{items}}",
       "none": "None"
     },
@@ -527,6 +527,8 @@
       "chart_list_title": "Chart list",
       "chart_title": "Chart {{index}}",
       "final_notice": "You cannot edit this after finalizing.",
+      "tournament_id_copied": "Copied.",
+      "tournament_id_copy_failed": "Failed to copy.",
       "debug": {
         "title": "Debug info",
         "def_hash": "def_hash",

@@ -3,7 +3,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import type { ChartSummary, SongSummary } from '@iidx/db';
 import { PAYLOAD_VERSION, buildTournamentDefHash, normalizeHashtag, normalizeSearchText } from '@iidx/shared';
-import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, CircularProgress, Snackbar, TextField, Typography } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -220,6 +220,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const rows = draft.rows;
   const [currentStep, setCurrentStep] = React.useState<CreateWizardStep>(0);
   const [showChartValidationErrors, setShowChartValidationErrors] = React.useState(false);
+  const [copySnackbar, setCopySnackbar] = React.useState({ open: false, message: '', key: 0 });
   const chartRowRefs = React.useRef<Record<string, HTMLElement | null>>({});
   const validation = React.useMemo(() => resolveCreateTournamentValidation(draft, props.todayDate), [draft, props.todayDate]);
   const canAddRow = rows.length < MAX_CHART_ROWS;
@@ -281,13 +282,8 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   }, [currentStep]);
 
   React.useEffect(() => {
-    const canShowCurrentStep =
-      currentStep === 0 || (currentStep === 1 ? stepOneReady : stepTwoReady);
-    if (!canShowCurrentStep) {
-      return;
-    }
     scrollCreatePageTopIntoView();
-  }, [currentStep, stepOneReady, stepTwoReady]);
+  }, [currentStep]);
 
   const tournamentDefHash = React.useMemo(() => {
     if (!validation.canProceed) {
@@ -298,7 +294,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         v: PAYLOAD_VERSION,
         uuid: draft.tournamentUuid,
         name: draft.name.trim(),
-        owner: draft.owner.trim(),
+        owner: '',
         hashtag: normalizeHashtag(draft.hashtag),
         start: draft.startDate,
         end: draft.endDate,
@@ -392,16 +388,30 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           ? t('create_tournament.status.missing_count', { count: chartMissingCount })
           : t('create_tournament.status.completed')
         : null;
+  const showCopySnackbar = React.useCallback((message: string) => {
+    setCopySnackbar((current) => ({
+      open: true,
+      message,
+      key: current.key + 1,
+    }));
+  }, []);
+  const closeCopySnackbar = React.useCallback((_: Event | React.SyntheticEvent, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setCopySnackbar((current) => ({ ...current, open: false }));
+  }, []);
   const copyToClipboard = React.useCallback(async (value: string) => {
     try {
       if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-        return;
+        throw new Error('clipboard unavailable');
       }
       await navigator.clipboard.writeText(value);
+      showCopySnackbar(t('create_tournament.confirm.tournament_id_copied'));
     } catch {
-      // ignore clipboard failure
+      showCopySnackbar(t('create_tournament.confirm.tournament_id_copy_failed'));
     }
-  }, []);
+  }, [showCopySnackbar, t]);
 
   const scrollFirstInvalidChartCard = React.useCallback(() => {
     const invalidRow = rows.find((row) => row.selectedSong === null || row.selectedChartId === null);
@@ -460,20 +470,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 }}
               />
               {validation.nameError ? <p className="errorText createInlineError">{t(validation.nameError)}</p> : null}
-            </label>
-
-            <label className="createField">
-              <span className="createFieldLabel">{t('create_tournament.field.owner.label')}</span>
-              <input
-                maxLength={50}
-                value={draft.owner}
-                placeholder={t('create_tournament.field.owner.placeholder')}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  props.onDraftChange((current) => ({ ...current, owner: value }));
-                }}
-              />
-              {validation.ownerError ? <p className="errorText createInlineError">{t(validation.ownerError)}</p> : null}
             </label>
 
             <label className="createField">
@@ -822,10 +818,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   <dd>{draft.name.trim() || t('common.not_available')}</dd>
                 </div>
                 <div className="createConfirmInfoItem">
-                  <dt>{t('create_tournament.field.owner.label_plain')}</dt>
-                  <dd>{draft.owner.trim() || t('common.not_available')}</dd>
-                </div>
-                <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.hashtag.label_plain')}</dt>
                   <dd className="createConfirmHashtagValue">{displayHashtag || t('common.not_available')}</dd>
                 </div>
@@ -986,6 +978,13 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           </>
         ) : null}
       </footer>
+      <Snackbar
+        key={copySnackbar.key}
+        open={copySnackbar.open}
+        autoHideDuration={2000}
+        onClose={closeCopySnackbar}
+        message={copySnackbar.message}
+      />
     </div>
   );
 }
