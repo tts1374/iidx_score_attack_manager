@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { TournamentDetailItem } from '@iidx/db';
+import QRCode from 'qrcode';
 
 import { TournamentDetailPage, type TournamentDetailReturnSignal } from './TournamentDetailPage';
 
@@ -159,14 +160,19 @@ function mockMatchMedia(maxWidth599Matches: boolean): void {
   });
 }
 
-function mockShareImageReady(): void {
+function mockShareImageReady(): {
+  fillTextMock: ReturnType<typeof vi.fn>;
+  canvasSizeCalls: Array<{ width: number; height: number }>;
+} {
   const gradient = {
     addColorStop: vi.fn(),
   } as unknown as CanvasGradient;
+  const fillTextMock = vi.fn();
+  const canvasSizeCalls: Array<{ width: number; height: number }> = [];
   const contextState: Record<string, unknown> = {
     createLinearGradient: vi.fn(() => gradient),
     measureText: vi.fn((text: string) => ({ width: text.length * 11 } as TextMetrics)),
-    fillText: vi.fn(),
+    fillText: fillTextMock,
     drawImage: vi.fn(),
     textBaseline: 'alphabetic',
     textAlign: 'left',
@@ -193,7 +199,10 @@ function mockShareImageReady(): void {
   Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
     configurable: true,
     writable: true,
-    value: vi.fn(() => context),
+    value: vi.fn(function (this: HTMLCanvasElement) {
+      canvasSizeCalls.push({ width: this.width, height: this.height });
+      return context;
+    }),
   });
   Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
     configurable: true,
@@ -222,6 +231,8 @@ function mockShareImageReady(): void {
     writable: true,
     value: MockImage,
   });
+
+  return { fillTextMock, canvasSizeCalls };
 }
 
 describe('TournamentDetailPage', () => {
@@ -556,6 +567,174 @@ describe('TournamentDetailPage', () => {
     expect(dialogScope.queryByText('生成画像（1080x1920）')).toBeNull();
     expect(dialogScope.getByRole('button', { name: '投稿文をコピー' })).toBeTruthy();
     expect(dialogScope.getAllByText('共有')).toHaveLength(1);
+  });
+
+  it('generates 4:5 share image and keeps QR readable settings', async () => {
+    const { canvasSizeCalls } = mockShareImageReady();
+    renderPage();
+
+    await userEvent.click(screen.getByTestId('tournament-detail-share-button'));
+    await waitFor(() => {
+      expect(screen.getByAltText('共有画像プレビュー')).toBeTruthy();
+    });
+
+    expect(canvasSizeCalls.some((size) => size.width === 1200 && size.height === 1600)).toBe(true);
+    expect(QRCode.toDataURL).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        width: 440,
+        margin: 4,
+        errorCorrectionLevel: 'H',
+      }),
+    );
+  });
+
+  it('renders every chart row without truncation and draws short chart codes', async () => {
+    const { fillTextMock } = mockShareImageReady();
+    const charts: TournamentDetailItem['charts'] = [
+      {
+        chartId: 201,
+        title: 'Track 01',
+        playStyle: 'SP',
+        difficulty: 'BEGINNER',
+        level: '3',
+        resolveIssue: null,
+        submitted: true,
+        updateSeq: 1,
+        needsSend: false,
+        fileDeleted: false,
+      },
+      {
+        chartId: 202,
+        title: 'Track 02',
+        playStyle: 'DP',
+        difficulty: 'NORMAL',
+        level: '5',
+        resolveIssue: null,
+        submitted: true,
+        updateSeq: 1,
+        needsSend: false,
+        fileDeleted: false,
+      },
+      {
+        chartId: 203,
+        title: 'Track 03',
+        playStyle: 'SP',
+        difficulty: 'HYPER',
+        level: '9',
+        resolveIssue: null,
+        submitted: true,
+        updateSeq: 1,
+        needsSend: false,
+        fileDeleted: false,
+      },
+      {
+        chartId: 204,
+        title: 'Track 04',
+        playStyle: 'DP',
+        difficulty: 'LEGGENDARIA',
+        level: '12',
+        resolveIssue: null,
+        submitted: true,
+        updateSeq: 1,
+        needsSend: false,
+        fileDeleted: false,
+      },
+    ];
+    renderPage({
+      charts,
+      chartCount: charts.length,
+      submittedCount: charts.length,
+      sendWaitingCount: 0,
+      pendingCount: 0,
+    });
+
+    await userEvent.click(screen.getByTestId('tournament-detail-share-button'));
+    await waitFor(() => {
+      expect(screen.getByAltText('共有画像プレビュー')).toBeTruthy();
+    });
+
+    const drawnTexts = fillTextMock.mock.calls.map((call) => String(call[0]));
+    expect(drawnTexts).toEqual(expect.arrayContaining(charts.map((chart) => chart.title)));
+    expect(drawnTexts).toEqual(expect.arrayContaining(['SPB', 'DPN', 'SPH', 'DPL']));
+    const shortCodeCalls = fillTextMock.mock.calls.filter((call) => ['SPB', 'DPN', 'SPH', 'DPL'].includes(String(call[0])));
+    expect(shortCodeCalls).toHaveLength(4);
+    const shortCodeYs = shortCodeCalls.map((call) => Number(call[2])) as [number, number, number, number];
+    expect(shortCodeYs[1] - shortCodeYs[0]).toBe(160);
+    expect(shortCodeYs[2] - shortCodeYs[1]).toBe(160);
+    expect(shortCodeYs[3] - shortCodeYs[2]).toBe(160);
+    const periodCall = fillTextMock.mock.calls.find((call) => {
+      const value = String(call[0]);
+      return value.includes('2026-02-01') && value.includes('2026-02-12');
+    });
+    const hashtagCall = fillTextMock.mock.calls.find((call) => String(call[0]).includes('#SCOREATTACK'));
+    expect(periodCall).toBeTruthy();
+    expect(hashtagCall).toBeTruthy();
+    const periodY = Number(periodCall?.[2] ?? 0);
+    const hashtagY = Number(hashtagCall?.[2] ?? 0);
+    expect(hashtagY).toBeGreaterThan(periodY);
+    expect(drawnTexts.some((text) => text.includes('開催者'))).toBe(false);
+    expect(drawnTexts).not.toContain('対象譜面');
+    expect(drawnTexts).not.toContain('読み取って取り込む');
+  });
+
+  it('centers chart rows vertically when chart count is three', async () => {
+    const { fillTextMock } = mockShareImageReady();
+    const charts: TournamentDetailItem['charts'] = [
+      {
+        chartId: 301,
+        title: 'Center 01',
+        playStyle: 'SP',
+        difficulty: 'BEGINNER',
+        level: '3',
+        resolveIssue: null,
+        submitted: true,
+        updateSeq: 1,
+        needsSend: false,
+        fileDeleted: false,
+      },
+      {
+        chartId: 302,
+        title: 'Center 02',
+        playStyle: 'DP',
+        difficulty: 'NORMAL',
+        level: '6',
+        resolveIssue: null,
+        submitted: true,
+        updateSeq: 1,
+        needsSend: false,
+        fileDeleted: false,
+      },
+      {
+        chartId: 303,
+        title: 'Center 03',
+        playStyle: 'SP',
+        difficulty: 'HYPER',
+        level: '10',
+        resolveIssue: null,
+        submitted: true,
+        updateSeq: 1,
+        needsSend: false,
+        fileDeleted: false,
+      },
+    ];
+    renderPage({
+      charts,
+      chartCount: charts.length,
+      submittedCount: charts.length,
+      sendWaitingCount: 0,
+      pendingCount: 0,
+    });
+
+    await userEvent.click(screen.getByTestId('tournament-detail-share-button'));
+    await waitFor(() => {
+      expect(screen.getByAltText('共有画像プレビュー')).toBeTruthy();
+    });
+
+    const shortCodeCalls = fillTextMock.mock.calls.filter((call) => ['SPB', 'DPN', 'SPH'].includes(String(call[0])));
+    expect(shortCodeCalls).toHaveLength(3);
+    const shortCodeYs = shortCodeCalls.map((call) => Number(call[2])) as [number, number, number];
+    expect(shortCodeYs).toEqual([488, 648, 808]);
   });
 
   it('copies post template text including hashtag and import URL', async () => {
