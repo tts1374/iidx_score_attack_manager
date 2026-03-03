@@ -60,12 +60,31 @@ interface TournamentDetailPageProps {
   prefersReducedMotion?: boolean;
 }
 
-const SHARE_IMAGE_WIDTH = 1080;
-const SHARE_IMAGE_HEIGHT = 1920;
-const SHARE_SAFE_MARGIN = 64;
-const SHARE_QR_SIZE = 420;
-const SHARE_QR_CARD_PADDING = 16;
+const SHARE_IMAGE_WIDTH = 1200;
+const SHARE_IMAGE_HEIGHT = 1600;
+const SHARE_BACKGROUND_MARGIN_X = 100;
+const SHARE_BACKGROUND_MARGIN_Y = 50;
+const SHARE_LAYOUT_MARGIN = 30;
+const SHARE_LAYOUT_WIDTH = SHARE_IMAGE_WIDTH - SHARE_BACKGROUND_MARGIN_X * 2 - SHARE_LAYOUT_MARGIN * 2;
+const SHARE_LAYOUT_HEIGHT = SHARE_IMAGE_HEIGHT - SHARE_BACKGROUND_MARGIN_Y * 2 - SHARE_LAYOUT_MARGIN * 2;
+const SHARE_BLOCK_TITLE_HEIGHT = 200;
+const SHARE_BLOCK_PERIOD_HEIGHT = 80;
+const SHARE_BLOCK_CHART_HEIGHT = 640;
+const SHARE_BLOCK_QR_HEIGHT = 480;
+const SHARE_BLOCK_HASHTAG_HEIGHT = 40;
+const SHARE_CHART_MAX_ROWS = 4;
+const SHARE_CHART_ROW_HEIGHT = 160;
+const SHARE_CHART_LEFT_COLUMN_WIDTH = 190;
+const SHARE_QR_SIZE = 440;
+const SHARE_QR_CARD_PADDING = 8;
 const SHARE_FONT_FAMILY = '"Segoe UI", "Noto Sans JP", sans-serif';
+const SHARE_DIFFICULTY_SHORT_MAP: Record<string, string> = {
+  BEGINNER: 'B',
+  NORMAL: 'N',
+  HYPER: 'H',
+  ANOTHER: 'A',
+  LEGGENDARIA: 'L',
+};
 
 type ShareNotice = {
   severity: 'info' | 'success' | 'warning' | 'error';
@@ -155,16 +174,45 @@ function resolveChartLevelText(level: string): string {
   return '?';
 }
 
-function toAlphaColor(color: string, alpha: number): string {
+function resolveChartShortCode(chart: TournamentDetailChart): string {
+  const playStyle = chart.playStyle === 'DP' ? 'DP' : 'SP';
+  const difficultyKey = String(chart.difficulty ?? '')
+    .trim()
+    .toUpperCase();
+  const difficultyShort = SHARE_DIFFICULTY_SHORT_MAP[difficultyKey];
+  if (difficultyShort) {
+    return `${playStyle}${difficultyShort}`;
+  }
+  const fallback = difficultyKey.length > 0 ? difficultyKey[0] : '?';
+  return `${playStyle}${fallback}`;
+}
+
+function parseHexColor(color: string): { r: number; g: number; b: number } | null {
   const hex = color.trim().replace('#', '');
   const normalized = hex.length === 3 ? hex.split('').map((char) => `${char}${char}`).join('') : hex;
   if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
-    return 'rgba(148, 163, 184, 0.16)';
+    return null;
   }
-  const r = Number.parseInt(normalized.slice(0, 2), 16);
-  const g = Number.parseInt(normalized.slice(2, 4), 16);
-  const b = Number.parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function resolveReadableOutlineColor(textColor: string): string | null {
+  const rgb = parseHexColor(textColor);
+  if (!rgb) {
+    return 'rgba(15, 23, 42, 0.55)';
+  }
+  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+  if (luminance >= 0.72) {
+    return 'rgba(15, 23, 42, 0.55)';
+  }
+  if (luminance <= 0.28) {
+    return 'rgba(255, 255, 255, 0.75)';
+  }
+  return null;
 }
 
 function hasEvidence(chart: TournamentDetailChart): boolean {
@@ -300,7 +348,7 @@ function resolveTitleLayout(
   title: string,
   maxWidth: number,
 ): { lines: string[]; fontSize: number; lineHeight: number } {
-  for (let fontSize = 90; fontSize >= 62; fontSize -= 4) {
+  for (let fontSize = 68; fontSize >= 44; fontSize -= 4) {
     ctx.font = `800 ${fontSize}px ${SHARE_FONT_FAMILY}`;
     const lines = wrapText(ctx, title, maxWidth, 2);
     const hasEllipsis = lines.some((line) => line.endsWith('…'));
@@ -308,16 +356,16 @@ function resolveTitleLayout(
       return {
         lines,
         fontSize,
-        lineHeight: fontSize + 18,
+        lineHeight: fontSize + 8,
       };
     }
   }
-  const fallbackFontSize = 62;
+  const fallbackFontSize = 44;
   ctx.font = `800 ${fallbackFontSize}px ${SHARE_FONT_FAMILY}`;
   return {
     lines: wrapText(ctx, title, maxWidth, 2),
     fontSize: fallbackFontSize,
-    lineHeight: fallbackFontSize + 16,
+    lineHeight: fallbackFontSize + 8,
   };
 }
 
@@ -348,7 +396,7 @@ function resolveSharePosterCharts(detail: TournamentDetailItem, t: TranslationFn
     throw new Error(t('tournament_detail.share_dialog.error.no_visible_charts'));
   }
 
-  return rows.slice(0, 4);
+  return rows;
 }
 
 function toPngBlob(canvas: HTMLCanvasElement, t: TranslationFn): Promise<Blob> {
@@ -368,7 +416,7 @@ function toPngBlob(canvas: HTMLCanvasElement, t: TranslationFn): Promise<Blob> {
 }
 
 async function buildShareImage(detail: TournamentDetailItem, shareUrl: string, t: TranslationFn): Promise<Blob> {
-  const posterCharts = resolveSharePosterCharts(detail, t);
+  const posterCharts = resolveSharePosterCharts(detail, t).slice(0, SHARE_CHART_MAX_ROWS);
 
   const canvas = document.createElement('canvas');
   canvas.width = SHARE_IMAGE_WIDTH;
@@ -382,158 +430,141 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string, t
 
   const background = ctx.createLinearGradient(0, 0, SHARE_IMAGE_WIDTH, SHARE_IMAGE_HEIGHT);
   background.addColorStop(0, '#0B132B');
-  background.addColorStop(0.48, '#1D4ED8');
-  background.addColorStop(1, '#0F172A');
+  background.addColorStop(0.42, '#1E3A8A');
+  background.addColorStop(1, '#111827');
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, SHARE_IMAGE_WIDTH, SHARE_IMAGE_HEIGHT);
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
   ctx.beginPath();
-  ctx.arc(190, 250, 220, 0, Math.PI * 2);
+  ctx.arc(190, 220, 190, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(980, 420, 300, 0, Math.PI * 2);
+  ctx.arc(1020, 380, 280, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(870, 1710, 260, 0, Math.PI * 2);
+  ctx.arc(1010, 1400, 260, 0, Math.PI * 2);
   ctx.fill();
 
-  const panelX = SHARE_SAFE_MARGIN + 20;
-  const panelY = SHARE_SAFE_MARGIN + 20;
-  const panelWidth = SHARE_IMAGE_WIDTH - (SHARE_SAFE_MARGIN + 20) * 2;
-  const panelHeight = SHARE_IMAGE_HEIGHT - (SHARE_SAFE_MARGIN + 20) * 2;
-  fillRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 46, 'rgba(248, 250, 252, 0.88)');
+  const panelX = SHARE_BACKGROUND_MARGIN_X;
+  const panelY = SHARE_BACKGROUND_MARGIN_Y;
+  const panelWidth = SHARE_IMAGE_WIDTH - SHARE_BACKGROUND_MARGIN_X * 2;
+  const panelHeight = SHARE_IMAGE_HEIGHT - SHARE_BACKGROUND_MARGIN_Y * 2;
+  fillRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 40, 'rgba(248, 250, 252, 0.9)');
 
-  const panelPadding = 56;
-  const innerX = panelX + panelPadding;
-  const innerY = panelY + panelPadding;
-  const innerWidth = panelWidth - panelPadding * 2;
-  const innerHeight = panelHeight - panelPadding * 2;
-  const sectionGap = 40;
-  const headerHeight = Math.floor(innerHeight * 0.25);
-  const chartBlockHeight = Math.floor(innerHeight * 0.35);
-  const qrBlockHeight = innerHeight - headerHeight - chartBlockHeight - sectionGap * 2;
+  const layoutX = panelX + SHARE_LAYOUT_MARGIN;
+  const layoutY = panelY + SHARE_LAYOUT_MARGIN;
+  const layoutBottom = layoutY + SHARE_LAYOUT_HEIGHT;
+  const hashtagBlockTop = layoutBottom - SHARE_BLOCK_HASHTAG_HEIGHT;
+  const qrBlockTop = hashtagBlockTop - SHARE_BLOCK_QR_HEIGHT;
+  const chartBlockTop = qrBlockTop - SHARE_BLOCK_CHART_HEIGHT;
+  const periodBlockTop = chartBlockTop - SHARE_BLOCK_PERIOD_HEIGHT;
+  const titleBlockTop = periodBlockTop - SHARE_BLOCK_TITLE_HEIGHT;
 
-  const headerTop = innerY;
-  const chartTop = headerTop + headerHeight + sectionGap;
-  const qrTop = chartTop + chartBlockHeight + sectionGap;
+  const titleLayout = resolveTitleLayout(ctx, detail.tournamentName, SHARE_LAYOUT_WIDTH);
+  const titleAreaTop = titleBlockTop + 26;
+  const titleAreaBottom = titleBlockTop + SHARE_BLOCK_TITLE_HEIGHT - 12;
+  const titleAreaHeight = titleAreaBottom - titleAreaTop;
+  const titleTextHeight = titleLayout.lines.length * titleLayout.lineHeight;
+  const titleStartY = titleAreaTop + Math.max(0, Math.floor((titleAreaHeight - titleTextHeight) / 2));
 
-  let headerCursorY = headerTop + 88;
-  const titleLayout = resolveTitleLayout(ctx, detail.tournamentName, innerWidth);
   ctx.fillStyle = '#0f172a';
   ctx.font = `800 ${titleLayout.fontSize}px ${SHARE_FONT_FAMILY}`;
-  titleLayout.lines.forEach((line) => {
-    ctx.fillText(line, innerX, headerCursorY);
-    headerCursorY += titleLayout.lineHeight;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  titleLayout.lines.forEach((line, lineIndex) => {
+    ctx.fillText(line, layoutX, titleStartY + lineIndex * titleLayout.lineHeight);
   });
 
-  const hashtagLine = optionalHashtag(detail.hashtag);
-  if (hashtagLine) {
-    ctx.fillStyle = '#1d4ed8';
-    ctx.font = `700 34px ${SHARE_FONT_FAMILY}`;
-    ctx.fillText(trimTextToWidth(ctx, hashtagLine, innerWidth), innerX, headerCursorY + 4);
-    headerCursorY += 56;
-  }
-
-  ctx.fillStyle = '#334155';
-  ctx.font = `600 32px ${SHARE_FONT_FAMILY}`;
-  ctx.fillText(
-    trimTextToWidth(ctx, t('tournament_detail.share_image.owner', { owner: detail.owner }), innerWidth),
-    innerX,
-    headerCursorY + 12,
-  );
-  headerCursorY += 68;
-
   ctx.fillStyle = '#1e293b';
-  ctx.font = `700 40px ${SHARE_FONT_FAMILY}`;
+  ctx.font = `700 34px ${SHARE_FONT_FAMILY}`;
+  ctx.textBaseline = 'middle';
   ctx.fillText(
-    t('tournament_detail.summary.period_with_space', { start: detail.startDate, end: detail.endDate }),
-    innerX,
-    headerCursorY + 8,
+    trimTextToWidth(
+      ctx,
+      t('tournament_detail.summary.period_with_space', { start: detail.startDate, end: detail.endDate }),
+      SHARE_LAYOUT_WIDTH,
+    ),
+    layoutX,
+    periodBlockTop + SHARE_BLOCK_PERIOD_HEIGHT / 2,
   );
 
-  ctx.fillStyle = '#0f172a';
-  ctx.font = `800 48px ${SHARE_FONT_FAMILY}`;
-  ctx.fillText(t('tournament_detail.share_image.chart_heading'), innerX, chartTop + 52);
+  const renderedRowCount = posterCharts.length;
+  const chartRowsHeight = renderedRowCount * SHARE_CHART_ROW_HEIGHT;
+  const chartRowsTop = chartBlockTop + Math.floor((SHARE_BLOCK_CHART_HEIGHT - chartRowsHeight) / 2);
 
-  const rowHeight = 122;
-  const rowGap = 4;
-  const rowTopStart = chartTop + 74;
-  const rowLeft = innerX;
-  const rowWidth = innerWidth;
+  posterCharts.forEach((chartRow, rowIndex) => {
+    const rowTop = chartRowsTop + rowIndex * SHARE_CHART_ROW_HEIGHT;
 
-  posterCharts.forEach((entry, index) => {
-    const rowTop = rowTopStart + index * (rowHeight + rowGap);
-    const tagText = `${entry.chart.playStyle} ${entry.chart.difficulty}`;
-    const color = difficultyColorHex(entry.chart.difficulty);
-    const tagHeight = 34;
-    const metaY = rowTop + 12;
+    ctx.fillStyle = rowIndex % 2 === 0 ? 'rgba(255, 255, 255, 0.64)' : 'rgba(255, 255, 255, 0.56)';
+    ctx.fillRect(layoutX, rowTop, SHARE_LAYOUT_WIDTH, SHARE_CHART_ROW_HEIGHT);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.06)';
+    ctx.fillRect(layoutX, rowTop, SHARE_CHART_LEFT_COLUMN_WIDTH, SHARE_CHART_ROW_HEIGHT);
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.24)';
+    ctx.fillRect(layoutX + SHARE_CHART_LEFT_COLUMN_WIDTH, rowTop + 10, 1, SHARE_CHART_ROW_HEIGHT - 20);
 
-    fillRoundedRect(ctx, rowLeft, rowTop, rowWidth, rowHeight, 22, 'rgba(255, 255, 255, 0.78)');
+    const shortCode = resolveChartShortCode(chartRow.chart);
+    const levelColor = difficultyColorHex(chartRow.chart.difficulty);
+    const leftCenterX = layoutX + SHARE_CHART_LEFT_COLUMN_WIDTH / 2;
 
-    ctx.font = `700 21px ${SHARE_FONT_FAMILY}`;
-    const tagWidth = Math.min(320, Math.max(170, ctx.measureText(tagText).width + 32));
-    const tagX = rowLeft + 24;
-    fillRoundedRect(ctx, tagX, metaY, tagWidth, tagHeight, 18, toAlphaColor(color, 0.2));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#334155';
+    ctx.font = `800 36px ${SHARE_FONT_FAMILY}`;
+    ctx.fillText(shortCode, leftCenterX, rowTop + SHARE_CHART_ROW_HEIGHT * 0.3);
 
-    ctx.fillStyle = color;
-    ctx.fillText(trimTextToWidth(ctx, tagText, tagWidth - 24), tagX + 12, metaY + 25);
-
-    const levelText = t('tournament_detail.chart.level', { level: entry.levelLabel });
-    const levelWidth = 112;
-    const levelX = rowLeft + rowWidth - levelWidth - 24;
-    fillRoundedRect(ctx, levelX, metaY, levelWidth, tagHeight, 18, '#e2e8f0');
-    ctx.fillStyle = '#0f172a';
-    ctx.font = `800 23px ${SHARE_FONT_FAMILY}`;
-    const levelTextWidth = ctx.measureText(levelText).width;
-    ctx.fillText(levelText, levelX + (levelWidth - levelTextWidth) / 2, metaY + 25);
-
-    const titleX = rowLeft + 24;
-    const titleWidth = rowWidth - 48;
-    ctx.fillStyle = '#0f172a';
-    const baseTitleFontSize = 26;
-    const boostedTitleFontSize = Math.round(baseTitleFontSize * 1.18);
-    const fallbackBoostedTitleFontSize = Math.round(baseTitleFontSize * 1.15);
-    ctx.font = `700 ${baseTitleFontSize}px ${SHARE_FONT_FAMILY}`;
-    const baseTitleLines = wrapText(ctx, entry.chart.title, titleWidth, 2);
-    let titleFontSize = baseTitleFontSize;
-    let titleLines = baseTitleLines;
-    if (baseTitleLines.length === 1) {
-      ctx.font = `700 ${boostedTitleFontSize}px ${SHARE_FONT_FAMILY}`;
-      const boostedTitleLines = wrapText(ctx, entry.chart.title, titleWidth, 2);
-      if (boostedTitleLines.length === 1) {
-        titleFontSize = boostedTitleFontSize;
-        titleLines = boostedTitleLines;
-      } else if (fallbackBoostedTitleFontSize !== boostedTitleFontSize) {
-        ctx.font = `700 ${fallbackBoostedTitleFontSize}px ${SHARE_FONT_FAMILY}`;
-        const fallbackBoostedTitleLines = wrapText(ctx, entry.chart.title, titleWidth, 2);
-        if (fallbackBoostedTitleLines.length === 1) {
-          titleFontSize = fallbackBoostedTitleFontSize;
-          titleLines = fallbackBoostedTitleLines;
-        }
-      }
+    ctx.font = `900 62px ${SHARE_FONT_FAMILY}`;
+    const levelOutlineColor = resolveReadableOutlineColor(levelColor);
+    if (levelOutlineColor) {
+      ctx.strokeStyle = levelOutlineColor;
+      ctx.lineWidth = 2;
+      ctx.strokeText(chartRow.levelLabel, leftCenterX, rowTop + SHARE_CHART_ROW_HEIGHT * 0.73);
     }
+    ctx.fillStyle = levelColor;
+    ctx.fillText(chartRow.levelLabel, leftCenterX, rowTop + SHARE_CHART_ROW_HEIGHT * 0.73);
+
+    const titleX = layoutX + SHARE_CHART_LEFT_COLUMN_WIDTH + 18;
+    const titleWidth = SHARE_LAYOUT_WIDTH - SHARE_CHART_LEFT_COLUMN_WIDTH - 26;
+
+    ctx.fillStyle = '#0f172a';
+    const oneLineFontSize = 42;
+    const twoLineFontSize = 34;
+    ctx.font = `700 ${oneLineFontSize}px ${SHARE_FONT_FAMILY}`;
+    let titleFontSize = oneLineFontSize;
+    let titleLines = wrapText(ctx, chartRow.chart.title, titleWidth, 2);
+
+    if (titleLines.length === 1) {
+      const boostedFontSize = 46;
+      ctx.font = `700 ${boostedFontSize}px ${SHARE_FONT_FAMILY}`;
+      const boostedTitleLines = wrapText(ctx, chartRow.chart.title, titleWidth, 2);
+      if (boostedTitleLines.length === 1) {
+        titleFontSize = boostedFontSize;
+        titleLines = boostedTitleLines;
+      }
+    } else {
+      ctx.font = `700 ${twoLineFontSize}px ${SHARE_FONT_FAMILY}`;
+      titleFontSize = twoLineFontSize;
+      titleLines = wrapText(ctx, chartRow.chart.title, titleWidth, 2);
+    }
+
     ctx.font = `700 ${titleFontSize}px ${SHARE_FONT_FAMILY}`;
-    const titleLineHeight = Math.round(titleFontSize * 1.08);
-    const titleAreaTop = rowTop + 54;
-    const titleAreaBottom = rowTop + rowHeight - 10;
-    const titleAreaHeight = titleAreaBottom - titleAreaTop;
-    const titleBlockHeight = titleLines.length * titleLineHeight;
-    const titleStartY = titleAreaTop + Math.max(0, (titleAreaHeight - titleBlockHeight) / 2);
+    const titleLineHeight = titleLines.length === 1 ? Math.round(titleFontSize * 1.02) : Math.round(titleFontSize * 0.82);
+    const titleTextHeight = titleLines.length * titleLineHeight;
+    const titleY = rowTop + Math.max(0, Math.floor((SHARE_CHART_ROW_HEIGHT - titleTextHeight) / 2));
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     titleLines.forEach((line, lineIndex) => {
-      ctx.fillText(line, titleX, titleStartY + lineIndex * titleLineHeight);
+      ctx.fillText(line, titleX, titleY + lineIndex * titleLineHeight);
     });
-    ctx.textBaseline = 'alphabetic';
   });
 
   const qrCardSize = SHARE_QR_SIZE + SHARE_QR_CARD_PADDING * 2;
-  const qrCardX = Math.round((SHARE_IMAGE_WIDTH - qrCardSize) / 2);
-  const qrCardY = qrTop + Math.max(0, Math.floor((qrBlockHeight - qrCardSize - 44) / 2));
-  fillRoundedRect(ctx, qrCardX, qrCardY, qrCardSize, qrCardSize, 28, '#ffffff');
+  const qrCardX = layoutX + Math.round((SHARE_LAYOUT_WIDTH - qrCardSize) / 2);
+  const qrCardY = qrBlockTop + Math.floor((SHARE_BLOCK_QR_HEIGHT - qrCardSize) / 2);
+  fillRoundedRect(ctx, qrCardX, qrCardY, qrCardSize, qrCardSize, 18, '#ffffff');
 
   const qrDataUrl = await QRCode.toDataURL(shareUrl, {
-    errorCorrectionLevel: 'M',
+    errorCorrectionLevel: 'H',
     margin: 4,
     width: SHARE_QR_SIZE,
     color: {
@@ -552,10 +583,15 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string, t
   );
   ctx.imageSmoothingEnabled = true;
 
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#1e293b';
-  ctx.font = `700 34px ${SHARE_FONT_FAMILY}`;
-  ctx.fillText(t('tournament_detail.share_image.import_hint'), SHARE_IMAGE_WIDTH / 2, qrCardY + qrCardSize + 56);
+  const hashtagLine = optionalHashtag(detail.hashtag);
+  if (hashtagLine) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(51, 65, 85, 0.72)';
+    ctx.font = `600 24px ${SHARE_FONT_FAMILY}`;
+    ctx.fillText(trimTextToWidth(ctx, hashtagLine, SHARE_LAYOUT_WIDTH), SHARE_IMAGE_WIDTH / 2, hashtagBlockTop + SHARE_BLOCK_HASHTAG_HEIGHT / 2);
+  }
+  ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
 
   return toPngBlob(canvas, t);
