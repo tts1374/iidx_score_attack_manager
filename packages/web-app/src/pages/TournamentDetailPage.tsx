@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import { useTranslation } from 'react-i18next';
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useTheme } from '@mui/material/styles';
 import {
   Accordion,
   AccordionDetails,
@@ -24,6 +25,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { useAppServices } from '../services/context';
 import { ChartCard } from '../components/ChartCard';
@@ -32,6 +34,17 @@ import { buildImportUrl } from '../utils/payload-url';
 import { difficultyColorHex } from '../utils/iidx';
 import { resolveTournamentCardStatus } from '../utils/tournament-status';
 import { TournamentSummaryCard } from '../components/TournamentSummaryCard';
+
+export type TournamentDetailReturnReason = 'back' | 'saved' | 'replaced' | 'shared';
+
+export interface TournamentDetailReturnSignal {
+  token: string;
+  tournamentUuid: string;
+  returnReason: TournamentDetailReturnReason;
+  changedChartId?: string;
+  changedCount?: number;
+  progressChanged?: boolean;
+}
 
 interface TournamentDetailPageProps {
   detail: TournamentDetailItem;
@@ -42,6 +55,9 @@ interface TournamentDetailPageProps {
   debugModeEnabled: boolean;
   debugLastError: string | null;
   onReportDebugError: (errorMessage: string | null) => void;
+  returnSignal?: TournamentDetailReturnSignal | null;
+  onConsumeReturnSignal?: (token: string) => void;
+  prefersReducedMotion?: boolean;
 }
 
 const SHARE_IMAGE_WIDTH = 1080;
@@ -66,7 +82,16 @@ type SharePosterChart = {
 };
 
 type ChartShareState = 'unregistered' | 'unshared' | 'shared';
+type ChartStateCounts = { shared: number; unshared: number; unregistered: number };
 type TranslationFn = (...args: any[]) => any;
+
+function hasChartStateCountChanged(previous: ChartStateCounts, next: ChartStateCounts): boolean {
+  return (
+    previous.shared !== next.shared ||
+    previous.unshared !== next.unshared ||
+    previous.unregistered !== next.unregistered
+  );
+}
 
 function optionalHashtag(value: string): string | null {
   const formatted = formatHashtagForDisplay(value);
@@ -539,6 +564,11 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string, t
 export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Element {
   const { appDb, opfs } = useAppServices();
   const { t } = useTranslation();
+  const theme = useTheme();
+  const prefersReducedMotion = props.prefersReducedMotion ?? useMediaQuery('(prefers-reduced-motion: reduce)');
+  const incomingReturnSignal =
+    props.returnSignal && props.returnSignal.tournamentUuid === props.detail.tournamentUuid ? props.returnSignal : null;
+  const initialReturnSignal = incomingReturnSignal;
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [shareImageStatus, setShareImageStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [shareImageBlob, setShareImageBlob] = React.useState<Blob | null>(null);
@@ -552,6 +582,31 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const [submitToast, setSubmitToast] = React.useState<SubmitToast | null>(null);
   const [submitToastOpen, setSubmitToastOpen] = React.useState(false);
   const [needsSendOverrides, setNeedsSendOverrides] = React.useState<Record<number, boolean>>({});
+  const [chartSubmitLocked, setChartSubmitLocked] = React.useState(false);
+  const [footerSubmitLocked, setFooterSubmitLocked] = React.useState(false);
+  const [highlightedChartId, setHighlightedChartId] = React.useState<number | null>(null);
+  const [statusFadeTokens, setStatusFadeTokens] = React.useState<Record<number, number>>({});
+  const [activeReturnSignal, setActiveReturnSignal] = React.useState<TournamentDetailReturnSignal | null>(initialReturnSignal);
+  const [summaryProgressAnimationEnabled, setSummaryProgressAnimationEnabled] = React.useState(() => {
+    if (prefersReducedMotion) {
+      return false;
+    }
+    if (!initialReturnSignal) {
+      return true;
+    }
+    if (initialReturnSignal.returnReason === 'back') {
+      return false;
+    }
+    if (typeof initialReturnSignal.progressChanged === 'boolean') {
+      return initialReturnSignal.progressChanged;
+    }
+    return initialReturnSignal.returnReason !== 'shared' || (initialReturnSignal.changedCount ?? 0) > 0;
+  });
+  const chartSubmitLockTimerRef = React.useRef<number | null>(null);
+  const footerSubmitLockTimerRef = React.useRef<number | null>(null);
+  const chartListItemRefs = React.useRef<Record<number, HTMLLIElement | null>>({});
+  const previousChartStateRef = React.useRef<Record<number, ChartShareState> | null>(null);
+  const previousChartStateCountsRef = React.useRef<ChartStateCounts | null>(null);
 
   const payload = React.useMemo(() => {
     const normalizedPayloadHashtag = normalizeHashtag(props.detail.hashtag) || 'IIDX';
@@ -612,15 +667,21 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     }
     setSubmitToastOpen(false);
   }, []);
-  const chartStateCounts = React.useMemo(() => {
-    let shared = 0;
-    let unshared = 0;
-    let unregistered = 0;
+  const chartShareStateById = React.useMemo(() => {
+    const stateMap: Record<number, ChartShareState> = {};
     props.detail.charts.forEach((chart) => {
       const chartNeedsSend = resolveNeedsSend(chart);
       const localSaved = resolveChartLocalSaved(chart);
       const submitted = resolveChartSubmitted(localSaved, chartNeedsSend);
-      const state = resolveChartShareState(localSaved, submitted);
+      stateMap[chart.chartId] = resolveChartShareState(localSaved, submitted);
+    });
+    return stateMap;
+  }, [props.detail.charts, resolveNeedsSend]);
+  const chartStateCounts = React.useMemo<ChartStateCounts>(() => {
+    let shared = 0;
+    let unshared = 0;
+    let unregistered = 0;
+    Object.values(chartShareStateById).forEach((state) => {
       if (state === 'shared') {
         shared += 1;
         return;
@@ -631,12 +692,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       }
       unregistered += 1;
     });
-    return {
-      shared,
-      unshared,
-      unregistered,
-    };
-  }, [props.detail.charts, resolveNeedsSend]);
+    return { shared, unshared, unregistered };
+  }, [chartShareStateById]);
   const localSavedCharts = React.useMemo(
     () => props.detail.charts.filter((chart) => resolveChartLocalSaved(chart)),
     [props.detail.charts],
@@ -678,6 +735,122 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   React.useEffect(() => {
     setNeedsSendOverrides({});
   }, [props.detail]);
+
+  React.useEffect(() => {
+    if (!incomingReturnSignal) {
+      return;
+    }
+    setActiveReturnSignal(incomingReturnSignal);
+    props.onConsumeReturnSignal?.(incomingReturnSignal.token);
+  }, [incomingReturnSignal, props.onConsumeReturnSignal]);
+
+  React.useEffect(() => {
+    if (prefersReducedMotion) {
+      setSummaryProgressAnimationEnabled(false);
+      return;
+    }
+    if (!activeReturnSignal) {
+      return;
+    }
+    if (activeReturnSignal.returnReason === 'back') {
+      setSummaryProgressAnimationEnabled(false);
+      return;
+    }
+    if (typeof activeReturnSignal.progressChanged === 'boolean') {
+      setSummaryProgressAnimationEnabled(activeReturnSignal.progressChanged);
+      return;
+    }
+    if (activeReturnSignal.returnReason === 'shared') {
+      setSummaryProgressAnimationEnabled((activeReturnSignal.changedCount ?? 0) > 0);
+      return;
+    }
+    setSummaryProgressAnimationEnabled(true);
+  }, [activeReturnSignal, prefersReducedMotion]);
+
+  React.useEffect(() => {
+    const previous = previousChartStateCountsRef.current;
+    if (previous && hasChartStateCountChanged(previous, chartStateCounts) && !prefersReducedMotion) {
+      setSummaryProgressAnimationEnabled(true);
+    }
+    previousChartStateCountsRef.current = chartStateCounts;
+  }, [chartStateCounts, prefersReducedMotion]);
+
+  React.useEffect(() => {
+    const previous = previousChartStateRef.current;
+    if (!previous) {
+      previousChartStateRef.current = chartShareStateById;
+      return;
+    }
+
+    const changedChartIds: number[] = [];
+    Object.entries(chartShareStateById).forEach(([chartIdRaw, nextState]) => {
+      const chartId = Number(chartIdRaw);
+      const prevState = previous[chartId];
+      if (prevState && prevState !== nextState) {
+        changedChartIds.push(chartId);
+      }
+    });
+    previousChartStateRef.current = chartShareStateById;
+
+    if (changedChartIds.length === 0 || prefersReducedMotion) {
+      return;
+    }
+    setStatusFadeTokens((current) => {
+      const next = { ...current };
+      changedChartIds.forEach((chartId) => {
+        next[chartId] = (next[chartId] ?? 0) + 1;
+      });
+      return next;
+    });
+  }, [chartShareStateById, prefersReducedMotion]);
+
+  React.useEffect(() => {
+    if (!activeReturnSignal || (activeReturnSignal.returnReason !== 'saved' && activeReturnSignal.returnReason !== 'replaced')) {
+      return;
+    }
+    if (!activeReturnSignal.changedChartId) {
+      return;
+    }
+    const changedChartId = Number.parseInt(activeReturnSignal.changedChartId, 10);
+    if (!Number.isFinite(changedChartId)) {
+      return;
+    }
+    const target = chartListItemRefs.current[changedChartId];
+    if (!target) {
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const isOutsideViewport = rect.bottom < 0 || rect.top > viewportHeight;
+    if (isOutsideViewport) {
+      target.scrollIntoView({
+        block: 'center',
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    }
+
+    setHighlightedChartId(changedChartId);
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedChartId((current) => (current === changedChartId ? null : current));
+    }, prefersReducedMotion ? 80 : 600);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeReturnSignal, prefersReducedMotion]);
+
+  React.useEffect(
+    () => () => {
+      if (chartSubmitLockTimerRef.current !== null) {
+        window.clearTimeout(chartSubmitLockTimerRef.current);
+      }
+      if (footerSubmitLockTimerRef.current !== null) {
+        window.clearTimeout(footerSubmitLockTimerRef.current);
+      }
+    },
+    [],
+  );
 
   React.useEffect(() => {
     if (!shareDialogOpen) {
@@ -842,6 +1015,39 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     setPreviewZoomOpen(false);
   }, []);
 
+  const openSubmitPageWithLock = React.useCallback(
+    (chartId: number) => {
+      if (chartSubmitLocked) {
+        return;
+      }
+      setChartSubmitLocked(true);
+      if (chartSubmitLockTimerRef.current !== null) {
+        window.clearTimeout(chartSubmitLockTimerRef.current);
+      }
+      chartSubmitLockTimerRef.current = window.setTimeout(() => {
+        setChartSubmitLocked(false);
+        chartSubmitLockTimerRef.current = null;
+      }, 200);
+      props.onOpenSubmit(chartId);
+    },
+    [chartSubmitLocked, props],
+  );
+
+  const openSubmitDialogWithLock = React.useCallback(() => {
+    if (!canOpenSubmitDialog || footerSubmitLocked) {
+      return;
+    }
+    setFooterSubmitLocked(true);
+    if (footerSubmitLockTimerRef.current !== null) {
+      window.clearTimeout(footerSubmitLockTimerRef.current);
+    }
+    footerSubmitLockTimerRef.current = window.setTimeout(() => {
+      setFooterSubmitLocked(false);
+      footerSubmitLockTimerRef.current = null;
+    }, 200);
+    setSubmitDialogOpen(true);
+  }, [canOpenSubmitDialog, footerSubmitLocked]);
+
   const collectSubmissionFiles = React.useCallback(async (targetCharts: TournamentDetailChart[]): Promise<File[]> => {
     const files: File[] = [];
     for (const chart of targetCharts) {
@@ -884,7 +1090,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   }, []);
 
   const markChartsAsShared = React.useCallback(
-    async (chartIds: number[], options?: { allowUndo?: boolean }) => {
+    async (chartIds: number[], options?: { allowUndo?: boolean; changedCount?: number }) => {
       await appDb.markEvidenceSendCompleted(props.detail.tournamentUuid, chartIds);
       setNeedsSendOverrides((current) => {
         const next = { ...current };
@@ -898,6 +1104,14 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         severity: 'success',
         text: t('tournament_detail.submit_dialog.notice.marked_shared'),
         ...(options?.allowUndo === false ? {} : { undoChartIds: [...chartIds] }),
+      });
+      const changedCount = Math.max(0, options?.changedCount ?? chartIds.length);
+      setActiveReturnSignal({
+        token: crypto.randomUUID(),
+        tournamentUuid: props.detail.tournamentUuid,
+        returnReason: 'shared',
+        changedCount,
+        progressChanged: changedCount > 0,
       });
       props.onReportDebugError(null);
     },
@@ -944,6 +1158,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     setSubmitBusy(true);
     const targetCharts = [...submitTargetCharts];
     const targetChartIds = targetCharts.map((chart) => chart.chartId);
+    const changedCount = targetCharts.reduce((count, chart) => (resolveNeedsSend(chart) ? count + 1 : count), 0);
     const allowUndo = submitMode === 'submit';
     try {
       const files = await collectSubmissionFiles(targetCharts);
@@ -957,7 +1172,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             text: submitMessageText,
             files,
           });
-          await markChartsAsShared(targetChartIds, { allowUndo });
+          await markChartsAsShared(targetChartIds, { allowUndo, changedCount });
           return;
         } catch (error: unknown) {
           if (error instanceof DOMException && error.name === 'AbortError') {
@@ -975,7 +1190,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         props.onReportDebugError(message);
         return;
       }
-      await markChartsAsShared(targetChartIds, { allowUndo });
+      await markChartsAsShared(targetChartIds, { allowUndo, changedCount });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.share_images_failed');
       showSubmitToast({ severity: 'error', text: message });
@@ -995,6 +1210,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     submitTargetChartIds,
     submitTargetCharts,
     submitMessageText,
+    resolveNeedsSend,
     t,
   ]);
 
@@ -1010,6 +1226,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         sharedCount={chartStateCounts.shared}
         unsharedCount={chartStateCounts.unshared}
         unregisteredCount={chartStateCounts.unregistered}
+        prefersReducedMotion={prefersReducedMotion}
+        animateProgress={summaryProgressAnimationEnabled}
         shareAction={
           !props.detail.isImported ? (
             <div className="detailShareArea">
@@ -1046,14 +1264,30 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
             const submitted = resolveChartSubmitted(localSaved, chartNeedsSend);
             const chartShareState = resolveChartShareState(localSaved, submitted);
             const chartHasIssue = Boolean(chartStatus.errorText);
+            const isReturnHighlighted = highlightedChartId === chart.chartId;
             return (
-              <li key={chart.chartId}>
+              <li
+                key={chart.chartId}
+                data-chart-id={String(chart.chartId)}
+                className={isReturnHighlighted ? 'detailChartListRow detailChartListRow-highlighted' : 'detailChartListRow'}
+                style={
+                  isReturnHighlighted
+                    ? ({
+                        '--detail-return-highlight': theme.palette.action.selected,
+                      } as React.CSSProperties)
+                    : undefined
+                }
+                ref={(node) => {
+                  chartListItemRefs.current[chart.chartId] = node;
+                }}
+              >
                 <ChartCard
                   title={chart.title}
                   playStyle={chart.playStyle}
                   difficulty={chart.difficulty}
                   level={levelText}
                   status={chartShareState}
+                  statusAnimationToken={statusFadeTokens[chart.chartId]}
                   statusTestId="tournament-detail-chart-status-label"
                   metaTestId="tournament-detail-chart-meta-line"
                   note={chartStatus.errorText}
@@ -1067,7 +1301,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                         className={`chartSubmitButton chartSubmitButton-${chartStatus.actionTone}`}
                         data-testid="tournament-detail-chart-submit-button"
                         data-chart-action-tone={chartStatus.actionTone}
-                        onClick={() => props.onOpenSubmit(chart.chartId)}
+                        onClick={() => openSubmitPageWithLock(chart.chartId)}
+                        disabled={chartSubmitLocked}
                       >
                         {chartStatus.actionLabel}
                       </button>
@@ -1308,13 +1543,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
               type="button"
               className={`detailSubmitPrimaryButton ${submitMode === 'submit' && canOpenSubmitDialog ? 'emphasis' : ''}`}
               data-testid="tournament-detail-submit-open-button"
-              onClick={() => {
-                if (!canOpenSubmitDialog) {
-                  return;
-                }
-                setSubmitDialogOpen(true);
-              }}
-              disabled={!canOpenSubmitDialog}
+              onClick={openSubmitDialogWithLock}
+              disabled={!canOpenSubmitDialog || footerSubmitLocked}
             >
               {submitButtonLabel}
             </button>

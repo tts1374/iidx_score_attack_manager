@@ -23,6 +23,7 @@ interface TournamentSummaryCardProps {
   onOpenDetail?: (() => void) | undefined;
   shareAction?: React.ReactNode;
   prefersReducedMotion?: boolean;
+  animateProgress?: boolean;
 }
 
 function joinClasses(...values: Array<string | undefined | null | false>): string {
@@ -56,7 +57,7 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
   const progressBarTransition = React.useMemo(
     () =>
       theme.transitions.create('width', {
-        duration: prefersReducedMotion ? 0 : 280,
+        duration: prefersReducedMotion ? 0 : 200,
         easing: theme.transitions.easing.easeOut,
       }),
     [prefersReducedMotion, theme],
@@ -64,9 +65,8 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
   const progressValueTransition = React.useMemo(
     () =>
       theme.transitions.create('opacity', {
-        duration: prefersReducedMotion ? 0 : 150,
+        duration: prefersReducedMotion ? 0 : 200,
         easing: theme.transitions.easing.easeOut,
-        delay: prefersReducedMotion ? 0 : 50,
       }),
     [prefersReducedMotion, theme],
   );
@@ -93,7 +93,7 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
   const showPeriod = props.variant !== 'list';
   const showIncompleteLabels = (props.variant === 'list' || props.variant === 'detail') && (safeUnregisteredCount > 0 || safeUnsharedCount > 0);
   const showProgress = props.variant === 'list' || props.variant === 'detail';
-  const shouldAnimateProgress = props.variant === 'list' && !prefersReducedMotion;
+  const shouldAnimateProgress = Boolean(props.animateProgress ?? (props.variant === 'list')) && !prefersReducedMotion;
   const submittedCount = safeSharedCount + safeUnsharedCount;
   const progressValueText = `${submittedCount}/${totalCount}`;
   const showDetailLink = props.variant === 'list';

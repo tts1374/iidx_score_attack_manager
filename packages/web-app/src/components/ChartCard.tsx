@@ -22,6 +22,7 @@ interface ChartCardProps {
   statusTestId?: string | undefined;
   metaTestId?: string | undefined;
   variant?: ChartCardVariant | undefined;
+  statusAnimationToken?: number | undefined;
 }
 
 function joinClasses(...values: Array<string | undefined | null | false>): string {
@@ -102,6 +103,10 @@ export function ChartCard(props: ChartCardProps): JSX.Element {
 
   const showSubmitMetaStatus = variant === 'submit' && badgeStatus !== undefined && !hideSubmitBadge;
   const showLeftStatus = variant === 'detail' && badgeStatus !== undefined;
+  const detailStatusBadgeKey =
+    showLeftStatus && props.statusAnimationToken !== undefined
+      ? `detail-status-${badgeStatus}-${props.statusAnimationToken}`
+      : `detail-status-${badgeStatus}`;
   const hasActions = props.actions !== null && props.actions !== undefined;
   const useDetailMobileLayout = variant === 'detail' && isMobileViewport;
   const showInlineDetailAction = useDetailMobileLayout && hasActions;
@@ -147,7 +152,12 @@ export function ChartCard(props: ChartCardProps): JSX.Element {
           <div className={joinClasses('chartLeftStatusRow', showInlineDetailAction && 'chartLeftStatusRow-mobile')}>
             {showLeftStatus ? (
               <span
-                className={`chartStateBadge chartStateBadge-${badgeStatus}`}
+                key={detailStatusBadgeKey}
+                className={joinClasses(
+                  `chartStateBadge chartStateBadge-${badgeStatus}`,
+                  'chartStateBadge-detail',
+                  props.statusAnimationToken !== undefined && 'chartStateBadge-fade',
+                )}
                 data-testid={props.statusTestId}
                 data-chart-state={badgeStatus}
               >
