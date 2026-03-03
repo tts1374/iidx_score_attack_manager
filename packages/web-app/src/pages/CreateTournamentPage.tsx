@@ -1,6 +1,7 @@
 import React from 'react';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import type { ChartSummary, SongSummary } from '@iidx/db';
 import { PAYLOAD_VERSION, buildTournamentDefHash, normalizeHashtag, normalizeSearchText } from '@iidx/shared';
 import { Autocomplete, Box, CircularProgress, Snackbar, TextField, Typography } from '@mui/material';
@@ -812,6 +813,19 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               {t('create_tournament.step.confirm_title')}
             </h2>
             <article className="chartRowCard createConfirmInfoCard">
+              <div className="createConfirmCardHeader">
+                <button
+                  type="button"
+                  className="iconOnlyButton"
+                  aria-label={t('create_tournament.confirm.edit_basic_info')}
+                  title={t('create_tournament.confirm.edit_basic_info')}
+                  onClick={() => {
+                    setCurrentStep(0);
+                  }}
+                >
+                  <EditOutlinedIcon fontSize="small" />
+                </button>
+              </div>
               <dl className="createConfirmInfoList">
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.name.label_plain')}</dt>
@@ -845,7 +859,20 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           </section>
 
           <section className="createSection">
-            <h2 className="createSectionTitle">{t('create_tournament.confirm.chart_list_title')}</h2>
+            <div className="createSectionHeading">
+              <h2 className="createSectionTitle">{t('create_tournament.confirm.chart_list_title')}</h2>
+              <button
+                type="button"
+                className="iconOnlyButton"
+                aria-label={t('create_tournament.confirm.edit_chart_list')}
+                title={t('create_tournament.confirm.edit_chart_list')}
+                onClick={() => {
+                  setCurrentStep(1);
+                }}
+              >
+                <EditOutlinedIcon fontSize="small" />
+              </button>
+            </div>
             <div className="chartRows createConfirmChartRows">
               {rows.map((row, index) => {
                 const selectedChart = resolveSelectedChartOption(row);

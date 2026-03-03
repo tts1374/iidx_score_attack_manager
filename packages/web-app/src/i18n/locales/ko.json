@@ -527,6 +527,8 @@
       "chart_list_title": "채보 목록",
       "chart_title": "채보 {{index}}",
       "final_notice": "확정 후에는 내용을 수정할 수 없습니다.",
+      "edit_basic_info": "기본 정보를 수정",
+      "edit_chart_list": "채보를 수정",
       "tournament_id_copied": "복사했습니다.",
       "tournament_id_copy_failed": "복사에 실패했습니다.",
       "debug": {

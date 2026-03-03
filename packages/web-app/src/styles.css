@@ -1141,6 +1141,11 @@ label {
   padding: 16px;
 }
 
+.createConfirmCardHeader {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .createConfirmInfoList {
   margin: 0;
   display: grid;

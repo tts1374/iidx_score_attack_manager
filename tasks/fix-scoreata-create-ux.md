@@ -20,6 +20,7 @@
 - 譜面ステップのステータス変化連動スクロールを停止（無効譜面への明示スクロールは維持）。
 - 大会IDコピー時にSnackbar成功/失敗通知を表示（2秒、自動クローズ、連打時再表示）。
 - 譜面ステップの難易度ボタンをタップしやすいサイズへ調整（`min-height: 44px`, `min-width: 48px`、横gap拡大）。
+- 確認画面に編集ショートカットを追加（基本情報カード右上アイコン→Step1、譜面一覧ヘッダ右上アイコン→Step2）。
 - `owner=""` を許容するため shared バリデーション/正規化を調整。
 - 関連ユニットテストを更新。
 
@@ -43,6 +44,7 @@
   - def hash算出時の `owner` を空文字固定。
 - `packages/web-app/src/styles.css`
   - 難易度ボタンの最小サイズと間隔を調整。
+  - 確認画面の編集アイコン配置用スタイルを追加。
 - `packages/web-app/src/pages/create-tournament-draft.ts`
   - 開催者必須バリデーション除外。
   - 未入力項目ラベル/完了カウントから開催者除外。
@@ -60,7 +62,7 @@
 - `packages/web-app/src/i18n/locales/ja.json`
 - `packages/web-app/src/i18n/locales/en.json`
 - `packages/web-app/src/i18n/locales/ko.json`
-  - 大会IDコピーSnackbar文言の追加（`create_tournament.confirm.*`）。
+  - 大会IDコピーSnackbar文言と確認画面編集アイコンの文言追加（`create_tournament.confirm.*`）。
 
 ## テスト観点
 - 基本情報:
@@ -77,6 +79,8 @@
   - 大会IDコピー成功時にSnackbar表示（2秒）。
   - 失敗時に失敗Snackbar表示。
   - 連打で表示が破綻しない（再表示/タイマー更新）。
+  - 基本情報カード右上の編集アイコン押下で基本情報ステップへ遷移する。
+  - 譜面一覧セクション右上の編集アイコン押下で譜面ステップへ遷移する。
 - 譜面:
   - 難易度ボタンが `44px` 以上の高さ・`48px` 以上の幅で表示される。
   - ボタンの横間隔が拡張され、誤タップしにくいこと。
@@ -94,3 +98,4 @@
 2. `feat(web-app): remove owner field from create flow and add copy snackbar`
 3. `feat(shared): allow empty owner for tournament validation/normalization`
 4. `test: update create draft/shared tests for owner-empty behavior and copy feedback paths`
+5. `fix(web-app): add confirm-step edit shortcuts to basic info and chart list sections`
