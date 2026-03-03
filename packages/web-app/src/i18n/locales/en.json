@@ -1002,13 +1002,13 @@
   },
   "whats_new": {
     "modal": {
-      "title": "What's New (v0.9.0)",
+      "title": "What's New (v0.9.1)",
       "description": "This update includes:"
     },
     "items": [
-      "Refined the overall screen flow and organization.",
-      "Added support for Japanese, English, and Korean.",
-      "Added a dark theme."
+      "Improved sharing UX with clearer QR share dialog visuals and better share image quality.",
+      "Streamlined tournament creation by removing owner input and refining hashtag autofill and confirm-step shortcuts.",
+      "Polished home/detail microinteractions and broadened theme consistency for steadier navigation."
     ]
   }
 }
