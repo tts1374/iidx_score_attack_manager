@@ -487,17 +487,20 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 placeholder={t('create_tournament.field.name.placeholder')}
                 onChange={(event) => {
                   const value = event.target.value;
+                  props.onDraftChange((current) => ({ ...current, name: value }));
+                }}
+                onBlur={(event) => {
+                  const value = event.target.value;
                   props.onDraftChange((current) => {
                     if (isTagManuallyEdited || current.hashtag !== '') {
-                      return { ...current, name: value };
+                      return current;
                     }
                     const autoHashtag = buildInitialHashtagFromName(value);
                     if (!autoHashtag) {
-                      return { ...current, name: value };
+                      return current;
                     }
                     return {
                       ...current,
-                      name: value,
                       hashtag: autoHashtag,
                     };
                   });
