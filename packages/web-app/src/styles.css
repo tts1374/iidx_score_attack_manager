@@ -596,6 +596,28 @@ label {
   margin: 0;
   font-weight: 600;
   color: var(--home-filter-sheet-muted);
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.homeFilterResultCountValue {
+  display: inline-block;
+  min-width: 2ch;
+  text-align: right;
+}
+
+.homeFilterResultCountValue-animated {
+  animation: homeFilterResultCountFade 150ms ease 50ms both;
+}
+
+@keyframes homeFilterResultCountFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .homeFilterResetLink {
@@ -647,6 +669,29 @@ label {
   gap: 16px;
 }
 
+.homeCardListItem {
+  list-style: none;
+  will-change: transform;
+}
+
+.homeCardPresence {
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.homeCardPresenceContent {
+  overflow: hidden;
+}
+
+.homeCardPresence-entering {
+  opacity: 0;
+}
+
+.homeCardPresence-exiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .tournamentCard {
   width: 100%;
   text-align: left;
@@ -657,11 +702,20 @@ label {
   display: grid;
   gap: 10px;
   box-shadow: var(--shadow);
+  cursor: pointer;
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
 
 .tournamentCard:hover {
   background: var(--surface-2);
   box-shadow: var(--shadow);
+}
+
+.tournamentCard:active {
+  transform: scale(0.98);
+  transition-duration: 120ms;
 }
 
 .tournamentCard:focus-visible {
@@ -935,6 +989,8 @@ label {
 .stateDistributionBar > .progressBarSegment-sendWaiting,
 .stateDistributionBar > .progressBarSegment-unregistered {
   height: 100%;
+  width: 0;
+  transition: width 280ms ease-out;
 }
 
 .stateDistributionBar > .progressBarSegment-shared {
@@ -955,6 +1011,24 @@ label {
   background: linear-gradient(90deg, var(--accent-strong), var(--progress-gradient-end));
 }
 
+.tournamentSummaryProgressWrap {
+  display: grid;
+  gap: 4px;
+}
+
+.tournamentProgressValue {
+  justify-self: end;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 150ms ease 50ms;
+}
+
+.tournamentProgressValue-visible {
+  opacity: 1;
+}
+
 .cardNavigationHint {
   display: inline-flex;
   justify-self: end;
@@ -965,10 +1039,28 @@ label {
   font-weight: 700;
 }
 
+.cardNavigationHintLabel {
+  text-decoration: none;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+
 .cardArrow {
   color: var(--accent);
   font-size: 17px;
   line-height: 1;
+  transform: translateX(0);
+  transition: transform 130ms ease;
+}
+
+.tournamentCard:hover .cardNavigationHintLabel,
+.tournamentCard:focus-visible .cardNavigationHintLabel {
+  text-decoration: underline;
+}
+
+.tournamentCard:hover .cardArrow,
+.tournamentCard:focus-visible .cardArrow {
+  transform: translateX(4px);
 }
 
 .formGrid {
@@ -2207,6 +2299,37 @@ label {
 .settingsGrid dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.homeFabPlusIcon-open {
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homeCardPresence,
+  .homeCardListItem,
+  .tournamentCard,
+  .stateDistributionBar > .progressBarSegment-shared,
+  .stateDistributionBar > .progressBarSegment-sendWaiting,
+  .stateDistributionBar > .progressBarSegment-unregistered,
+  .tournamentProgressValue,
+  .cardArrow,
+  .homeFilterResultCountValue-animated,
+  .homeFabPlusIcon {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .homeCardPresence-entering,
+  .homeCardPresence-exiting {
+    opacity: 1;
+  }
+
+  .tournamentCard:active {
+    transform: scale(1);
+  }
 }
 
 @media (max-width: 720px) {

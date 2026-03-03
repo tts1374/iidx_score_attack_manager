@@ -1,5 +1,6 @@
 import React from 'react';
 import { daysUntilStart } from '@iidx/shared';
+import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 
 import type { TournamentStatus } from '../utils/tournament-status';
@@ -21,6 +22,7 @@ interface TournamentSummaryCardProps {
   cardClassName?: string;
   onOpenDetail?: (() => void) | undefined;
   shareAction?: React.ReactNode;
+  prefersReducedMotion?: boolean;
 }
 
 function joinClasses(...values: Array<string | undefined | null | false>): string {
@@ -49,6 +51,25 @@ function resolveRelativeTone(status: TournamentStatus): RelativeTone {
 
 export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.Element {
   const { t } = useTranslation();
+  const theme = useTheme();
+  const prefersReducedMotion = props.prefersReducedMotion ?? false;
+  const progressBarTransition = React.useMemo(
+    () =>
+      theme.transitions.create('width', {
+        duration: prefersReducedMotion ? 0 : 280,
+        easing: theme.transitions.easing.easeOut,
+      }),
+    [prefersReducedMotion, theme],
+  );
+  const progressValueTransition = React.useMemo(
+    () =>
+      theme.transitions.create('opacity', {
+        duration: prefersReducedMotion ? 0 : 150,
+        easing: theme.transitions.easing.easeOut,
+        delay: prefersReducedMotion ? 0 : 50,
+      }),
+    [prefersReducedMotion, theme],
+  );
   const statusInfo = React.useMemo(
     () => resolveTournamentCardStatus(props.startDate, props.endDate, props.todayDate),
     [props.endDate, props.startDate, props.todayDate],
@@ -72,8 +93,56 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
   const showPeriod = props.variant !== 'list';
   const showIncompleteLabels = (props.variant === 'list' || props.variant === 'detail') && (safeUnregisteredCount > 0 || safeUnsharedCount > 0);
   const showProgress = props.variant === 'list' || props.variant === 'detail';
+  const shouldAnimateProgress = props.variant === 'list' && !prefersReducedMotion;
+  const submittedCount = safeSharedCount + safeUnsharedCount;
+  const progressValueText = `${submittedCount}/${totalCount}`;
   const showDetailLink = props.variant === 'list';
   const showShareAction = props.variant === 'detail' && Boolean(props.shareAction);
+  const [displayedProgress, setDisplayedProgress] = React.useState(() => ({
+    shared: shouldAnimateProgress ? 0 : sharedPercent,
+    unshared: shouldAnimateProgress ? 0 : unsharedPercent,
+    unregistered: shouldAnimateProgress ? 0 : unregisteredPercent,
+  }));
+  const [progressValueVisible, setProgressValueVisible] = React.useState(() => !showProgress || !shouldAnimateProgress);
+
+  React.useEffect(() => {
+    if (!shouldAnimateProgress) {
+      setDisplayedProgress({
+        shared: sharedPercent,
+        unshared: unsharedPercent,
+        unregistered: unregisteredPercent,
+      });
+      return;
+    }
+    const frameId = window.requestAnimationFrame(() => {
+      setDisplayedProgress({
+        shared: sharedPercent,
+        unshared: unsharedPercent,
+        unregistered: unregisteredPercent,
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [sharedPercent, shouldAnimateProgress, unsharedPercent, unregisteredPercent]);
+
+  React.useEffect(() => {
+    if (!showProgress) {
+      setProgressValueVisible(false);
+      return;
+    }
+    if (!shouldAnimateProgress) {
+      setProgressValueVisible(true);
+      return;
+    }
+    setProgressValueVisible(false);
+    const timeoutId = window.setTimeout(() => {
+      setProgressValueVisible(true);
+    }, 50);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [showProgress, shouldAnimateProgress, submittedCount, totalCount]);
   const baseClassName =
     props.variant === 'list'
       ? 'tournamentCard tournamentSummaryCard tournamentSummaryCard-list'
@@ -114,15 +183,24 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
           </div>
         ) : null}
         {showProgress ? (
-          <div className="progressBar stateDistributionBar tournamentSummaryProgress" aria-hidden>
-            <div className="progressBarSegment-shared" style={{ width: `${sharedPercent}%` }} />
-            <div className="progressBarSegment-sendWaiting" style={{ width: `${unsharedPercent}%` }} />
-            <div className="progressBarSegment-unregistered" style={{ width: `${unregisteredPercent}%` }} />
+          <div className="tournamentSummaryProgressWrap">
+            <div className="progressBar stateDistributionBar tournamentSummaryProgress" aria-hidden>
+              <div className="progressBarSegment-shared" style={{ width: `${displayedProgress.shared}%`, transition: progressBarTransition }} />
+              <div className="progressBarSegment-sendWaiting" style={{ width: `${displayedProgress.unshared}%`, transition: progressBarTransition }} />
+              <div className="progressBarSegment-unregistered" style={{ width: `${displayedProgress.unregistered}%`, transition: progressBarTransition }} />
+            </div>
+            <span
+              className={joinClasses('tournamentProgressValue', progressValueVisible && 'tournamentProgressValue-visible')}
+              style={{ transition: progressValueTransition }}
+              aria-hidden
+            >
+              {progressValueText}
+            </span>
           </div>
         ) : null}
         {showDetailLink ? (
           <div className="cardNavigationHint">
-            <span>{t('home.action.view_detail')}</span>
+            <span className="cardNavigationHintLabel">{t('home.action.view_detail')}</span>
             <span className="cardArrow" aria-hidden>
               →
             </span>
