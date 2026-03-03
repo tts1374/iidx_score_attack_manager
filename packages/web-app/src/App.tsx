@@ -49,7 +49,7 @@ import { ImportConfirmPage } from './pages/ImportConfirmPage';
 import { ImportTournamentPage } from './pages/ImportTournamentPage';
 import { SettingsPage, type AppInfoCardData, type AppSwStatus } from './pages/SettingsPage';
 import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
-import { TournamentDetailPage } from './pages/TournamentDetailPage';
+import { TournamentDetailPage, type TournamentDetailReturnSignal } from './pages/TournamentDetailPage';
 import {
   buildCreateTournamentInput,
   CREATE_TOURNAMENT_DRAFT_STORAGE_KEY,
@@ -202,8 +202,37 @@ type RouteState =
   | { name: 'import-confirm' }
   | { name: 'create' }
   | { name: 'detail'; tournamentUuid: string }
-  | { name: 'submit'; tournamentUuid: string; chartId: number }
+  | { name: 'submit'; tournamentUuid: string; chartId: number; progressSnapshot: DetailProgressSnapshot }
   | { name: 'settings' };
+
+interface DetailProgressSnapshot {
+  shared: number;
+  unshared: number;
+  unregistered: number;
+}
+
+function resolveDetailProgressSnapshot(detail: TournamentDetailItem): DetailProgressSnapshot {
+  let shared = 0;
+  let unshared = 0;
+  let unregistered = 0;
+  detail.charts.forEach((chart) => {
+    const localSaved = chart.updateSeq > 0 && !chart.fileDeleted;
+    if (!localSaved) {
+      unregistered += 1;
+      return;
+    }
+    if (chart.needsSend) {
+      unshared += 1;
+      return;
+    }
+    shared += 1;
+  });
+  return { shared, unshared, unregistered };
+}
+
+function hasDetailProgressChanged(previous: DetailProgressSnapshot, next: DetailProgressSnapshot): boolean {
+  return previous.shared !== next.shared || previous.unshared !== next.unshared || previous.unregistered !== next.unregistered;
+}
 
 function normalizePathname(pathname: string): string {
   if (pathname.length > 1 && pathname.endsWith('/')) {
@@ -1057,6 +1086,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [homeFilterFocusSection, setHomeFilterFocusSection] = React.useState<HomeFilterSheetFocusSection>(null);
   const [homeQueryReady, setHomeQueryReady] = React.useState(false);
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
+  const [detailReturnSignal, setDetailReturnSignal] = React.useState<TournamentDetailReturnSignal | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [songMasterReady, setSongMasterReady] = React.useState(false);
   const [songMasterMeta, setSongMasterMeta] = React.useState<Record<string, string | null>>(INITIAL_SONG_MASTER_META);
@@ -1521,6 +1551,28 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       return previous.slice(0, -1);
     });
   }, []);
+
+  const publishDetailReturnSignal = React.useCallback((next: Omit<TournamentDetailReturnSignal, 'token'>) => {
+    setDetailReturnSignal({
+      ...next,
+      token: crypto.randomUUID(),
+    });
+  }, []);
+
+  const consumeDetailReturnSignal = React.useCallback((token: string) => {
+    setDetailReturnSignal((current) => (current && current.token === token ? null : current));
+  }, []);
+
+  const goBack = React.useCallback(() => {
+    if (route.name === 'submit') {
+      publishDetailReturnSignal({
+        tournamentUuid: route.tournamentUuid,
+        returnReason: 'back',
+        progressChanged: false,
+      });
+    }
+    popRoute();
+  }, [popRoute, publishDetailReturnSignal, route]);
 
   const resetRoute = React.useCallback((next: RouteState) => {
     setRouteStack([next]);
@@ -2060,6 +2112,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         resetRoute({ name: 'home' });
         return;
       }
+      setDetailReturnSignal(null);
       replaceRoute({ name: 'detail', tournamentUuid: result.tournamentUuid });
     },
     [appDb, pushToast, refreshTournamentList, reloadDetail, replaceRoute, resetRoute, t],
@@ -2261,9 +2314,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, refreshTournamentList, t],
   );
 
+  const submitRoute = route.name === 'submit' ? route : null;
   const submitChart =
-    route.name === 'submit' && detail
-      ? detail.charts.find((chart) => chart.chartId === route.chartId) ?? null
+    submitRoute && detail
+      ? detail.charts.find((chart) => chart.chartId === submitRoute.chartId) ?? null
       : null;
 
   const pageTitle = React.useMemo(() => {
@@ -2674,7 +2728,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 >
                   <Box sx={{ minWidth: 40, display: 'flex', justifyContent: 'flex-start' }}>
                     {canGoBack ? (
-                      <IconButton edge="start" color="inherit" aria-label="back" onClick={popRoute}>
+                      <IconButton edge="start" color="inherit" aria-label="back" onClick={goBack}>
                         <ArrowBackIcon />
                       </IconButton>
                     ) : null}
@@ -2687,7 +2741,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               ) : (
                 <>
                   {canGoBack ? (
-                    <IconButton edge="start" color="inherit" aria-label="back" onClick={popRoute} sx={{ mr: 1 }}>
+                    <IconButton edge="start" color="inherit" aria-label="back" onClick={goBack} sx={{ mr: 1 }}>
                       <ArrowBackIcon />
                     </IconButton>
                   ) : null}
@@ -2840,6 +2894,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                 if (!loaded) {
                   return;
                 }
+                setDetailReturnSignal(null);
                 pushRoute({ name: 'detail', tournamentUuid });
               }}
             />
@@ -2888,7 +2943,12 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             detail={detail}
             todayDate={todayDate}
             onOpenSubmit={(chartId) => {
-              pushRoute({ name: 'submit', tournamentUuid: detail.tournamentUuid, chartId });
+              pushRoute({
+                name: 'submit',
+                tournamentUuid: detail.tournamentUuid,
+                chartId,
+                progressSnapshot: resolveDetailProgressSnapshot(detail),
+              });
             }}
             onUpdated={async () => {
               await reloadDetail(detail.tournamentUuid);
@@ -2898,17 +2958,29 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             debugModeEnabled={debugModeEnabled}
             debugLastError={detailTechnicalInfo?.last_error ?? null}
             onReportDebugError={setDetailDebugLastError}
+            returnSignal={detailReturnSignal && detailReturnSignal.tournamentUuid === detail.tournamentUuid ? detailReturnSignal : null}
+            onConsumeReturnSignal={consumeDetailReturnSignal}
+            prefersReducedMotion={prefersReducedMotion}
           />
         )}
 
-        {route.name === 'submit' && detail && submitChart && (
+        {submitRoute && detail && submitChart && (
           <SubmitEvidencePage
             detail={detail}
             chart={submitChart}
             onSaved={async (reason) => {
-              await reloadDetail(detail.tournamentUuid);
+              const nextDetail = await reloadDetail(detail.tournamentUuid);
               await refreshTournamentList();
-              if (reason === 'submit') {
+              if (reason === 'saved' || reason === 'replaced') {
+                const nextSnapshot = nextDetail ? resolveDetailProgressSnapshot(nextDetail) : submitRoute.progressSnapshot;
+                publishDetailReturnSignal({
+                  tournamentUuid: detail.tournamentUuid,
+                  returnReason: reason,
+                  changedChartId: String(submitRoute.chartId),
+                  progressChanged: hasDetailProgressChanged(submitRoute.progressSnapshot, nextSnapshot),
+                });
+              }
+              if (nextDetail) {
                 popRoute();
               }
             }}

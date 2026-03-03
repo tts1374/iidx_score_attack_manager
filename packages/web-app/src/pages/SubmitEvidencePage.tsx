@@ -10,7 +10,7 @@ import { reencodeImageToJpeg, toSafeArrayBuffer } from '../utils/image';
 interface SubmitEvidencePageProps {
   detail: TournamentDetailItem;
   chart: TournamentDetailChart;
-  onSaved: (reason: 'submit' | 'delete') => Promise<void> | void;
+  onSaved: (reason: 'saved' | 'replaced') => Promise<void> | void;
 }
 
 enum SubmitState {
@@ -168,6 +168,7 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
       if (submitState === SubmitState.PROCESSING) {
         return;
       }
+      const saveReason: 'saved' | 'replaced' = localSaved ? 'replaced' : 'saved';
       manualSelectionRef.current = true;
       setSubmitState(SubmitState.PROCESSING);
       setErrorReasonKey(null);
@@ -202,13 +203,13 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
         setPreviewFromBlob(encoded.blob);
         setSubmitState(SubmitState.IDLE);
 
-        await Promise.resolve(props.onSaved('submit'));
+        await Promise.resolve(props.onSaved(saveReason));
       } catch (error) {
         setSubmitState(SubmitState.ERROR);
         setErrorReasonKey(resolveFailureReasonKey(error));
       }
     },
-    [appDb, opfs, props, setPreviewFromBlob, submitState],
+    [appDb, localSaved, opfs, props, setPreviewFromBlob, submitState],
   );
 
   const onSelectFile = React.useCallback(
