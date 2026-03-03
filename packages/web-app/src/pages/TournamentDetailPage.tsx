@@ -602,6 +602,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const { t } = useTranslation();
   const theme = useTheme();
   const prefersReducedMotion = props.prefersReducedMotion ?? useMediaQuery('(prefers-reduced-motion: reduce)');
+  const prefersDarkColorScheme = useMediaQuery('(prefers-color-scheme: dark)');
   const incomingReturnSignal =
     props.returnSignal && props.returnSignal.tournamentUuid === props.detail.tournamentUuid ? props.returnSignal : null;
   const initialReturnSignal = incomingReturnSignal;
@@ -767,6 +768,23 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const isActivePeriod = statusInfo.status.startsWith('active');
   const canOpenSubmitDialog = submitTargetChartIds.length > 0;
   const shareUnavailable = shareImageStatus !== 'ready' || !shareImageBlob;
+  const shareDialogIsDark = theme.palette.mode === 'dark' || prefersDarkColorScheme;
+  const shareDialogFilter = shareDialogIsDark ? 'blur(12px) saturate(1.18)' : 'blur(12px)';
+  const shareDialogPaperSx = {
+    backdropFilter: shareDialogFilter,
+    WebkitBackdropFilter: shareDialogFilter,
+    border: '1px solid',
+    borderColor: shareDialogIsDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
+    backgroundColor: shareDialogIsDark ? 'rgba(17, 24, 39, 0.1)' : 'rgba(255, 255, 255, 0.70)',
+    backgroundImage: shareDialogIsDark
+      ? 'linear-gradient(140deg, rgba(110, 168, 255, 0.18), rgba(17, 24, 39, 0.74) 52%, rgba(37, 99, 235, 0.22))'
+      : 'none',
+    boxShadow: shareDialogIsDark ? '0 14px 40px rgba(0, 0, 0, 0.42)' : '0 14px 40px rgba(15, 23, 42, 0.18)',
+    borderRadius: 'var(--mui-shape-borderRadius)',
+  };
+  const shareDialogBackdropSx = {
+    backgroundColor: shareDialogIsDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.25)',
+  };
 
   React.useEffect(() => {
     setNeedsSendOverrides({});
@@ -1357,6 +1375,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         fullWidth
         maxWidth="sm"
         data-testid="tournament-detail-share-dialog"
+        PaperProps={{ sx: shareDialogPaperSx }}
+        slotProps={{ backdrop: { sx: shareDialogBackdropSx } }}
       >
         <DialogTitle sx={{ pr: 6 }}>
           {t('tournament_detail.action.share_tournament')}
@@ -1386,7 +1406,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
                 p: 1.5,
                 maxHeight: { xs: 420, sm: 520 },
                 overflowY: 'auto',
-                backgroundColor: 'var(--surface-2)',
+                backgroundColor: theme.palette.background.paper,
               }}
             >
               {shareImageStatus === 'loading' ? (
@@ -1494,21 +1514,63 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         </DialogActions>
       </Dialog>
 
-      <Dialog open={previewZoomOpen} onClose={() => setPreviewZoomOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>{t('tournament_detail.share_dialog.preview_zoom_title')}</DialogTitle>
-        <DialogContent dividers>
+      <Dialog
+        open={previewZoomOpen}
+        onClose={() => setPreviewZoomOpen(false)}
+        fullScreen
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.default,
+            backgroundImage: 'none',
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
+          },
+        }}
+      >
+        <IconButton
+          aria-label={t('tournament_detail.share_dialog.close_aria_label')}
+          onClick={() => setPreviewZoomOpen(false)}
+          sx={{
+            position: 'fixed',
+            top: { xs: 12, sm: 16 },
+            right: { xs: 12, sm: 16 },
+            width: 44,
+            height: 44,
+            zIndex: (muiTheme) => muiTheme.zIndex.modal + 1,
+            backgroundColor: shareDialogIsDark ? 'rgba(15, 23, 42, 0.62)' : 'rgba(15, 23, 42, 0.46)',
+            color: '#ffffff',
+            '&:hover': {
+              backgroundColor: shareDialogIsDark ? 'rgba(15, 23, 42, 0.76)' : 'rgba(15, 23, 42, 0.62)',
+            },
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <DialogContent
+          sx={{
+            p: 2,
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
           {shareImagePreviewUrl ? (
             <Box
               component="img"
               src={shareImagePreviewUrl}
               alt={t('tournament_detail.share_dialog.preview_zoom_alt')}
-              sx={{ width: '100%', display: 'block' }}
+              sx={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                width: 'auto',
+                height: 'auto',
+                objectFit: 'contain',
+              }}
             />
           ) : null}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPreviewZoomOpen(false)}>{t('common.close')}</Button>
-        </DialogActions>
       </Dialog>
 
       <Dialog
