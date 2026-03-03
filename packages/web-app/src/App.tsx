@@ -29,6 +29,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
@@ -43,7 +44,7 @@ import { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage, type AppLangua
 import { ImportQrScannerDialog } from './components/ImportQrScannerDialog';
 import { UnsupportedScreen } from './components/UnsupportedScreen';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
-import { HomePage, sortForActiveTab } from './pages/HomePage';
+import { HomePage, sortForActiveTab, type HomeListAnimationMode } from './pages/HomePage';
 import { ImportConfirmPage } from './pages/ImportConfirmPage';
 import { ImportTournamentPage } from './pages/ImportTournamentPage';
 import { SettingsPage, type AppInfoCardData, type AppSwStatus } from './pages/SettingsPage';
@@ -106,6 +107,95 @@ function formatByteSize(rawBytes: number | null, unknownLabel: string): string {
   return `${bytes} bytes`;
 }
 
+function usePrefersReducedMotion(): boolean {
+  const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      setPrefersReducedMotion(false);
+      return;
+    }
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => {
+      setPrefersReducedMotion(mediaQuery.matches);
+    };
+    apply();
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', apply);
+      return () => {
+        mediaQuery.removeEventListener('change', apply);
+      };
+    }
+    mediaQuery.addListener(apply);
+    return () => {
+      mediaQuery.removeListener(apply);
+    };
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function useAnimatedCount(target: number, durationMs: number, disabled: boolean): number {
+  const [value, setValue] = React.useState(target);
+  const valueRef = React.useRef(target);
+
+  React.useEffect(() => {
+    if (disabled) {
+      valueRef.current = target;
+      setValue(target);
+      return;
+    }
+    const startValue = valueRef.current;
+    if (startValue === target) {
+      setValue(target);
+      return;
+    }
+    const startTime = performance.now();
+    let frameId = 0;
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / durationMs);
+      const eased = 1 - (1 - progress) ** 3;
+      const nextValue = Math.round(startValue + (target - startValue) * eased);
+      valueRef.current = nextValue;
+      setValue(nextValue);
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(animate);
+        return;
+      }
+      valueRef.current = target;
+      setValue(target);
+    };
+    frameId = window.requestAnimationFrame(animate);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [disabled, durationMs, target]);
+
+  return value;
+}
+
+interface CountTemplateParts {
+  prefix: string;
+  suffix: string;
+  hasPlaceholder: boolean;
+}
+
+function splitCountTemplate(template: string, token: string): CountTemplateParts {
+  const tokenIndex = template.indexOf(token);
+  if (tokenIndex < 0) {
+    return {
+      prefix: template,
+      suffix: '',
+      hasPlaceholder: false,
+    };
+  }
+  return {
+    prefix: template.slice(0, tokenIndex),
+    suffix: template.slice(tokenIndex + token.length),
+    hasPlaceholder: true,
+  };
+}
+
 type RouteState =
   | { name: 'home' }
   | { name: 'import' }
@@ -157,6 +247,8 @@ const BUILD_TIME =
   typeof __BUILD_TIME__ === 'string' && __BUILD_TIME__.trim().length > 0 ? __BUILD_TIME__ : '-';
 const SW_VERSION_REQUEST_TIMEOUT_MS = 1500;
 const DEBUG_MODE_STORAGE_KEY = 'iidx:debug:mode';
+const HOME_RESULT_COUNT_MARKER = 908172635;
+const HOME_RESULT_COUNT_ANIMATION_DURATION_MS = 200;
 
 type CreateDraftDialogState =
   | { kind: 'none' }
@@ -769,6 +861,22 @@ function isHomeFilterDefault(query: HomeQueryState): boolean {
   );
 }
 
+function hasSameHomeQueryExceptSort(previous: HomeQueryState, next: HomeQueryState): boolean {
+  if (previous.state !== next.state) {
+    return false;
+  }
+  if (normalizeHomeSearchForFilter(previous.searchText) !== normalizeHomeSearchForFilter(next.searchText)) {
+    return false;
+  }
+  if (previous.category !== next.category) {
+    return false;
+  }
+  if (previous.attrs.length !== next.attrs.length) {
+    return false;
+  }
+  return previous.attrs.every((value, index) => value === next.attrs[index]);
+}
+
 interface AppProps {
   webLockAcquired?: boolean;
 }
@@ -921,6 +1029,25 @@ async function resolveOpfsStatus(): Promise<AppInfoCardData['opfsStatus']> {
 export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const { appDb, opfs, songMasterService } = useAppServices();
   const { t } = useTranslation();
+  const theme = useTheme();
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const homeResultCountTransition = React.useMemo(
+    () =>
+      theme.transitions.create('opacity', {
+        duration: prefersReducedMotion ? 0 : 150,
+        easing: theme.transitions.easing.easeOut,
+        delay: prefersReducedMotion ? 0 : 50,
+      }),
+    [prefersReducedMotion, theme],
+  );
+  const homeFabIconTransition = React.useMemo(
+    () =>
+      theme.transitions.create('transform', {
+        duration: prefersReducedMotion ? 0 : 190,
+        easing: theme.transitions.easing.easeInOut,
+      }),
+    [prefersReducedMotion, theme],
+  );
 
   const [routeStack, setRouteStack] = React.useState<RouteState[]>(() => createInitialRouteStack());
   const [homeQuery, setHomeQuery] = React.useState<HomeQueryState>(() => createDefaultHomeQueryState());
@@ -980,6 +1107,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [whatsNewDialogOpen, setWhatsNewDialogOpen] = React.useState(false);
   const appTabIdRef = React.useRef<string>(crypto.randomUUID());
   const handledDelegationRequestIdsRef = React.useRef<Set<string>>(new Set());
+  const previousHomeQueryRef = React.useRef<HomeQueryState>(homeQuery);
   const homeSearchInputRef = React.useRef<HTMLInputElement | null>(null);
   const homeStateSectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeCategorySectionRef = React.useRef<HTMLDivElement | null>(null);
@@ -1073,7 +1201,26 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     () => applyHomeQueryState(homeTournamentBuckets, homeQuery),
     [homeQuery, homeTournamentBuckets],
   );
+  const homeListAnimationMode = React.useMemo<HomeListAnimationMode>(() => {
+    const previous = previousHomeQueryRef.current;
+    const sortChanged = previous.sort !== homeQuery.sort;
+    if (sortChanged && hasSameHomeQueryExceptSort(previous, homeQuery)) {
+      return 'sort';
+    }
+    return 'filter';
+  }, [homeQuery]);
   const homeResultCount = homeVisibleItems.length;
+  const animatedHomeResultCount = useAnimatedCount(
+    homeResultCount,
+    HOME_RESULT_COUNT_ANIMATION_DURATION_MS,
+    prefersReducedMotion,
+  );
+  const [homeResultCountAnimationTick, setHomeResultCountAnimationTick] = React.useState(0);
+  const homeResultCountTemplate = t('common.home_filter.result_count', { count: HOME_RESULT_COUNT_MARKER });
+  const homeResultCountParts = React.useMemo(
+    () => splitCountTemplate(homeResultCountTemplate, String(HOME_RESULT_COUNT_MARKER)),
+    [homeResultCountTemplate],
+  );
   const homeHasNonDefaultFilter = !isHomeFilterDefault(homeQuery);
   const homeNormalizedSearch = normalizeHomeSearchForFilter(homeQuery.searchText);
   const homeHasSearchQuery = homeNormalizedSearch.length > 0;
@@ -1083,6 +1230,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const rawWhatsNewItems = t('whats_new.items', { returnObjects: true }) as unknown;
   const whatsNewItems =
     Array.isArray(rawWhatsNewItems) ? rawWhatsNewItems.filter((value): value is string => typeof value === 'string') : [];
+
+  React.useEffect(() => {
+    setHomeResultCountAnimationTick((current) => current + 1);
+  }, [homeResultCount]);
+
+  React.useEffect(() => {
+    previousHomeQueryRef.current = homeQuery;
+  }, [homeQuery]);
 
   const openHomeFilterSheet = React.useCallback(
     (focusSection: HomeFilterSheetFocusSection = null) => {
@@ -2677,6 +2832,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               todayDate={todayDate}
               state={homeQuery.state}
               items={homeVisibleItems}
+              prefersReducedMotion={prefersReducedMotion}
+              animationMode={homeListAnimationMode}
               onOpenFilterInEmpty={() => openHomeFilterSheet()}
               onOpenDetail={async (tournamentUuid) => {
                 const loaded = await reloadDetail(tournamentUuid);
@@ -2808,7 +2965,25 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             <div className="homeFilterSheetFixed">
               <div className="homeFilterSheetTopRow">
                 <Typography variant="body2" className="homeFilterResultCount">
-                  {t('common.home_filter.result_count', { count: homeResultCount })}
+                  {homeResultCountParts.hasPlaceholder ? (
+                    <>
+                      <span>{homeResultCountParts.prefix}</span>
+                      <span
+                        key={homeResultCountAnimationTick}
+                        className={
+                          prefersReducedMotion
+                            ? 'homeFilterResultCountValue'
+                            : 'homeFilterResultCountValue homeFilterResultCountValue-animated'
+                        }
+                        style={{ transition: homeResultCountTransition }}
+                      >
+                        {animatedHomeResultCount}
+                      </span>
+                      <span>{homeResultCountParts.suffix}</span>
+                    </>
+                  ) : (
+                    t('common.home_filter.result_count', { count: animatedHomeResultCount })
+                  )}
                 </Typography>
                 <button
                   type="button"
@@ -2935,7 +3110,15 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             <Box sx={{ position: 'fixed', right: 24, bottom: 24, zIndex: 30 }} onClick={closeCreateFabTooltip}>
               <SpeedDial
                 ariaLabel={t('common.tournament.actions')}
-                icon={<AddIcon />}
+                icon={(
+                  <AddIcon
+                    className={speedDialOpen ? 'homeFabPlusIcon homeFabPlusIcon-open' : 'homeFabPlusIcon'}
+                    sx={{
+                      transformOrigin: 'center',
+                      transition: homeFabIconTransition,
+                    }}
+                  />
+                )}
                 direction="up"
                 open={speedDialOpen}
                 onOpen={() => {

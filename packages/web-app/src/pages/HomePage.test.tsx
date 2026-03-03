@@ -11,6 +11,7 @@ describe('HomePage', () => {
       <HomePage
         todayDate="2026-02-10"
         state="active"
+        prefersReducedMotion
         items={[
           {
             tournamentUuid: 't1',
@@ -76,6 +77,7 @@ describe('HomePage', () => {
       <HomePage
         todayDate="2026-02-10"
         state="upcoming"
+        prefersReducedMotion
         items={[upcomingItem]}
         onOpenDetail={() => undefined}
       />,
@@ -90,6 +92,7 @@ describe('HomePage', () => {
       <HomePage
         todayDate="2026-02-10"
         state="ended"
+        prefersReducedMotion
         items={[endedItem]}
         onOpenDetail={() => undefined}
       />,
@@ -107,6 +110,7 @@ describe('HomePage', () => {
       <HomePage
         todayDate="2026-02-10"
         state="active"
+        prefersReducedMotion
         items={[
           {
             tournamentUuid: 't1',
@@ -138,6 +142,7 @@ describe('HomePage', () => {
       <HomePage
         todayDate="2026-02-08"
         state="active"
+        prefersReducedMotion
         items={[]}
         onOpenFilterInEmpty={onOpenFilterInEmpty}
         onOpenDetail={() => undefined}
