@@ -1002,13 +1002,13 @@
   },
   "whats_new": {
     "modal": {
-      "title": "What's New (v0.9.0)",
-      "description": "This update includes:"
+      "title": "Update Notice (v0.9.1)",
+      "description": "What's changed"
     },
     "items": [
-      "Refined the overall screen flow and organization.",
-      "Added support for Japanese, English, and Korean.",
-      "Added a dark theme."
+      "QR sharing is now easier to read, and shared images are higher quality.",
+      "Tournament creation is simpler, and a confirmation screen has been added.",
+      "Display and interactions on Home and Detail have been improved."
     ]
   }
 }
