@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import type { TournamentDetailItem } from '@iidx/db';
 
-import { TournamentDetailPage } from './TournamentDetailPage';
+import { TournamentDetailPage, type TournamentDetailReturnSignal } from './TournamentDetailPage';
 
 vi.mock('qrcode', () => ({
   default: {
@@ -104,18 +104,27 @@ function buildDetail(overrides: Partial<TournamentDetailItem> = {}): TournamentD
 function renderPage(
   overrides: Partial<TournamentDetailItem> = {},
   todayDate = '2026-02-10',
-  options: { debugModeEnabled?: boolean } = {},
+  options: {
+    debugModeEnabled?: boolean;
+    onOpenSubmit?: (chartId: number) => void;
+    returnSignal?: TournamentDetailReturnSignal | null;
+    onConsumeReturnSignal?: (token: string) => void;
+    prefersReducedMotion?: boolean;
+  } = {},
 ): void {
   render(
     <TournamentDetailPage
       detail={buildDetail(overrides)}
       todayDate={todayDate}
-      onOpenSubmit={() => undefined}
+      onOpenSubmit={options.onOpenSubmit ?? (() => undefined)}
       onUpdated={() => undefined}
       onOpenSettings={() => undefined}
       debugModeEnabled={options.debugModeEnabled ?? false}
       debugLastError={null}
       onReportDebugError={() => undefined}
+      returnSignal={options.returnSignal ?? null}
+      {...(options.onConsumeReturnSignal ? { onConsumeReturnSignal: options.onConsumeReturnSignal } : {})}
+      {...(options.prefersReducedMotion !== undefined ? { prefersReducedMotion: options.prefersReducedMotion } : {})}
     />,
   );
 }
@@ -301,6 +310,7 @@ describe('TournamentDetailPage', () => {
         value: undefined,
       });
     }
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -348,6 +358,59 @@ describe('TournamentDetailPage', () => {
     expect(actionButtons[2]?.textContent).toContain('差し替え');
     expect(actionButtons[2]?.getAttribute('data-chart-action-tone')).toBe('secondary');
     expect(actionButtons[2]?.className).toContain('chartSubmitButton-secondary');
+  });
+
+  it('locks chart submit buttons for 200ms to prevent double taps', async () => {
+    const onOpenSubmit = vi.fn();
+    renderPage({}, '2026-02-10', { onOpenSubmit });
+
+    const actionButtons = screen.getAllByTestId('tournament-detail-chart-submit-button');
+    await userEvent.click(actionButtons[0] as HTMLElement);
+    await userEvent.click(actionButtons[0] as HTMLElement);
+    expect(onOpenSubmit).toHaveBeenCalledTimes(1);
+
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 210);
+    });
+    await userEvent.click(actionButtons[0] as HTMLElement);
+    expect(onOpenSubmit).toHaveBeenCalledTimes(2);
+  });
+
+  it('highlights changed chart on saved return signal and consumes the signal token', async () => {
+    const onConsumeReturnSignal = vi.fn();
+    renderPage({}, '2026-02-10', {
+      returnSignal: {
+        token: 'signal-token-1',
+        tournamentUuid: detail.tournamentUuid,
+        returnReason: 'saved',
+        changedChartId: '101',
+        progressChanged: true,
+      },
+      onConsumeReturnSignal,
+    });
+
+    await waitFor(() => {
+      expect(onConsumeReturnSignal).toHaveBeenCalledWith('signal-token-1');
+    });
+    await waitFor(() => {
+      const row = document.querySelector('li[data-chart-id="101"]');
+      expect(row?.className).toContain('detailChartListRow-highlighted');
+    });
+  });
+
+  it('does not highlight chart rows when return reason is back', async () => {
+    renderPage({}, '2026-02-10', {
+      returnSignal: {
+        token: 'signal-token-back',
+        tournamentUuid: detail.tournamentUuid,
+        returnReason: 'back',
+        progressChanged: false,
+      },
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('.detailChartListRow-highlighted')).toBeNull();
+    });
   });
 
   it('renders chart attributes as one line text and removes attribute badges', () => {

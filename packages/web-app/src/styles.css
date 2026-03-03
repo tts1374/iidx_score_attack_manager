@@ -1697,6 +1697,37 @@ label {
   gap: 8px;
 }
 
+.detailChartListRow {
+  position: relative;
+}
+
+.detailChartListRow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: var(--detail-return-highlight, rgba(25, 118, 210, 0.18));
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.detailChartListRow-highlighted::after {
+  animation: detailCardReturnHighlight 600ms ease-out;
+}
+
+@keyframes detailCardReturnHighlight {
+  0% {
+    opacity: 0;
+  }
+  16.666% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .chartListItem {
   width: 100%;
   display: grid;
@@ -1837,6 +1868,23 @@ label {
   background: var(--status-shared-bg);
 }
 
+.chartStateBadge-detail {
+  min-width: 86px;
+}
+
+.chartStateBadge-fade {
+  animation: chartStateBadgeFadeIn 200ms ease-out;
+}
+
+@keyframes chartStateBadgeFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .chartStatusLine {
   display: inline-flex;
   align-items: center;
@@ -1904,6 +1952,12 @@ label {
   border-radius: 10px;
   padding: 7px 12px;
   font-weight: 700;
+  transform: scale(1);
+  transition: transform 120ms ease-out;
+}
+
+.chartSubmitButton:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .chartSubmitButton-primary {
@@ -1970,6 +2024,12 @@ label {
   color: var(--text-muted);
   font-weight: 700;
   padding: 10px 16px;
+  transform: scale(1);
+  transition: transform 120ms ease-out;
+}
+
+.detailSubmitPrimaryButton:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .detailSubmitPrimaryButton.emphasis {
@@ -2315,7 +2375,11 @@ label {
   .tournamentProgressValue,
   .cardArrow,
   .homeFilterResultCountValue-animated,
-  .homeFabPlusIcon {
+  .homeFabPlusIcon,
+  .chartSubmitButton,
+  .detailSubmitPrimaryButton,
+  .chartStateBadge-fade,
+  .detailChartListRow-highlighted::after {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
@@ -2328,6 +2392,11 @@ label {
   }
 
   .tournamentCard:active {
+    transform: scale(1);
+  }
+
+  .chartSubmitButton:active:not(:disabled),
+  .detailSubmitPrimaryButton:active:not(:disabled) {
     transform: scale(1);
   }
 }
