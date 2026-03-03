@@ -16,12 +16,12 @@ const EDGE_SPACE_RE = /^[\s\u3000]+|[\s\u3000]+$/gu;
 const ALL_SPACE_RE = /[\s\u3000]+/gu;
 const CONTROL_CHAR_RE = /[\u0000-\u001F\u007F]/gu;
 
-function normalizeText(input: unknown, field: string): string {
+function normalizeText(input: unknown, field: string, allowEmpty = false): string {
   if (typeof input !== 'string') {
     throw new PayloadValidationError({ reason: 'FIELD_TYPE', field });
   }
   const normalized = input.trim().normalize('NFC');
-  if (normalized.length === 0) {
+  if (!allowEmpty && normalized.length === 0) {
     throw new PayloadValidationError({ reason: 'FIELD_REQUIRED', field });
   }
   if (normalized.length > TOURNAMENT_TEXT_MAX) {
@@ -129,7 +129,7 @@ export function normalizeTournamentPayload(
     v: PAYLOAD_VERSION,
     uuid: normalizeUuid(raw.uuid),
     name: normalizeText(raw.name, 'name'),
-    owner: normalizeText(raw.owner, 'owner'),
+    owner: normalizeText(raw.owner, 'owner', true),
     hashtag: normalizeHashtagField(raw.hashtag, 'hashtag'),
     start,
     end,

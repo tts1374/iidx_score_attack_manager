@@ -47,6 +47,15 @@ describe('payload encode/decode', () => {
     expect(() => normalizeTournamentPayload({ ...validPayload, hashtag: '###' })).toThrowError(PayloadValidationError);
   });
 
+  it('allows empty owner after normalization', () => {
+    const normalized = normalizeTournamentPayload({ ...validPayload, owner: '   ' });
+    expect(normalized.owner).toBe('');
+
+    const encoded = encodeTournamentPayload({ ...validPayload, owner: '' });
+    const decoded = decodeTournamentPayload(encoded);
+    expect(decoded.payload.owner).toBe('');
+  });
+
   it('encodes then decodes while preserving chart order', () => {
     const encoded = encodeTournamentPayload(validPayload);
     const decoded = decodeTournamentPayload(encoded);

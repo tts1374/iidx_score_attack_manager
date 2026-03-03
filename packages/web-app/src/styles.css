@@ -1141,6 +1141,11 @@ label {
   padding: 16px;
 }
 
+.createConfirmCardHeader {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .createConfirmInfoList {
   margin: 0;
   display: grid;
@@ -1389,7 +1394,8 @@ label {
 .difficultyButtons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  row-gap: 8px;
+  column-gap: 12px;
 }
 
 .difficultySelectButton {
@@ -1398,7 +1404,8 @@ label {
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
-  min-height: 32px;
+  min-height: 44px;
+  min-width: 48px;
   padding: 4px 10px;
 }
 

@@ -41,9 +41,7 @@ export function validateTournamentInput(input: TournamentInput, todayDate: strin
     errors.push({ code: 'TOURNAMENT_NAME_TOO_LONG', params: { max: TOURNAMENT_TEXT_MAX } });
   }
 
-  if (!input.owner.trim()) {
-    errors.push({ code: 'TOURNAMENT_OWNER_REQUIRED' });
-  } else if (input.owner.trim().length > TOURNAMENT_TEXT_MAX) {
+  if (input.owner.trim().length > TOURNAMENT_TEXT_MAX) {
     errors.push({ code: 'TOURNAMENT_OWNER_TOO_LONG', params: { max: TOURNAMENT_TEXT_MAX } });
   }
 

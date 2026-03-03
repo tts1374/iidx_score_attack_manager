@@ -1,9 +1,10 @@
 import React from 'react';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import type { ChartSummary, SongSummary } from '@iidx/db';
 import { PAYLOAD_VERSION, buildTournamentDefHash, normalizeHashtag, normalizeSearchText } from '@iidx/shared';
-import { Autocomplete, Box, CircularProgress, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, CircularProgress, Snackbar, TextField, Typography } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -46,6 +47,8 @@ type AppLanguage = 'ja' | 'en' | 'ko';
 
 const SONG_SEARCH_DEBUG_STORAGE_KEY = 'iidx:debug:song-search';
 const CREATE_WIZARD_DEBUG_STORAGE_KEY = 'iidx:debug:create-wizard';
+const AUTO_HASHTAG_LEADING_HASH_RE = /^[#＃]+/u;
+const AUTO_HASHTAG_SPACE_RE = /[\s\u3000]+/gu;
 const DATE_PICKER_LOCALE_TEXT_BY_LANGUAGE = {
   ja: jaJP.components.MuiLocalizationProvider.defaultProps.localeText as any,
   en: enUS.components.MuiLocalizationProvider.defaultProps.localeText as any,
@@ -213,6 +216,19 @@ function scrollCreatePageTopIntoView(): void {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function buildInitialHashtagFromName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return '';
+  }
+  const withoutLeadingHash = trimmed.replace(AUTO_HASHTAG_LEADING_HASH_RE, '');
+  const normalizedSpace = withoutLeadingHash.replace(AUTO_HASHTAG_SPACE_RE, ' ').trim();
+  if (!normalizedSpace) {
+    return '';
+  }
+  return normalizedSpace.replace(AUTO_HASHTAG_SPACE_RE, '_');
+}
+
 export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Element {
   const { t, i18n } = useTranslation();
   const { appDb } = useAppServices();
@@ -220,6 +236,8 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const rows = draft.rows;
   const [currentStep, setCurrentStep] = React.useState<CreateWizardStep>(0);
   const [showChartValidationErrors, setShowChartValidationErrors] = React.useState(false);
+  const [isTagManuallyEdited, setIsTagManuallyEdited] = React.useState(false);
+  const [copySnackbar, setCopySnackbar] = React.useState({ open: false, message: '', key: 0 });
   const chartRowRefs = React.useRef<Record<string, HTMLElement | null>>({});
   const validation = React.useMemo(() => resolveCreateTournamentValidation(draft, props.todayDate), [draft, props.todayDate]);
   const canAddRow = rows.length < MAX_CHART_ROWS;
@@ -281,13 +299,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   }, [currentStep]);
 
   React.useEffect(() => {
-    const canShowCurrentStep =
-      currentStep === 0 || (currentStep === 1 ? stepOneReady : stepTwoReady);
-    if (!canShowCurrentStep) {
-      return;
-    }
+    setIsTagManuallyEdited(false);
+  }, [draft.tournamentUuid]);
+
+  React.useEffect(() => {
     scrollCreatePageTopIntoView();
-  }, [currentStep, stepOneReady, stepTwoReady]);
+  }, [currentStep]);
 
   const tournamentDefHash = React.useMemo(() => {
     if (!validation.canProceed) {
@@ -298,7 +315,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         v: PAYLOAD_VERSION,
         uuid: draft.tournamentUuid,
         name: draft.name.trim(),
-        owner: draft.owner.trim(),
+        owner: '',
         hashtag: normalizeHashtag(draft.hashtag),
         start: draft.startDate,
         end: draft.endDate,
@@ -392,16 +409,30 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           ? t('create_tournament.status.missing_count', { count: chartMissingCount })
           : t('create_tournament.status.completed')
         : null;
+  const showCopySnackbar = React.useCallback((message: string) => {
+    setCopySnackbar((current) => ({
+      open: true,
+      message,
+      key: current.key + 1,
+    }));
+  }, []);
+  const closeCopySnackbar = React.useCallback((_: Event | React.SyntheticEvent, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setCopySnackbar((current) => ({ ...current, open: false }));
+  }, []);
   const copyToClipboard = React.useCallback(async (value: string) => {
     try {
       if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-        return;
+        throw new Error('clipboard unavailable');
       }
       await navigator.clipboard.writeText(value);
+      showCopySnackbar(t('create_tournament.confirm.tournament_id_copied'));
     } catch {
-      // ignore clipboard failure
+      showCopySnackbar(t('create_tournament.confirm.tournament_id_copy_failed'));
     }
-  }, []);
+  }, [showCopySnackbar, t]);
 
   const scrollFirstInvalidChartCard = React.useCallback(() => {
     const invalidRow = rows.find((row) => row.selectedSong === null || row.selectedChartId === null);
@@ -458,22 +489,24 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   const value = event.target.value;
                   props.onDraftChange((current) => ({ ...current, name: value }));
                 }}
-              />
-              {validation.nameError ? <p className="errorText createInlineError">{t(validation.nameError)}</p> : null}
-            </label>
-
-            <label className="createField">
-              <span className="createFieldLabel">{t('create_tournament.field.owner.label')}</span>
-              <input
-                maxLength={50}
-                value={draft.owner}
-                placeholder={t('create_tournament.field.owner.placeholder')}
-                onChange={(event) => {
+                onBlur={(event) => {
                   const value = event.target.value;
-                  props.onDraftChange((current) => ({ ...current, owner: value }));
+                  props.onDraftChange((current) => {
+                    if (isTagManuallyEdited || current.hashtag !== '') {
+                      return current;
+                    }
+                    const autoHashtag = buildInitialHashtagFromName(value);
+                    if (!autoHashtag) {
+                      return current;
+                    }
+                    return {
+                      ...current,
+                      hashtag: autoHashtag,
+                    };
+                  });
                 }}
               />
-              {validation.ownerError ? <p className="errorText createInlineError">{t(validation.ownerError)}</p> : null}
+              {validation.nameError ? <p className="errorText createInlineError">{t(validation.nameError)}</p> : null}
             </label>
 
             <label className="createField">
@@ -487,6 +520,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   value={draft.hashtag}
                   placeholder={t('create_tournament.field.hashtag.placeholder')}
                   onChange={(event) => {
+                    setIsTagManuallyEdited(true);
                     const value = event.target.value.replace(/^[#＃]+/u, '');
                     props.onDraftChange((current) => ({ ...current, hashtag: value }));
                   }}
@@ -816,14 +850,23 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               {t('create_tournament.step.confirm_title')}
             </h2>
             <article className="chartRowCard createConfirmInfoCard">
+              <div className="createConfirmCardHeader">
+                <button
+                  type="button"
+                  className="iconOnlyButton"
+                  aria-label={t('create_tournament.confirm.edit_basic_info')}
+                  title={t('create_tournament.confirm.edit_basic_info')}
+                  onClick={() => {
+                    setCurrentStep(0);
+                  }}
+                >
+                  <EditOutlinedIcon fontSize="small" />
+                </button>
+              </div>
               <dl className="createConfirmInfoList">
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.name.label_plain')}</dt>
                   <dd>{draft.name.trim() || t('common.not_available')}</dd>
-                </div>
-                <div className="createConfirmInfoItem">
-                  <dt>{t('create_tournament.field.owner.label_plain')}</dt>
-                  <dd>{draft.owner.trim() || t('common.not_available')}</dd>
                 </div>
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.hashtag.label_plain')}</dt>
@@ -853,7 +896,20 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           </section>
 
           <section className="createSection">
-            <h2 className="createSectionTitle">{t('create_tournament.confirm.chart_list_title')}</h2>
+            <div className="createSectionHeading">
+              <h2 className="createSectionTitle">{t('create_tournament.confirm.chart_list_title')}</h2>
+              <button
+                type="button"
+                className="iconOnlyButton"
+                aria-label={t('create_tournament.confirm.edit_chart_list')}
+                title={t('create_tournament.confirm.edit_chart_list')}
+                onClick={() => {
+                  setCurrentStep(1);
+                }}
+              >
+                <EditOutlinedIcon fontSize="small" />
+              </button>
+            </div>
             <div className="chartRows createConfirmChartRows">
               {rows.map((row, index) => {
                 const selectedChart = resolveSelectedChartOption(row);
@@ -986,6 +1042,13 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           </>
         ) : null}
       </footer>
+      <Snackbar
+        key={copySnackbar.key}
+        open={copySnackbar.open}
+        autoHideDuration={2000}
+        onClose={closeCopySnackbar}
+        message={copySnackbar.message}
+      />
     </div>
   );
 }

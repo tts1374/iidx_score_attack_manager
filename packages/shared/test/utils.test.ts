@@ -63,6 +63,21 @@ describe('misc utilities', () => {
     expect(errors).toContainEqual({ code: 'TOURNAMENT_HASHTAG_REQUIRED' });
   });
 
+  it('allows empty owner', () => {
+    const errors = validateTournamentInput(
+      {
+        tournamentName: '大会',
+        owner: '   ',
+        hashtag: 'hash',
+        startDate: '2026-02-01',
+        endDate: '2026-02-02',
+        chartIds: [1],
+      },
+      '2026-01-01',
+    );
+    expect(errors.some((entry) => entry.code === 'TOURNAMENT_OWNER_REQUIRED')).toBe(false);
+  });
+
   it('normalizes search text with replacement table', () => {
     expect(normalizeSearchText('  Geirskögul  ')).toBe('geirskogul');
     expect(normalizeSearchText('Präludium')).toBe('praludium');

@@ -495,7 +495,7 @@
       "completed": "入力完了 ✔"
     },
     "progress": {
-      "completed": "入力完了: {{count}}/4",
+      "completed": "入力完了: {{count}}/3",
       "missing": "未入力項目: {{items}}",
       "none": "なし"
     },
@@ -527,6 +527,10 @@
       "chart_list_title": "譜面一覧",
       "chart_title": "譜面 {{index}}",
       "final_notice": "確定後は内容を編集できません。",
+      "edit_basic_info": "基本情報を編集",
+      "edit_chart_list": "譜面を編集",
+      "tournament_id_copied": "コピーしました",
+      "tournament_id_copy_failed": "コピーに失敗しました",
       "debug": {
         "title": "デバッグ情報",
         "def_hash": "def_hash",
