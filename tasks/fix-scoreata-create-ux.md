@@ -21,6 +21,7 @@
 - 大会IDコピー時にSnackbar成功/失敗通知を表示（2秒、自動クローズ、連打時再表示）。
 - 譜面ステップの難易度ボタンをタップしやすいサイズへ調整（`min-height: 44px`, `min-width: 48px`、横gap拡大）。
 - 確認画面に編集ショートカットを追加（基本情報カード右上アイコン→Step1、譜面一覧ヘッダ右上アイコン→Step2）。
+- スコアタ名からハッシュタグ本文への「初回のみ自動補完」を追加（空白は`_`置換、手動編集後は自動補完停止）。
 - `owner=""` を許容するため shared バリデーション/正規化を調整。
 - 関連ユニットテストを更新。
 
@@ -42,6 +43,7 @@
   - ステータス変化起因スクロールを抑止（依存関係調整）。
   - 大会IDコピーSnackbar状態と表示を追加。
   - def hash算出時の `owner` を空文字固定。
+  - ハッシュタグの初回自動補完ロジックと手動編集検知フラグ（画面内stateのみ）を追加。
 - `packages/web-app/src/styles.css`
   - 難易度ボタンの最小サイズと間隔を調整。
   - 確認画面の編集アイコン配置用スタイルを追加。
@@ -69,6 +71,8 @@
   - 開催者入力が表示されない。
   - 未入力件数に開催者が含まれない。
   - 開催者未入力でエラーが出ず次ステップへ進める。
+  - ハッシュタグ空状態でスコアタ名入力時のみ、空白を`_`へ置換した本文が自動補完される。
+  - ハッシュタグを一度でも手動編集した後は、スコアタ名変更で自動補完されない。
 - 保存:
   - `buildCreateTournamentInput` が `owner: ""` を返す。
   - `owner=""` でも shared バリデーション/正規化でエラーにならない。
@@ -99,3 +103,4 @@
 3. `feat(shared): allow empty owner for tournament validation/normalization`
 4. `test: update create draft/shared tests for owner-empty behavior and copy feedback paths`
 5. `fix(web-app): add confirm-step edit shortcuts to basic info and chart list sections`
+6. `fix(web-app): add first-time hashtag autofill from tournament name with manual-edit guard`

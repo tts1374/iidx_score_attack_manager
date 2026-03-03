@@ -47,6 +47,8 @@ type AppLanguage = 'ja' | 'en' | 'ko';
 
 const SONG_SEARCH_DEBUG_STORAGE_KEY = 'iidx:debug:song-search';
 const CREATE_WIZARD_DEBUG_STORAGE_KEY = 'iidx:debug:create-wizard';
+const AUTO_HASHTAG_LEADING_HASH_RE = /^[#＃]+/u;
+const AUTO_HASHTAG_SPACE_RE = /[\s\u3000]+/gu;
 const DATE_PICKER_LOCALE_TEXT_BY_LANGUAGE = {
   ja: jaJP.components.MuiLocalizationProvider.defaultProps.localeText as any,
   en: enUS.components.MuiLocalizationProvider.defaultProps.localeText as any,
@@ -214,6 +216,19 @@ function scrollCreatePageTopIntoView(): void {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function buildInitialHashtagFromName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return '';
+  }
+  const withoutLeadingHash = trimmed.replace(AUTO_HASHTAG_LEADING_HASH_RE, '');
+  const normalizedSpace = withoutLeadingHash.replace(AUTO_HASHTAG_SPACE_RE, ' ').trim();
+  if (!normalizedSpace) {
+    return '';
+  }
+  return normalizedSpace.replace(AUTO_HASHTAG_SPACE_RE, '_');
+}
+
 export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Element {
   const { t, i18n } = useTranslation();
   const { appDb } = useAppServices();
@@ -221,6 +236,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const rows = draft.rows;
   const [currentStep, setCurrentStep] = React.useState<CreateWizardStep>(0);
   const [showChartValidationErrors, setShowChartValidationErrors] = React.useState(false);
+  const [isTagManuallyEdited, setIsTagManuallyEdited] = React.useState(false);
   const [copySnackbar, setCopySnackbar] = React.useState({ open: false, message: '', key: 0 });
   const chartRowRefs = React.useRef<Record<string, HTMLElement | null>>({});
   const validation = React.useMemo(() => resolveCreateTournamentValidation(draft, props.todayDate), [draft, props.todayDate]);
@@ -281,6 +297,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
       setShowChartValidationErrors(false);
     }
   }, [currentStep]);
+
+  React.useEffect(() => {
+    setIsTagManuallyEdited(false);
+  }, [draft.tournamentUuid]);
 
   React.useEffect(() => {
     scrollCreatePageTopIntoView();
@@ -467,7 +487,20 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 placeholder={t('create_tournament.field.name.placeholder')}
                 onChange={(event) => {
                   const value = event.target.value;
-                  props.onDraftChange((current) => ({ ...current, name: value }));
+                  props.onDraftChange((current) => {
+                    if (isTagManuallyEdited || current.hashtag !== '') {
+                      return { ...current, name: value };
+                    }
+                    const autoHashtag = buildInitialHashtagFromName(value);
+                    if (!autoHashtag) {
+                      return { ...current, name: value };
+                    }
+                    return {
+                      ...current,
+                      name: value,
+                      hashtag: autoHashtag,
+                    };
+                  });
                 }}
               />
               {validation.nameError ? <p className="errorText createInlineError">{t(validation.nameError)}</p> : null}
@@ -484,6 +517,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   value={draft.hashtag}
                   placeholder={t('create_tournament.field.hashtag.placeholder')}
                   onChange={(event) => {
+                    setIsTagManuallyEdited(true);
                     const value = event.target.value.replace(/^[#＃]+/u, '');
                     props.onDraftChange((current) => ({ ...current, hashtag: value }));
                   }}
