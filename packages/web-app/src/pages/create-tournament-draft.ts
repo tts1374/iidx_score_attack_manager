@@ -29,13 +29,11 @@ export interface CreateTournamentDraft {
 
 export type CreateTournamentFieldLabelKey =
   | 'create_tournament.field.name.label_plain'
-  | 'create_tournament.field.owner.label_plain'
   | 'create_tournament.field.hashtag.label_plain'
   | 'create_tournament.field.period.label_plain';
 
 export type CreateTournamentValidationMessageKey =
   | 'create_tournament.validation.name_required'
-  | 'create_tournament.validation.owner_required'
   | 'create_tournament.validation.hashtag_required'
   | 'create_tournament.validation.start_date_required'
   | 'create_tournament.validation.end_date_required'
@@ -49,7 +47,6 @@ export interface CreateTournamentValidationResult {
   selectedChartIds: number[];
   duplicateChartIds: Set<number>;
   nameError: CreateTournamentValidationMessageKey | null;
-  ownerError: CreateTournamentValidationMessageKey | null;
   hashtagError: CreateTournamentValidationMessageKey | null;
   startDateError: CreateTournamentValidationMessageKey | null;
   endDateError: CreateTournamentValidationMessageKey | null;
@@ -64,6 +61,7 @@ export interface CreateTournamentValidationResult {
 }
 
 export const MAX_CHART_ROWS = 4;
+const BASIC_REQUIRED_FIELD_COUNT = 3;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -194,7 +192,7 @@ export function restoreCreateTournamentDraft(value: unknown): CreateTournamentDr
   return {
     tournamentUuid: toNonEmptyString(value.tournamentUuid) ?? crypto.randomUUID(),
     name: toStringValue(value.name),
-    owner: toStringValue(value.owner),
+    owner: '',
     hashtag: toStringValue(value.hashtag),
     startDate: toStringValue(value.startDate),
     endDate: toStringValue(value.endDate),
@@ -273,7 +271,6 @@ export function resolveCreateTournamentValidation(
   }
 
   const nameError = draft.name.trim().length === 0 ? 'create_tournament.validation.name_required' : null;
-  const ownerError = draft.owner.trim().length === 0 ? 'create_tournament.validation.owner_required' : null;
   const hashtagError = normalizeHashtag(draft.hashtag).length === 0 ? 'create_tournament.validation.hashtag_required' : null;
   const startDateRequiredError = draft.startDate.trim().length === 0 ? 'create_tournament.validation.start_date_required' : null;
   const endDateRequiredError = draft.endDate.trim().length === 0 ? 'create_tournament.validation.end_date_required' : null;
@@ -291,16 +288,13 @@ export function resolveCreateTournamentValidation(
   if (nameError) {
     missingBasicFields.push('create_tournament.field.name.label_plain');
   }
-  if (ownerError) {
-    missingBasicFields.push('create_tournament.field.owner.label_plain');
-  }
   if (hashtagError) {
     missingBasicFields.push('create_tournament.field.hashtag.label_plain');
   }
   if (startDateRequiredError || endDateRequiredError) {
     missingBasicFields.push('create_tournament.field.period.label_plain');
   }
-  const basicCompletedCount = 4 - missingBasicFields.length;
+  const basicCompletedCount = BASIC_REQUIRED_FIELD_COUNT - missingBasicFields.length;
   const hasRequiredFields = missingBasicFields.length === 0 && periodError === null;
 
   const incompleteChartRowCount = draft.rows.filter((row) => row.selectedSong === null || row.selectedChartId === null).length;
@@ -318,7 +312,6 @@ export function resolveCreateTournamentValidation(
     selectedChartIds,
     duplicateChartIds,
     nameError,
-    ownerError,
     hashtagError,
     startDateError,
     endDateError,
@@ -340,7 +333,7 @@ export function buildCreateTournamentInput(draft: CreateTournamentDraft, selecte
   return {
     tournamentUuid: draft.tournamentUuid,
     tournamentName: draft.name.trim(),
-    owner: draft.owner.trim(),
+    owner: '',
     hashtag: normalizeHashtag(draft.hashtag),
     startDate: draft.startDate,
     endDate: draft.endDate,
