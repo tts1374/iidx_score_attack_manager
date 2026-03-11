@@ -149,7 +149,9 @@
     "song_data": {
       "up_to_date": "Song data is up to date.",
       "refetched": "Song data was refetched.",
-      "update_check_executed": "Song data update check executed."
+      "update_check_executed": "Song data update check executed.",
+      "home_update_banner": "New song data is available. Please update.",
+      "home_update_action": "Update"
     },
     "runtime": {
       "unhandled_exception": "An unhandled exception occurred.",
