@@ -149,7 +149,9 @@
     "song_data": {
       "up_to_date": "곡 데이터는 최신입니다.",
       "refetched": "곡 데이터를 다시 가져왔습니다.",
-      "update_check_executed": "곡 데이터 업데이트 확인을 실행했습니다."
+      "update_check_executed": "곡 데이터 업데이트 확인을 실행했습니다.",
+      "home_update_banner": "새로운 곡 데이터가 있습니다. 업데이트해 주세요.",
+      "home_update_action": "업데이트"
     },
     "runtime": {
       "unhandled_exception": "처리되지 않은 예외가 발생했습니다.",

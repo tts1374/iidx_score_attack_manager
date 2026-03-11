@@ -194,6 +194,14 @@ function parseLatestPayload(input: unknown): SongMasterLatestPayload {
   return { file_name: file, schema_version: schema, sha256: sha, byte_size: size, generated_at: generatedAt };
 }
 
+function parseGeneratedAtMs(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function fmtBytes(raw: string | number | null, unknownLabel: string): string {
   const b = Number(raw);
   if (!Number.isFinite(b) || b < 0) return unknownLabel;
@@ -602,12 +610,18 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         return;
       }
       setLatestPayload(payload);
-      const local = action.localSha256 ?? props.songMasterMeta.song_master_sha256;
-      if (!local) {
+      const latestGeneratedAtMs = parseGeneratedAtMs(payload.generated_at);
+      const localGeneratedAtMs = parseGeneratedAtMs(
+        props.songMasterMeta.last_song_master_generated_at ??
+          props.songMasterMeta.song_master_generated_at ??
+          props.songMasterMeta.song_master_updated_at ??
+          null,
+      );
+      if (latestGeneratedAtMs === null || localGeneratedAtMs === null) {
         setCheckOutcome('check_failed');
         return;
       }
-      setCheckOutcome(payload.sha256 === local ? 'latest' : 'update_available');
+      setCheckOutcome(latestGeneratedAtMs > localGeneratedAtMs ? 'update_available' : 'latest');
     } catch (error) {
       setCheckOutcome('check_failed');
       const message = error instanceof Error ? error.message : String(error);
@@ -661,11 +675,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       if (!action.ok) {
         throw new Error(action.message ?? t('settings.song_data.error.refetch_default'));
       }
-      if (action.localSha256 && action.latestSha256) {
-        setCheckOutcome(action.localSha256 === action.latestSha256 ? 'latest' : 'update_available');
-      } else {
-        setCheckOutcome(null);
-      }
+      setCheckOutcome('latest');
       setRefetchPhase('complete');
     } catch (error) {
       setRefetchError(resolveErrorMessage(t, error, 'error.description.generic'));

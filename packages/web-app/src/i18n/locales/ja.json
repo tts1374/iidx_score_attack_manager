@@ -149,7 +149,9 @@
     "song_data": {
       "up_to_date": "曲データは最新です。",
       "refetched": "曲データを再取得しました。",
-      "update_check_executed": "曲データの更新確認を実行しました。"
+      "update_check_executed": "曲データの更新確認を実行しました。",
+      "home_update_banner": "新しい曲データがあります。更新してください",
+      "home_update_action": "更新する"
     },
     "runtime": {
       "unhandled_exception": "未処理の例外が発生しました。",
