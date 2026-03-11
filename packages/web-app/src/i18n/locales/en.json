@@ -84,8 +84,7 @@
       },
       "success": {
         "title": "Sent to existing tab",
-        "description": "The request was sent to the existing tab. Please check that tab.",
-        "close_hint": "This tab may not close automatically. If needed, please close it manually."
+        "description": "The request was sent to the existing tab. Please check that tab."
       },
       "failed": {
         "title": "Existing tab was not found",

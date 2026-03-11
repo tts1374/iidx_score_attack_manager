@@ -88,10 +88,34 @@ function navigateToHome(): void {
 }
 
 function tryCloseTab(): void {
+  const closeDirectly = (): boolean => {
+    try {
+      window.close();
+    } catch {
+      // ignore close failures
+    }
+    return window.closed;
+  };
+
+  if (closeDirectly()) {
+    return;
+  }
+
   try {
-    window.close();
+    const selfWindow = window.open('about:blank', '_self');
+    selfWindow?.close();
   } catch {
     // ignore close failures
+  }
+
+  if (window.closed) {
+    return;
+  }
+
+  try {
+    window.location.replace('about:blank');
+  } catch {
+    // ignore navigation failures
   }
 }
 
@@ -524,7 +548,6 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
           <h1>{t('common.import_delegation.success.title')}</h1>
           <p>{t('common.import_delegation.success.description')}</p>
           {statusHint ? <p className="hintText">{statusHint}</p> : null}
-          <p className="hintText">{t('common.import_delegation.success.close_hint')}</p>
           <div className="actions startupActionRow">
             <button type="button" className="primaryActionButton" onClick={tryCloseTab}>
               {t('common.close_this_tab')}
@@ -633,7 +656,6 @@ function ExistingTabAggregationScreen(props: ExistingTabAggregationScreenProps):
           <h1>{t('common.import_delegation.success.title')}</h1>
           <p>{t('common.import_delegation.success.description')}</p>
           {statusHint ? <p className="hintText">{statusHint}</p> : null}
-          <p className="hintText">{t('common.import_delegation.success.close_hint')}</p>
           <div className="actions startupActionRow">
             <button type="button" className="primaryActionButton" onClick={tryCloseTab}>
               {t('common.close_this_tab')}
