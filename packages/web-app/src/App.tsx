@@ -61,6 +61,7 @@ import {
   type CreateTournamentDraft,
 } from './pages/create-tournament-draft';
 import { useAppServices } from './services/context';
+import { resolveSongMasterRuntimeConfig } from './services/song-master-config';
 import { extractQrTextFromImage } from './utils/image';
 import {
   IMPORT_DELEGATION_CHANNEL,
@@ -278,6 +279,32 @@ const SW_VERSION_REQUEST_TIMEOUT_MS = 1500;
 const DEBUG_MODE_STORAGE_KEY = 'iidx:debug:mode';
 const HOME_RESULT_COUNT_MARKER = 908172635;
 const HOME_RESULT_COUNT_ANIMATION_DURATION_MS = 200;
+const HOME_SONG_DATA_RECHECK_SUPPRESS_MS = 5000;
+const runtimeConfig = resolveSongMasterRuntimeConfig(import.meta.env);
+
+function pickTrimmedText(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function parseGeneratedAtMs(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseLatestGeneratedAt(input: unknown): string | null {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+  const payload = input as Record<string, unknown>;
+  return pickTrimmedText(payload.generated_at);
+}
 
 type CreateDraftDialogState =
   | { kind: 'none' }
@@ -1088,6 +1115,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
   const [detailReturnSignal, setDetailReturnSignal] = React.useState<TournamentDetailReturnSignal | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [homeSongDataLatestGeneratedAtMs, setHomeSongDataLatestGeneratedAtMs] = React.useState<number | null>(null);
+  const [homeSongDataDismissedGeneratedAtMs, setHomeSongDataDismissedGeneratedAtMs] = React.useState<number | null>(null);
   const [songMasterReady, setSongMasterReady] = React.useState(false);
   const [songMasterMeta, setSongMasterMeta] = React.useState<Record<string, string | null>>(INITIAL_SONG_MASTER_META);
   const [autoDeleteEnabled, setAutoDeleteEnabled] = React.useState(false);
@@ -1144,9 +1173,31 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeTypeSectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeAttrsSectionRef = React.useRef<HTMLDivElement | null>(null);
   const createDraftSaveTimerRef = React.useRef<number | null>(null);
+  const homeSongDataCheckInFlightRef = React.useRef<Promise<void> | null>(null);
+  const homeSongDataLastCheckedAtRef = React.useRef(0);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
+  const localSongMasterGeneratedAtMs = React.useMemo(
+    () =>
+      parseGeneratedAtMs(
+        songMasterMeta.last_song_master_generated_at ??
+          songMasterMeta.song_master_generated_at ??
+          songMasterMeta.song_master_updated_at ??
+          null,
+      ),
+    [
+      songMasterMeta.last_song_master_generated_at,
+      songMasterMeta.song_master_generated_at,
+      songMasterMeta.song_master_updated_at,
+    ],
+  );
+  const homeSongDataUpdateAvailable =
+    homeSongDataLatestGeneratedAtMs !== null &&
+    localSongMasterGeneratedAtMs !== null &&
+    homeSongDataLatestGeneratedAtMs > localSongMasterGeneratedAtMs;
+  const homeSongDataBannerVisible =
+    homeSongDataUpdateAvailable && homeSongDataLatestGeneratedAtMs !== homeSongDataDismissedGeneratedAtMs;
   const isDetailRoute = route.name === 'detail';
   const isSettingsRoute = route.name === 'settings';
   const todayDate = todayJst();
@@ -1712,6 +1763,44 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     };
   }, [appDb]);
 
+  const checkHomeSongDataUpdateAvailability = React.useCallback(async (force = false): Promise<void> => {
+    if (homeSongDataCheckInFlightRef.current) {
+      await homeSongDataCheckInFlightRef.current;
+      return;
+    }
+
+    const now = Date.now();
+    if (!force && now - homeSongDataLastCheckedAtRef.current < HOME_SONG_DATA_RECHECK_SUPPRESS_MS) {
+      return;
+    }
+
+    const task = (async () => {
+      homeSongDataLastCheckedAtRef.current = now;
+      try {
+        const res = await fetch(runtimeConfig.latestJsonUrl, { cache: 'no-store' });
+        if (!res.ok) {
+          return;
+        }
+        const generatedAt = parseLatestGeneratedAt(await res.json());
+        const generatedAtMs = parseGeneratedAtMs(generatedAt);
+        if (generatedAtMs === null) {
+          return;
+        }
+        setHomeSongDataLatestGeneratedAtMs(generatedAtMs);
+      } catch {
+        // Keep current banner state when latest check fails.
+      }
+    })();
+
+    homeSongDataCheckInFlightRef.current = task;
+    task.finally(() => {
+      if (homeSongDataCheckInFlightRef.current === task) {
+        homeSongDataCheckInFlightRef.current = null;
+      }
+    });
+    await task;
+  }, []);
+
   const collectAppInfoDetails = React.useCallback(async (): Promise<AppInfoDetailState> => {
     const [appDbUserVersion, appDbSizeBytes, appDbIntegrityCheck, opfsStatus, swVersion, swRegistration, storageEstimate] =
       await Promise.all([
@@ -1827,6 +1916,21 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     },
     [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, songMasterService, t],
   );
+
+  const dismissHomeSongDataUpdateBanner = React.useCallback(() => {
+    if (homeSongDataLatestGeneratedAtMs === null) {
+      return;
+    }
+    setHomeSongDataDismissedGeneratedAtMs(homeSongDataLatestGeneratedAtMs);
+  }, [homeSongDataLatestGeneratedAtMs]);
+
+  const runHomeSongDataUpdate = React.useCallback(async () => {
+    if (busy || !homeSongDataBannerVisible) {
+      return;
+    }
+    await updateSongMaster(false);
+    await checkHomeSongDataUpdateAvailability(true);
+  }, [busy, checkHomeSongDataUpdateAvailability, homeSongDataBannerVisible, updateSongMaster]);
 
   React.useEffect(() => {
     if (!('serviceWorker' in navigator)) {
@@ -1955,6 +2059,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       mounted = false;
     };
   }, [appDb, appendRuntimeLog, loadHomeQueryState, pushToast, refreshSettingsSnapshot, refreshTournamentList, t]);
+
+  React.useEffect(() => {
+    if (route.name !== 'home') {
+      return;
+    }
+    void checkHomeSongDataUpdateAvailability(false);
+  }, [checkHomeSongDataUpdateAvailability, localSongMasterGeneratedAtMs, route.name]);
 
   React.useEffect(() => {
     if (route.name !== 'settings') {
@@ -2787,6 +2898,31 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           <div className="updateBanner">
             <span>{t('common.update_available')}</span>
             <button onClick={applyPendingAppUpdate}>{t('common.apply_update')}</button>
+          </div>
+        ) : null}
+
+        {route.name === 'home' && homeSongDataBannerVisible ? (
+          <div className="updateBanner homeSongDataUpdateBanner" role="status" aria-live="polite">
+            <span>{t('common.song_data.home_update_banner')}</span>
+            <div className="homeSongDataUpdateBannerActions">
+              <Button
+                variant="contained"
+                size="small"
+                disableElevation
+                disabled={busy}
+                onClick={() => void runHomeSongDataUpdate()}
+              >
+                {busy ? t('common.loading') : t('common.song_data.home_update_action')}
+              </Button>
+              <IconButton
+                size="small"
+                aria-label={t('common.close')}
+                disabled={busy}
+                onClick={dismissHomeSongDataUpdateBanner}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </div>
           </div>
         ) : null}
 

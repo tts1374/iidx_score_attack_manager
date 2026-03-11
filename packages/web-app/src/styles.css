@@ -2342,6 +2342,12 @@ label {
   justify-content: space-between;
 }
 
+.homeSongDataUpdateBannerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .toast {
   position: fixed;
   right: 16px;
