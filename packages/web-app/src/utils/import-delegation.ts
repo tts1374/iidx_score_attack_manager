@@ -12,15 +12,6 @@ export interface ImportRequestMessage {
   sentAt: number;
 }
 
-export interface TabFocusRequestMessage {
-  type: 'TAB_FOCUS_REQUEST';
-  requestId: string;
-  senderTabId: string;
-  sentAt: number;
-}
-
-export type DelegationRequestMessage = ImportRequestMessage | TabFocusRequestMessage;
-
 export interface ImportAckMessage {
   type: 'IMPORT_ACK';
   requestId: string;
@@ -43,15 +34,6 @@ export function buildImportRequestMessage(args: {
     requestId: args.requestId,
     senderTabId: args.senderTabId,
     rawPayloadParam: args.rawPayloadParam,
-    sentAt: Date.now(),
-  };
-}
-
-export function buildTabFocusRequestMessage(args: { requestId: string; senderTabId: string }): TabFocusRequestMessage {
-  return {
-    type: 'TAB_FOCUS_REQUEST',
-    requestId: args.requestId,
-    senderTabId: args.senderTabId,
     sentAt: Date.now(),
   };
 }
@@ -86,20 +68,6 @@ export function isImportRequestMessage(value: unknown): value is ImportRequestMe
   );
 }
 
-export function isTabFocusRequestMessage(value: unknown): value is TabFocusRequestMessage {
-  if (!isObjectRecord(value)) {
-    return false;
-  }
-  return (
-    value.type === 'TAB_FOCUS_REQUEST' &&
-    typeof value.requestId === 'string' &&
-    value.requestId.length > 0 &&
-    typeof value.senderTabId === 'string' &&
-    value.senderTabId.length > 0 &&
-    typeof value.sentAt === 'number'
-  );
-}
-
 export function isImportAckMessage(value: unknown): value is ImportAckMessage {
   if (!isObjectRecord(value)) {
     return false;
@@ -122,18 +90,6 @@ export function parseImportRequestStorageValue(value: string | null): ImportRequ
   try {
     const parsed = JSON.parse(value) as unknown;
     return isImportRequestMessage(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-export function parseTabFocusRequestStorageValue(value: string | null): TabFocusRequestMessage | null {
-  if (typeof value !== 'string' || value.length === 0) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return isTabFocusRequestMessage(parsed) ? parsed : null;
   } catch {
     return null;
   }
