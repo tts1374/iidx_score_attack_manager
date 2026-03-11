@@ -69,9 +69,7 @@ import {
   IMPORT_DELEGATION_STORAGE_REQUEST_KEY,
   buildImportAckMessage,
   isImportRequestMessage,
-  isTabFocusRequestMessage,
   parseImportRequestStorageValue,
-  parseTabFocusRequestStorageValue,
 } from './utils/import-delegation';
 import {
   CREATE_TOURNAMENT_PATH,
@@ -2276,7 +2274,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       }
     };
 
-    const processImportRequest = (requestId: string, rawPayloadParam: string, via: 'broadcast' | 'storage'): void => {
+    const processRequest = (requestId: string, rawPayloadParam: string, via: 'broadcast' | 'storage'): void => {
       if (handledRequestIds.has(requestId)) {
         return;
       }
@@ -2284,44 +2282,15 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       void processDelegatedImport(requestId, rawPayloadParam, via);
     };
 
-    const processFocusRequest = (requestId: string): void => {
-      if (handledRequestIds.has(requestId)) {
-        return;
-      }
-      handledRequestIds.add(requestId);
-      try {
-        window.focus();
-      } catch {
-        // ignore focus failures
-      }
-    };
-
     const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(IMPORT_DELEGATION_CHANNEL) : null;
     const onChannelMessage = (event: MessageEvent<unknown>) => {
-      if (isImportRequestMessage(event.data)) {
-        if (event.data.senderTabId === tabId) {
-          return;
-        }
-
-        const requestId = event.data.requestId;
-        try {
-          channel?.postMessage(
-            buildImportAckMessage({
-              requestId,
-              receiverTabId: tabId,
-              via: 'broadcast',
-            }),
-          );
-        } catch {
-          // ignore broadcast failures
-        }
-
-        processImportRequest(requestId, event.data.rawPayloadParam, 'broadcast');
+      if (!isImportRequestMessage(event.data)) {
         return;
       }
-      if (!isTabFocusRequestMessage(event.data) || event.data.senderTabId === tabId) {
+      if (event.data.senderTabId === tabId) {
         return;
       }
+
       const requestId = event.data.requestId;
       try {
         channel?.postMessage(
@@ -2334,7 +2303,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       } catch {
         // ignore broadcast failures
       }
-      processFocusRequest(requestId);
+
+      processRequest(requestId, event.data.rawPayloadParam, 'broadcast');
     };
 
     channel?.addEventListener('message', onChannelMessage);
@@ -2347,18 +2317,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       ) {
         return;
       }
-      const importRequest = parseImportRequestStorageValue(event.newValue);
-      if (importRequest && importRequest.senderTabId !== tabId) {
-        sendStorageAck(importRequest.requestId);
-        processImportRequest(importRequest.requestId, importRequest.rawPayloadParam, 'storage');
+      const request = parseImportRequestStorageValue(event.newValue);
+      if (!request || request.senderTabId === tabId) {
         return;
       }
-      const focusRequest = parseTabFocusRequestStorageValue(event.newValue);
-      if (!focusRequest || focusRequest.senderTabId === tabId) {
-        return;
-      }
-      sendStorageAck(focusRequest.requestId);
-      processFocusRequest(focusRequest.requestId);
+
+      sendStorageAck(request.requestId);
+      processRequest(request.requestId, request.rawPayloadParam, 'storage');
     };
 
     window.addEventListener('storage', onStorage);

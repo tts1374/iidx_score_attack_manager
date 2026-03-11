@@ -18,7 +18,6 @@ import {
   IMPORT_DELEGATION_STORAGE_ACK_TIMEOUT_MS,
   IMPORT_DELEGATION_STORAGE_REQUEST_KEY,
   buildImportRequestMessage,
-  buildTabFocusRequestMessage,
   isImportAckMessage,
   parseImportAckStorageValue,
 } from './utils/import-delegation';
@@ -57,10 +56,6 @@ interface ImportDelegationScreenProps {
   payloadPreview: TournamentPayload;
 }
 
-interface ExistingTabAggregationScreenProps {
-  onPromoteCurrentTab: () => Promise<boolean>;
-}
-
 interface InvalidImportLinkScreenProps {
   code: string;
   message: string;
@@ -96,7 +91,7 @@ function tryCloseTab(): void {
 }
 
 async function sendImportRequestViaBroadcast(
-  requestMessage: ReturnType<typeof buildImportRequestMessage> | ReturnType<typeof buildTabFocusRequestMessage>,
+  requestMessage: ReturnType<typeof buildImportRequestMessage>,
 ): Promise<boolean> {
   if (typeof BroadcastChannel !== 'function') {
     return false;
@@ -139,7 +134,7 @@ async function sendImportRequestViaBroadcast(
 }
 
 async function sendImportRequestViaStorage(
-  requestMessage: ReturnType<typeof buildImportRequestMessage> | ReturnType<typeof buildTabFocusRequestMessage>,
+  requestMessage: ReturnType<typeof buildImportRequestMessage>,
 ): Promise<boolean> {
   return await new Promise<boolean>((resolve) => {
     let settled = false;
@@ -191,31 +186,6 @@ async function delegateImportToExistingTab(rawPayloadParam: string, senderTabId:
     requestId: crypto.randomUUID(),
     senderTabId,
     rawPayloadParam,
-  });
-
-  const broadcastAcked = await sendImportRequestViaBroadcast(requestMessage);
-  if (broadcastAcked) {
-    return {
-      status: 'ack',
-      via: 'broadcast',
-    };
-  }
-
-  const storageAcked = await sendImportRequestViaStorage(requestMessage);
-  if (storageAcked) {
-    return {
-      status: 'ack',
-      via: 'storage',
-    };
-  }
-
-  return { status: 'not_acknowledged' };
-}
-
-async function delegateTabFocusToExistingTab(senderTabId: string): Promise<ImportDelegationResult> {
-  const requestMessage = buildTabFocusRequestMessage({
-    requestId: crypto.randomUUID(),
-    senderTabId,
   });
 
   const broadcastAcked = await sendImportRequestViaBroadcast(requestMessage);
@@ -524,7 +494,6 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
           <h1>{t('common.import_delegation.success.title')}</h1>
           <p>{t('common.import_delegation.success.description')}</p>
           {statusHint ? <p className="hintText">{statusHint}</p> : null}
-          <p className="hintText">{t('common.import_delegation.success.close_hint')}</p>
           <div className="actions startupActionRow">
             <button type="button" className="primaryActionButton" onClick={tryCloseTab}>
               {t('common.close_this_tab')}
@@ -553,102 +522,6 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
           <p>{t('common.import_delegation.preview.chart_count', { count: props.payloadPreview.charts.length })}</p>
           <p className="hintText">{t('common.import_delegation.preview.hint')}</p>
         </section>
-        <div className="actions startupActionRow">
-          <button type="button" className="primaryActionButton" onClick={navigateToHome}>
-            {t('common.open_app')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAttemptCount((current) => current + 1);
-            }}
-          >
-            {t('common.import_delegation.retry')}
-          </button>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function ExistingTabAggregationScreen(props: ExistingTabAggregationScreenProps): JSX.Element {
-  const { t } = useTranslation();
-  const senderTabIdRef = React.useRef<string>(crypto.randomUUID());
-  const [state, setState] = React.useState<ImportDelegationState>('sending');
-  const [attemptCount, setAttemptCount] = React.useState(0);
-  const [statusHint, setStatusHint] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    setState('sending');
-    setStatusHint(null);
-
-    void delegateTabFocusToExistingTab(senderTabIdRef.current).then(async (result) => {
-      if (cancelled) {
-        return;
-      }
-      if (result.status === 'ack') {
-        setState('success');
-        setStatusHint(
-          result.via === 'broadcast'
-            ? t('common.import_delegation.status.ack_broadcast')
-            : t('common.import_delegation.status.ack_storage'),
-        );
-        window.setTimeout(() => {
-          tryCloseTab();
-        }, 60);
-        return;
-      }
-
-      const promoted = await props.onPromoteCurrentTab();
-      if (cancelled || promoted) {
-        return;
-      }
-      setState('failed');
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [attemptCount, props.onPromoteCurrentTab, t]);
-
-  if (state === 'sending') {
-    return (
-      <main className="page startupShell">
-        <section className="unsupported startupCard">
-          <h1>{t('common.import_delegation.sending.title')}</h1>
-          <p>{t('common.import_delegation.sending.description')}</p>
-          <div className="startupLoading" role="status" aria-live="polite" aria-label={t('common.import_delegation.sending.aria_label')}>
-            <span className="startupLoadingSpinner" aria-hidden="true" />
-          </div>
-        </section>
-      </main>
-    );
-  }
-
-  if (state === 'success') {
-    return (
-      <main className="page startupShell">
-        <section className="unsupported startupCard">
-          <h1>{t('common.import_delegation.success.title')}</h1>
-          <p>{t('common.import_delegation.success.description')}</p>
-          {statusHint ? <p className="hintText">{statusHint}</p> : null}
-          <p className="hintText">{t('common.import_delegation.success.close_hint')}</p>
-          <div className="actions startupActionRow">
-            <button type="button" className="primaryActionButton" onClick={tryCloseTab}>
-              {t('common.close_this_tab')}
-            </button>
-          </div>
-        </section>
-      </main>
-    );
-  }
-
-  return (
-    <main className="page startupShell">
-      <section className="warningBox startupCard">
-        <h1>{t('common.bootstrap.already_running_in_other_tab')}</h1>
-        <p>{t('common.import_delegation.failed.description')}</p>
         <div className="actions startupActionRow">
           <button type="button" className="primaryActionButton" onClick={navigateToHome}>
             {t('common.open_app')}
@@ -778,53 +651,7 @@ async function bootstrap(): Promise<void> {
       );
       return;
     }
-    renderWithMuiTheme(
-      root,
-      <ExistingTabAggregationScreen
-        onPromoteCurrentTab={async () => {
-          try {
-            releaseLock = await acquireSingleTabLock('iidx-score-attack-web-lock');
-          } catch {
-            return false;
-          }
-
-          try {
-            const services = await Promise.race([
-              createAppServices(),
-              new Promise<never>((_, reject) => {
-                window.setTimeout(() => reject(new Error(i18n.t('common.bootstrap.initialization_timeout'))), 20000);
-              }),
-            ]);
-            const persistedLanguage = await services.appDb.getSetting(APP_LANGUAGE_SETTING_KEY).catch(() => null);
-            await ensureI18n(normalizeLanguage(persistedLanguage));
-
-            window.addEventListener('beforeunload', () => {
-              if (releaseLock) {
-                releaseLock();
-                releaseLock = null;
-              }
-              void services.appDb.dispose();
-            });
-
-            renderWithMuiTheme(
-              root,
-              <AppServicesProvider services={services}>
-                <App webLockAcquired />
-              </AppServicesProvider>,
-            );
-            return true;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            const reason = message.includes('no such vfs: opfs')
-              ? i18n.t('common.bootstrap.opfs_vfs_init_failed')
-              : i18n.t('common.bootstrap.initialization_error', { message });
-
-            renderWithMuiTheme(root, <AppFallbackUnsupported reasons={[reason]} />);
-            return true;
-          }
-        }}
-      />,
-    );
+    renderWithMuiTheme(root, <AppFallbackUnsupported reasons={[i18n.t('common.bootstrap.already_running_in_other_tab')]} />);
     return;
   }
 
