@@ -137,7 +137,7 @@ describe('SongMasterService', () => {
     expect(appDb.getSettingNow('last_song_master_generated_at')).toBe(latest.generated_at);
   });
 
-  it('skips sqlite download when sha256 and byte_size are unchanged', async () => {
+  it('skips sqlite download when latest generated_at is not newer', async () => {
     const sqliteBytes = createSqliteBytes();
     const sha256 = sha256Hex(sqliteBytes);
     const latest = {
@@ -152,8 +152,7 @@ describe('SongMasterService', () => {
     const sqliteBaseUrl = 'https://github.com/tts1374/iidx_all_songs_master/releases/latest/download';
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify(latest), { status: 200 }));
     const appDb = new MockAppDatabase(true, {
-      last_song_master_sha256: sha256,
-      last_song_master_byte_size: String(sqliteBytes.byteLength),
+      last_song_master_generated_at: '2026-02-17T09:00:00.000+09:00',
       song_master_file_name: latest.file_name,
     });
     const client = new MockSqliteWorkerClient();
@@ -176,6 +175,61 @@ describe('SongMasterService', () => {
     expect(result.source).toBe('up_to_date');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(opfs.writeFileAtomic).not.toHaveBeenCalled();
+  });
+
+  it('downloads sqlite when latest generated_at is newer', async () => {
+    const sqliteBytes = createSqliteBytes();
+    const sha256 = sha256Hex(sqliteBytes);
+    const latest = {
+      file_name: 'song_master_2026-02-17.sqlite',
+      schema_version: 33,
+      generated_at: '2026-02-17T00:00:01.000Z',
+      sha256,
+      byte_size: sqliteBytes.byteLength,
+    };
+
+    const latestJsonUrl = 'https://github.com/tts1374/iidx_all_songs_master/releases/latest/download/latest.json';
+    const sqliteBaseUrl = 'https://github.com/tts1374/iidx_all_songs_master/releases/latest/download';
+    const expectedSqliteUrl = `${sqliteBaseUrl}/${latest.file_name}`;
+
+    const fetchCalls: string[] = [];
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      fetchCalls.push(url);
+      if (url === latestJsonUrl) {
+        return new Response(JSON.stringify(latest), { status: 200 });
+      }
+      if (url === expectedSqliteUrl) {
+        return new Response(Uint8Array.from(sqliteBytes).buffer, { status: 200 });
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+    const appDb = new MockAppDatabase(true, {
+      last_song_master_generated_at: '2026-02-17T00:00:00.000Z',
+      last_song_master_sha256: sha256,
+      last_song_master_byte_size: String(sqliteBytes.byteLength),
+      song_master_file_name: latest.file_name,
+    });
+    const client = new MockSqliteWorkerClient();
+    const opfs = new MockOpfsStorage();
+
+    const service = new SongMasterService(
+      appDb as unknown as AppDatabase,
+      client as unknown as SqliteWorkerClient,
+      opfs as unknown as OpfsStorage,
+      {
+        latestJsonUrl,
+        sqliteBaseUrl,
+        requiredSchemaVersion: 33,
+        fetchImpl: fetchImpl as typeof fetch,
+      },
+    );
+
+    const result = await service.updateIfNeeded(false);
+    expect(result.ok).toBe(true);
+    expect(result.source).toBe('github_download');
+    expect(fetchCalls).toEqual([latestJsonUrl, expectedSqliteUrl]);
+    expect(appDb.getSettingNow('last_song_master_generated_at')).toBe(latest.generated_at);
   });
 
   it('keeps local cache when sqlite integrity validation fails after initial cache exists', async () => {
