@@ -62,6 +62,11 @@ function isIsoDateTime(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
 }
 
+function parseGeneratedAtMs(value: string): number | null {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function isValidSqliteFileName(value: string): boolean {
   if (value.length === 0) {
     return false;
@@ -142,9 +147,20 @@ export class SongMasterService {
     }
 
     const cachedMeta = await this.appDb.getSongMasterMeta();
-    const cachedSha = (cachedMeta.last_song_master_sha256 ?? cachedMeta.song_master_sha256 ?? '').trim();
-    const cachedByteSize = (cachedMeta.last_song_master_byte_size ?? cachedMeta.song_master_byte_size ?? '').trim();
-    const needsDownload = force || !hasCache || cachedSha !== latest.sha256 || cachedByteSize !== String(latest.byte_size);
+    const localGeneratedAtRaw = (
+      cachedMeta.last_song_master_generated_at ??
+      cachedMeta.song_master_generated_at ??
+      cachedMeta.song_master_updated_at ??
+      ''
+    ).trim();
+    const localGeneratedAtMs = localGeneratedAtRaw.length > 0 ? parseGeneratedAtMs(localGeneratedAtRaw) : null;
+    const latestGeneratedAtMs = parseGeneratedAtMs(latest.generated_at);
+    const needsDownload =
+      force ||
+      !hasCache ||
+      latestGeneratedAtMs === null ||
+      localGeneratedAtMs === null ||
+      latestGeneratedAtMs > localGeneratedAtMs;
 
     if (!needsDownload) {
       return {
