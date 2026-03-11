@@ -88,34 +88,10 @@ function navigateToHome(): void {
 }
 
 function tryCloseTab(): void {
-  const closeDirectly = (): boolean => {
-    try {
-      window.close();
-    } catch {
-      // ignore close failures
-    }
-    return window.closed;
-  };
-
-  if (closeDirectly()) {
-    return;
-  }
-
   try {
-    const selfWindow = window.open('about:blank', '_self');
-    selfWindow?.close();
+    window.close();
   } catch {
     // ignore close failures
-  }
-
-  if (window.closed) {
-    return;
-  }
-
-  try {
-    window.location.replace('about:blank');
-  } catch {
-    // ignore navigation failures
   }
 }
 
