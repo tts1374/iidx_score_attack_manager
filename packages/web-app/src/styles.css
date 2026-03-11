@@ -2346,6 +2346,17 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
+}
+
+.homeSongDataUpdateBanner > span {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.homeSongDataUpdateBannerActions .MuiButton-root {
+  min-inline-size: 72px;
+  white-space: nowrap;
 }
 
 .toast {
