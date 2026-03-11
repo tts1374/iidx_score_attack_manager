@@ -1004,13 +1004,12 @@
   },
   "whats_new": {
     "modal": {
-      "title": "Update Notice (v0.9.1)",
+      "title": "Update Notice (v1.0.0)",
       "description": "What's changed"
     },
     "items": [
-      "QR sharing is now easier to read, and shared images are higher quality.",
-      "Tournament creation is simpler, and a confirmation screen has been added.",
-      "Display and interactions on Home and Detail have been improved."
+      "Added app icons.",
+      "The app now shows a notice when song data updates are available."
     ]
   }
 }
