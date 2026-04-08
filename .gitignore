@@ -11,3 +11,9 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Local temp (Python tooling)
+.tmp_py/
+.vendor_py/
+.tmp_pytest/
+.tmp_pytest_base/
