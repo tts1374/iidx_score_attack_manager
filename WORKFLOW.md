@@ -39,6 +39,20 @@
 
 この場合のみ、実装前に `tasks/<branch-or-pr-name>.md` を作成する。
 
+### 1.1 Current request ceiling
+着手前に、今回の依頼がどこまでを許可しているかを明示的に判定する。
+
+- planning-only
+- artifact-update-only
+- implementation-authorized
+- review-fix-only
+- merge / close / cleanup authorized
+
+ルール:
+- user が明示的に許可していない後段フェーズへ同一ターンで進まない
+- `tasks/*.md` 作成、Issue コメント記載、計画整理の依頼は artifact 作成と write-back 確認で止める
+- review 指摘対応の依頼は、merge や cleanup が明示されていない限りその範囲で止める
+
 ---
 
 ## 2. Plan Mode の必須条件
@@ -67,6 +81,18 @@
 - 文言、翻訳、軽微なバリデーション変更
 - テスト追加のみ（仕様変更を伴わないもの）
 
+### 2.1 途中再判定
+Local Execution Mode で開始しても、以下のいずれかが出た時点で mode / scope を再判定する。
+
+- 4ファイル目以降の確認や追加探索が必要になった
+- package 境界や互換性影響が見えた
+- PWA / 起動 / Web Locks / 保存互換性へ波及する疑いが出た
+- current request ceiling を越えて PR / merge / cleanup まで進めたくなった
+
+再判定結果:
+- 局所のまま進められるなら、拡張理由を明示して最小追加範囲のみ進める
+- Plan Mode 条件に入るなら、以後の実装前に plan を作成する
+
 ---
 
 ## 3. Plan Mode の記載内容
@@ -90,6 +116,10 @@
 - [ ] テスト
 - [ ] 回帰確認
 - [ ] ドキュメント更新
+
+### 3.1 task artifact の扱い
+- `tasks/*.md` を作成した場合は、それが planning deliverable なのか、実装ブランチに同梱する artifact なのかを明示する
+- task artifact を push / PR に含めるタイミングを曖昧にしない
 
 ---
 
@@ -205,6 +235,19 @@ PRには以下を含める。
 - 互換性影響の有無
 - 保存/PWA/起動導線への影響
 - docs更新有無
+
+### 11.1 merge / close / cleanup の順序
+merge / close / cleanup を同時に扱う場合、順序は以下に固定する。
+
+1. merge 実行
+2. merged state の read-back 確認
+3. close evidence の確認
+4. Issue close
+5. branch / worktree cleanup
+
+ルール:
+- merged state の read-back 前に close や cleanup へ進まない
+- command success だけで完了扱いにしない
 
 ---
 

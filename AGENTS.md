@@ -43,6 +43,20 @@ Unless the task explicitly requires it:
 - no repo-wide cleanup
 - no initial full traversal of PWA / SW / Locks / storage layers
 
+### 1.4 Current Request Boundary
+Before acting, classify the current request ceiling as one of:
+- analysis-only
+- planning-only
+- artifact-update-only
+- implementation-authorized
+- review-fix-only
+- merge / close / cleanup authorized
+
+Rules:
+- Do not cross the current request boundary unless the user explicitly expands it.
+- Requests to create a plan, task artifact, or issue comment do not authorize implementation in the same pass.
+- Requests to fix review feedback do not authorize unrelated merge or cleanup.
+
 ---
 
 ## 2. Planning Gate
@@ -61,6 +75,16 @@ For non-Plan tasks, keep pre-execution notes minimal:
 - validation method
 
 Do not produce long planning text for local tasks.
+
+### 2.2 Sticky Session Constraints
+- User clarifications, repeated corrections, explicit non-goals, and narrowed scope inside the same thread are treated as sticky hard constraints.
+- Carry those constraints forward into later analysis, implementation, validation, PR, close, and cleanup steps until the user explicitly changes them.
+- If a later request is broader but ambiguous, keep the narrower earlier constraint.
+
+### 2.3 Human Decision Requests
+- If human input is required, return `WAITING_FOR_HUMAN_DECISION` or equivalent together with 2-3 concrete options.
+- Include one recommended option and the consequence of each option.
+- Do not stop with an abstract blocker when a bounded decision can unblock the task.
 
 ---
 
@@ -167,6 +191,11 @@ Required behavior:
 - 1 branch = 1 purpose
 - do not edit CI-generated outputs manually
 - do not mix machine-generated diffs with manual logic edits in the same commit unless explicitly intended and isolated
+
+### 7.1 Write-back Requires Read-back
+- Issue comments, PR updates, merge, Issue close, branch cleanup, and similar external state changes are not complete until read-back confirms the resulting state.
+- Command success, empty stdout, or optimistic assumptions are insufficient.
+- If read-back cannot confirm the result, report the task as partial or blocked.
 
 ---
 
