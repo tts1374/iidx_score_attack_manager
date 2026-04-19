@@ -260,6 +260,37 @@ describe('public catalog register worker', () => {
     expect(repository.auditLogs.at(-1)?.result).toBe('unsupported_media_type');
   });
 
+  it('accepts application json with charset parameter', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+      randomUUID: () => 'public-created-id',
+    });
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        body: validPayload,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      status: string;
+      publicId: string;
+    };
+
+    expect(response.status).toBe(201);
+    expect(body).toEqual({
+      status: 'created',
+      publicId: 'public-created-id',
+    });
+    expect(repository.auditLogs.at(-1)?.result).toBe('accepted');
+  });
+
   it('rate limits repeated requests and stores a hashed fingerprint', async () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
