@@ -1,0 +1,23 @@
+{
+  "name": "@iidx/public-catalog-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "cf:check": "wrangler check",
+    "cf:typegen": "wrangler types ./src/worker-configuration.d.ts"
+  },
+  "dependencies": {
+    "@iidx/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260418.1",
+    "vitest": "^2.1.8",
+    "wrangler": "^4.83.0"
+  }
+}
