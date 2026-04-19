@@ -277,4 +277,44 @@ describe('public catalog register worker', () => {
     expect(rejected.headers.get('Access-Control-Allow-Origin')).toBeNull();
     expect(repository.auditLogs.at(-1)?.result).toBe('origin_rejected');
   });
+
+  it('applies rate limiting before logging repeated disallowed origins', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+      randomUUID: () => 'public-created-id',
+    });
+
+    const firstRejected = await invokeWorker(
+      worker,
+      createRequest({
+        origin: 'https://evil.example.com',
+        body: validPayload,
+      }),
+      createEnv({ RATE_LIMIT_MAX_REQUESTS: '1' }),
+    );
+    const rateLimited = await invokeWorker(
+      worker,
+      createRequest({
+        origin: 'https://evil.example.com',
+        body: {
+          ...validPayload,
+          uuid: '11111111-1111-4111-8111-111111111111',
+        },
+      }),
+      createEnv({ RATE_LIMIT_MAX_REQUESTS: '1' }),
+    );
+    const body = (await rateLimited.json()) as {
+      error: { code: string };
+    };
+
+    expect(firstRejected.status).toBe(403);
+    expect(rateLimited.status).toBe(429);
+    expect(body.error.code).toBe('RATE_LIMITED');
+    expect(repository.auditLogs.map((entry) => entry.result)).toEqual([
+      'origin_rejected',
+      'rate_limited',
+    ]);
+  });
 });

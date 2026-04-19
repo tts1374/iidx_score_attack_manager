@@ -260,24 +260,6 @@ export function createWorkerHandler(
         config.rateLimitSalt,
       );
       const auditOrigin = cors.requestOrigin ?? request.headers.get('Origin');
-
-      if (!cors.allowedOrigin) {
-        await repository.insertAuditLog(
-          createAuditEntry(
-            'origin_rejected',
-            requestFingerprint,
-            createdAt,
-            auditOrigin,
-            {
-              details: {
-                origin: request.headers.get('Origin') ?? null,
-              },
-            },
-          ),
-        );
-        return errorResponse(403, 'ORIGIN_NOT_ALLOWED', 'origin not allowed', null);
-      }
-
       const windowStart = getRateLimitWindowStart(
         currentTime,
         config.rateLimitWindowSeconds,
@@ -297,6 +279,23 @@ export function createWorkerHandler(
           'rate limit exceeded',
           cors.allowedOrigin,
         );
+      }
+
+      if (!cors.allowedOrigin) {
+        await repository.insertAuditLog(
+          createAuditEntry(
+            'origin_rejected',
+            requestFingerprint,
+            createdAt,
+            auditOrigin,
+            {
+              details: {
+                origin: request.headers.get('Origin') ?? null,
+              },
+            },
+          ),
+        );
+        return errorResponse(403, 'ORIGIN_NOT_ALLOWED', 'origin not allowed', null);
       }
 
       let requestPayload: unknown;
