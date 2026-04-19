@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createWorkerHandler,
-  REGISTER_PUBLIC_TOURNAMENT_PATH,
-} from '../src/index.js';
+import { createWorkerHandler } from '../src/index.js';
+import { REGISTER_PUBLIC_TOURNAMENT_PATH } from '../src/routes.js';
 import type {
   PublicTournamentAuditLogEntry,
   PublicTournamentRecord,
@@ -95,6 +93,33 @@ function createRequest(
     `https://api.example.com${REGISTER_PUBLIC_TOURNAMENT_PATH}`,
     requestInit,
   );
+}
+
+function createStreamingRequest(rawText: string): Request {
+  const bytes = new TextEncoder().encode(rawText);
+  let offset = 0;
+
+  return {
+    url: `https://api.example.com${REGISTER_PUBLIC_TOURNAMENT_PATH}`,
+    method: 'POST',
+    headers: new Headers({
+      Origin: 'https://tts1374.github.io',
+      'CF-Connecting-IP': '203.0.113.10',
+      'Content-Type': 'application/json',
+    }),
+    body: new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (offset >= bytes.length) {
+          controller.close();
+          return;
+        }
+
+        const nextOffset = Math.min(offset + 1024, bytes.length);
+        controller.enqueue(bytes.slice(offset, nextOffset));
+        offset = nextOffset;
+      },
+    }),
+  } as Request;
 }
 
 function invokeWorker(
@@ -316,5 +341,31 @@ describe('public catalog register worker', () => {
       'origin_rejected',
       'rate_limited',
     ]);
+  });
+
+  it('rejects oversized streaming bodies before buffering the full payload', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+      randomUUID: () => 'public-created-id',
+    });
+    const oversizedBody = JSON.stringify({
+      ...validPayload,
+      name: 'A'.repeat(33000),
+    });
+
+    const response = await invokeWorker(
+      worker,
+      createStreamingRequest(oversizedBody),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      error: { code: string };
+    };
+
+    expect(response.status).toBe(413);
+    expect(body.error.code).toBe('PAYLOAD_TOO_LARGE');
+    expect(repository.auditLogs.at(-1)?.result).toBe('payload_too_large');
   });
 });

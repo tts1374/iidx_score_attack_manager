@@ -27,8 +27,7 @@ import {
   buildRequestFingerprint,
   getRateLimitWindowStart,
 } from './rate-limit.js';
-
-export const REGISTER_PUBLIC_TOURNAMENT_PATH = '/api/public-tournaments';
+import { REGISTER_PUBLIC_TOURNAMENT_PATH } from './routes.js';
 
 const MAX_REQUEST_BODY_BYTES = 32 * 1024;
 
@@ -125,6 +124,52 @@ function createAuditEntry(
   };
 }
 
+function normalizeBodyChunk(value: Uint8Array | ArrayBuffer): Uint8Array {
+  if (value instanceof Uint8Array) {
+    return value;
+  }
+  return new Uint8Array(value);
+}
+
+async function readRequestTextWithLimit(
+  request: Request,
+  maxBytes: number,
+): Promise<string> {
+  const body = request.body;
+  if (!body) {
+    throw new ApiError(400, 'BAD_REQUEST', 'request body is required');
+  }
+
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (!value) {
+        continue;
+      }
+
+      const chunk = normalizeBodyChunk(value);
+      totalBytes += chunk.byteLength;
+      if (totalBytes > maxBytes) {
+        throw new ApiError(413, 'PAYLOAD_TOO_LARGE', 'request body too large');
+      }
+
+      chunks.push(decoder.decode(chunk, { stream: true }));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return chunks.join('') + decoder.decode();
+}
+
 async function parseJsonBody(request: Request): Promise<unknown> {
   const contentType = request.headers.get('content-type') ?? '';
   if (!contentType.toLowerCase().includes('application/json')) {
@@ -146,13 +191,9 @@ async function parseJsonBody(request: Request): Promise<unknown> {
     }
   }
 
-  const rawBody = await request.text();
+  const rawBody = await readRequestTextWithLimit(request, MAX_REQUEST_BODY_BYTES);
   if (rawBody.trim().length === 0) {
     throw new ApiError(400, 'BAD_REQUEST', 'request body is required');
-  }
-
-  if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BODY_BYTES) {
-    throw new ApiError(413, 'PAYLOAD_TOO_LARGE', 'request body too large');
   }
 
   try {
