@@ -85,7 +85,9 @@ function createRequest(
   };
 
   if (init.body !== undefined) {
-    headers.set('Content-Type', 'application/json');
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
     requestInit.body = JSON.stringify(init.body);
   }
 
@@ -229,6 +231,33 @@ describe('public catalog register worker', () => {
     expect(body.error.code).toBe('INVALID_PAYLOAD');
     expect(body.error.details?.reason).toBe('CHARTS_REQUIRED');
     expect(repository.auditLogs.at(-1)?.result).toBe('invalid_payload');
+  });
+
+  it('rejects non-standard json media types', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+      randomUUID: () => 'public-created-id',
+    });
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        body: validPayload,
+        headers: {
+          'Content-Type': 'application/json-patch+json',
+        },
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      error: { code: string };
+    };
+
+    expect(response.status).toBe(415);
+    expect(body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+    expect(repository.auditLogs.at(-1)?.result).toBe('unsupported_media_type');
   });
 
   it('rate limits repeated requests and stores a hashed fingerprint', async () => {

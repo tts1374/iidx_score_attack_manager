@@ -170,9 +170,13 @@ async function readRequestTextWithLimit(
   return chunks.join('') + decoder.decode();
 }
 
+function getMediaType(contentTypeHeader: string | null): string {
+  return (contentTypeHeader ?? '').split(';', 1)[0]?.trim().toLowerCase() ?? '';
+}
+
 async function parseJsonBody(request: Request): Promise<unknown> {
-  const contentType = request.headers.get('content-type') ?? '';
-  if (!contentType.toLowerCase().includes('application/json')) {
+  const mediaType = getMediaType(request.headers.get('content-type'));
+  if (mediaType !== 'application/json') {
     throw new ApiError(
       415,
       'UNSUPPORTED_MEDIA_TYPE',
