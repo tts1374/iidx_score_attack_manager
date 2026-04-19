@@ -15,6 +15,28 @@ export interface PublicTournamentRegisterResponse {
   publicId: string;
 }
 
+export type PublicTournamentListCursor = string;
+
+export interface PublicTournamentListItem {
+  publicId: string;
+  name: string;
+  owner: string;
+  hashtag: string;
+  start: string;
+  end: string;
+  chartCount: number;
+  createdAt: string;
+}
+
+export interface PublicTournamentListResponse {
+  items: PublicTournamentListItem[];
+  nextCursor: PublicTournamentListCursor | null;
+}
+
+export interface PublicTournamentPayloadResponse {
+  payloadParam: string;
+}
+
 export type PublicCatalogApiErrorCode =
   | 'BAD_REQUEST'
   | 'INVALID_JSON'
