@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createWorkerHandler } from '../src/index.js';
 import { REGISTER_PUBLIC_TOURNAMENT_PATH } from '../src/routes.js';
 import type {
+  ListActivePublicTournamentsOptions,
+  ListActivePublicTournamentsResult,
   PublicTournamentAuditLogEntry,
   PublicTournamentRecord,
   PublicTournamentRepository,
@@ -28,6 +30,15 @@ class InMemoryRepository implements PublicTournamentRepository {
     registryHash: string,
   ): Promise<PublicTournamentRecord | null> {
     return this.recordsByRegistryHash.get(registryHash) ?? null;
+  }
+
+  async listActive(
+    _options: ListActivePublicTournamentsOptions,
+  ): Promise<ListActivePublicTournamentsResult> {
+    return {
+      items: [],
+      hasMore: false,
+    };
   }
 
   async create(record: PublicTournamentRecord): Promise<boolean> {

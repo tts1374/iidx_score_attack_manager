@@ -1,3 +1,5 @@
+import type { PublicTournamentListItem } from '@iidx/shared';
+
 export interface PublicTournamentRecord {
   publicId: string;
   registryHash: string;
@@ -37,12 +39,31 @@ export interface PublicTournamentAuditLogEntry {
   createdAt: string;
 }
 
+export interface PublicTournamentListCursorInput {
+  createdAt: string;
+  publicId: string;
+}
+
+export interface ListActivePublicTournamentsOptions {
+  searchQuery: string | null;
+  cursor: PublicTournamentListCursorInput | null;
+  limit: number;
+}
+
+export interface ListActivePublicTournamentsResult {
+  items: PublicTournamentListItem[];
+  hasMore: boolean;
+}
+
 export interface PublicTournamentRepository {
   countRecentAttempts(
     requestFingerprint: string,
     sinceInclusive: string,
   ): Promise<number>;
   getByRegistryHash(registryHash: string): Promise<PublicTournamentRecord | null>;
+  listActive(
+    options: ListActivePublicTournamentsOptions,
+  ): Promise<ListActivePublicTournamentsResult>;
   create(record: PublicTournamentRecord): Promise<boolean>;
   insertAuditLog(entry: PublicTournamentAuditLogEntry): Promise<void>;
 }
@@ -67,6 +88,17 @@ interface PublicTournamentRow {
   delete_reason: string | null;
 }
 
+interface PublicTournamentListRow {
+  public_id: string;
+  name: string;
+  owner: string;
+  hashtag: string;
+  start_date: string;
+  end_date: string;
+  chart_count: number | string;
+  created_at: string;
+}
+
 function mapPublicTournamentRow(row: PublicTournamentRow): PublicTournamentRecord {
   return {
     publicId: row.public_id,
@@ -83,6 +115,23 @@ function mapPublicTournamentRow(row: PublicTournamentRow): PublicTournamentRecor
     deletedAt: row.deleted_at,
     deleteReason: row.delete_reason,
   };
+}
+
+function mapPublicTournamentListRow(row: PublicTournamentListRow): PublicTournamentListItem {
+  return {
+    publicId: row.public_id,
+    name: row.name,
+    owner: row.owner,
+    hashtag: row.hashtag,
+    start: row.start_date,
+    end: row.end_date,
+    chartCount: Number(row.chart_count),
+    createdAt: row.created_at,
+  };
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
 }
 
 export class D1PublicTournamentRepository implements PublicTournamentRepository {
@@ -137,6 +186,63 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
       .first<PublicTournamentRow>();
 
     return row ? mapPublicTournamentRow(row) : null;
+  }
+
+  async listActive(
+    options: ListActivePublicTournamentsOptions,
+  ): Promise<ListActivePublicTournamentsResult> {
+    const trimmedSearch = options.searchQuery?.trim() ?? '';
+    const searchPattern =
+      trimmedSearch.length > 0 ? `%${escapeLikePattern(trimmedSearch)}%` : null;
+    const rows =
+      (
+        await this.db
+          .prepare(
+            `
+              SELECT
+                public_id,
+                name,
+                owner,
+                hashtag,
+                start_date,
+                end_date,
+                chart_count,
+                created_at
+              FROM public_tournaments
+              WHERE deleted_at IS NULL
+                AND (
+                  ? IS NULL
+                  OR name LIKE ? ESCAPE '\\'
+                  OR owner LIKE ? ESCAPE '\\'
+                  OR hashtag LIKE ? ESCAPE '\\'
+                )
+                AND (
+                  ? IS NULL
+                  OR created_at < ?
+                  OR (created_at = ? AND public_id < ?)
+                )
+              ORDER BY created_at DESC, public_id DESC
+              LIMIT ?
+            `,
+          )
+          .bind(
+            searchPattern,
+            searchPattern,
+            searchPattern,
+            searchPattern,
+            options.cursor?.createdAt ?? null,
+            options.cursor?.createdAt ?? null,
+            options.cursor?.createdAt ?? null,
+            options.cursor?.publicId ?? null,
+            options.limit + 1,
+          )
+          .all<PublicTournamentListRow>()
+      ).results ?? [];
+
+    return {
+      items: rows.slice(0, options.limit).map(mapPublicTournamentListRow),
+      hasMore: rows.length > options.limit,
+    };
   }
 
   async create(record: PublicTournamentRecord): Promise<boolean> {

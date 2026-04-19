@@ -1,1 +1,3 @@
-export const REGISTER_PUBLIC_TOURNAMENT_PATH = '/api/public-tournaments';
+export const PUBLIC_TOURNAMENTS_PATH = '/api/public-tournaments';
+export const LIST_PUBLIC_TOURNAMENTS_PATH = PUBLIC_TOURNAMENTS_PATH;
+export const REGISTER_PUBLIC_TOURNAMENT_PATH = PUBLIC_TOURNAMENTS_PATH;

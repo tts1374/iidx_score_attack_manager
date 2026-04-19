@@ -5,6 +5,7 @@ import {
   type ErrorParams,
   type PublicCatalogApiErrorCode,
   type PublicCatalogApiErrorResponse,
+  type PublicTournamentListResponse,
   type PublicTournamentRegisterResponse,
 } from '@iidx/shared';
 import {
@@ -17,6 +18,10 @@ import {
   type PublicCatalogEnv,
 } from './env.js';
 import {
+  decodePublicTournamentListCursor,
+  encodePublicTournamentListCursor,
+} from './pagination.js';
+import {
   D1PublicTournamentRepository,
   type PublicTournamentAuditLogEntry,
   type PublicTournamentAuditResult,
@@ -27,9 +32,11 @@ import {
   buildRequestFingerprint,
   getRateLimitWindowStart,
 } from './rate-limit.js';
-import { REGISTER_PUBLIC_TOURNAMENT_PATH } from './routes.js';
+import { LIST_PUBLIC_TOURNAMENTS_PATH } from './routes.js';
 
 const MAX_REQUEST_BODY_BYTES = 32 * 1024;
+const PUBLIC_TOURNAMENTS_ROUTE_METHODS = ['GET', 'POST', 'OPTIONS'] as const;
+const PUBLIC_TOURNAMENTS_PAGE_SIZE = 20;
 
 class ApiError extends Error {
   constructor(
@@ -60,12 +67,15 @@ function mergeHeaders(target: Headers, source: Headers): void {
   });
 }
 
-function buildJsonHeaders(allowedOrigin: string | null): Headers {
+function buildJsonHeaders(
+  allowedOrigin: string | null,
+  allowedMethods: readonly string[] = PUBLIC_TOURNAMENTS_ROUTE_METHODS,
+): Headers {
   const headers = createVaryHeaders();
   headers.set('Cache-Control', 'no-store');
   headers.set('Content-Type', 'application/json; charset=utf-8');
   if (allowedOrigin) {
-    mergeHeaders(headers, createCorsHeaders(allowedOrigin));
+    mergeHeaders(headers, createCorsHeaders(allowedOrigin, allowedMethods));
   }
   return headers;
 }
@@ -74,9 +84,10 @@ function jsonResponse<T>(
   status: number,
   body: T,
   allowedOrigin: string | null,
+  allowedMethods: readonly string[] = PUBLIC_TOURNAMENTS_ROUTE_METHODS,
   extraHeaders?: HeadersInit,
 ): Response {
-  const headers = buildJsonHeaders(allowedOrigin);
+  const headers = buildJsonHeaders(allowedOrigin, allowedMethods);
   if (extraHeaders) {
     mergeHeaders(headers, new Headers(extraHeaders));
   }
@@ -89,6 +100,7 @@ function errorResponse(
   message: string,
   allowedOrigin: string | null,
   details?: ErrorParams,
+  allowedMethods: readonly string[] = PUBLIC_TOURNAMENTS_ROUTE_METHODS,
   extraHeaders?: HeadersInit,
 ): Response {
   const body: PublicCatalogApiErrorResponse = {
@@ -99,7 +111,13 @@ function errorResponse(
     },
   };
 
-  return jsonResponse(status, body, allowedOrigin, extraHeaders);
+  return jsonResponse(
+    status,
+    body,
+    allowedOrigin,
+    allowedMethods,
+    extraHeaders,
+  );
 }
 
 function createAuditEntry(
@@ -249,6 +267,83 @@ async function createOrResolveTournament(
   return { created: false, record: existing };
 }
 
+function buildMethodNotAllowedResponse(
+  allowedOrigin: string | null,
+  allowedMethods: readonly string[],
+): Response {
+  return errorResponse(
+    405,
+    'METHOD_NOT_ALLOWED',
+    'method not allowed',
+    allowedOrigin,
+    undefined,
+    allowedMethods,
+    { Allow: allowedMethods.join(', ') },
+  );
+}
+
+function buildOriginNotAllowedResponse(
+  allowedMethods: readonly string[],
+): Response {
+  return errorResponse(
+    403,
+    'ORIGIN_NOT_ALLOWED',
+    'origin not allowed',
+    null,
+    undefined,
+    allowedMethods,
+  );
+}
+
+async function handleListPublicTournaments(
+  request: Request,
+  repository: PublicTournamentRepository,
+  allowedOrigin: string,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const rawCursor = url.searchParams.get('cursor');
+  let cursor: { createdAt: string; publicId: string } | null = null;
+  if (rawCursor !== null) {
+    try {
+      cursor = decodePublicTournamentListCursor(rawCursor);
+    } catch {
+      return errorResponse(
+        400,
+        'BAD_REQUEST',
+        'cursor is invalid',
+        allowedOrigin,
+        undefined,
+        PUBLIC_TOURNAMENTS_ROUTE_METHODS,
+      );
+    }
+  }
+
+  const searchQuery = url.searchParams.get('q')?.trim() ?? '';
+  const result = await repository.listActive({
+    searchQuery: searchQuery.length > 0 ? searchQuery : null,
+    cursor,
+    limit: PUBLIC_TOURNAMENTS_PAGE_SIZE,
+  });
+  const lastItem = result.items.at(-1);
+  const responseBody: PublicTournamentListResponse = {
+    items: result.items,
+    nextCursor:
+      result.hasMore && lastItem
+        ? encodePublicTournamentListCursor({
+            createdAt: lastItem.createdAt,
+            publicId: lastItem.publicId,
+          })
+        : null,
+  };
+
+  return jsonResponse(
+    200,
+    responseBody,
+    allowedOrigin,
+    PUBLIC_TOURNAMENTS_ROUTE_METHODS,
+  );
+}
+
 export function createWorkerHandler(
   dependencies: PublicCatalogWorkerDependencies = {},
 ): ExportedHandler<PublicCatalogEnv> {
@@ -261,7 +356,7 @@ export function createWorkerHandler(
   return {
     async fetch(request, env) {
       const url = new URL(request.url);
-      if (url.pathname !== REGISTER_PUBLIC_TOURNAMENT_PATH) {
+      if (url.pathname !== LIST_PUBLIC_TOURNAMENTS_PATH) {
         if (request.method === 'OPTIONS') {
           return new Response(null, { status: 404, headers: createVaryHeaders() });
         }
@@ -272,29 +367,42 @@ export function createWorkerHandler(
       try {
         config = parsePublicCatalogConfig(env);
       } catch {
-        return errorResponse(500, 'INTERNAL_ERROR', 'worker configuration is invalid', null);
+        return errorResponse(
+          500,
+          'INTERNAL_ERROR',
+          'worker configuration is invalid',
+          null,
+        );
       }
 
-      const cors = resolveCorsContext(request.headers.get('Origin'), config.allowedOrigins);
+      const cors = resolveCorsContext(
+        request.headers.get('Origin'),
+        config.allowedOrigins,
+      );
+      const routeMethods = PUBLIC_TOURNAMENTS_ROUTE_METHODS;
       if (request.method === 'OPTIONS') {
         if (!cors.allowedOrigin) {
           return new Response(null, { status: 403, headers: createVaryHeaders() });
         }
         return new Response(null, {
           status: 204,
-          headers: createCorsHeaders(cors.allowedOrigin),
+          headers: createCorsHeaders(cors.allowedOrigin, routeMethods),
         });
       }
 
-      if (request.method !== 'POST') {
-        return errorResponse(
-          405,
-          'METHOD_NOT_ALLOWED',
-          'method not allowed',
+      if (request.method === 'GET') {
+        if (!cors.allowedOrigin) {
+          return buildOriginNotAllowedResponse(routeMethods);
+        }
+        return handleListPublicTournaments(
+          request,
+          createRepository(env.DB),
           cors.allowedOrigin,
-          undefined,
-          { Allow: 'POST, OPTIONS' },
         );
+      }
+
+      if (request.method !== 'POST') {
+        return buildMethodNotAllowedResponse(cors.allowedOrigin, routeMethods);
       }
 
       const repository = createRepository(env.DB);
@@ -323,6 +431,8 @@ export function createWorkerHandler(
           'RATE_LIMITED',
           'rate limit exceeded',
           cors.allowedOrigin,
+          undefined,
+          routeMethods,
         );
       }
 
@@ -340,7 +450,7 @@ export function createWorkerHandler(
             },
           ),
         );
-        return errorResponse(403, 'ORIGIN_NOT_ALLOWED', 'origin not allowed', null);
+        return buildOriginNotAllowedResponse(routeMethods);
       }
 
       let requestPayload: unknown;
@@ -365,6 +475,7 @@ export function createWorkerHandler(
             error.message,
             cors.allowedOrigin,
             error.details,
+            routeMethods,
           );
         }
         throw error;
@@ -390,6 +501,7 @@ export function createWorkerHandler(
             'tournament payload is invalid',
             cors.allowedOrigin,
             error.params,
+            routeMethods,
           );
         }
         throw error;
@@ -429,6 +541,7 @@ export function createWorkerHandler(
           result.created ? 201 : 200,
           responseBody,
           cors.allowedOrigin,
+          routeMethods,
         );
       } catch (error) {
         await repository.insertAuditLog(
@@ -448,6 +561,8 @@ export function createWorkerHandler(
           'INTERNAL_ERROR',
           'failed to register tournament',
           cors.allowedOrigin,
+          undefined,
+          routeMethods,
         );
       }
     },
