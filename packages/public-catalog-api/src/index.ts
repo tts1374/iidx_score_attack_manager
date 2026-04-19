@@ -1,11 +1,13 @@
 import {
   PayloadValidationError,
   buildPublicTournamentRegistryHash,
+  encodeTournamentPayload,
   normalizeTournamentPayload,
   type ErrorParams,
   type PublicCatalogApiErrorCode,
   type PublicCatalogApiErrorResponse,
   type PublicTournamentListResponse,
+  type PublicTournamentPayloadResponse,
   type PublicTournamentRegisterResponse,
 } from '@iidx/shared';
 import {
@@ -32,10 +34,14 @@ import {
   buildRequestFingerprint,
   getRateLimitWindowStart,
 } from './rate-limit.js';
-import { LIST_PUBLIC_TOURNAMENTS_PATH } from './routes.js';
+import {
+  LIST_PUBLIC_TOURNAMENTS_PATH,
+  matchPublicTournamentPayloadPath,
+} from './routes.js';
 
 const MAX_REQUEST_BODY_BYTES = 32 * 1024;
 const PUBLIC_TOURNAMENTS_ROUTE_METHODS = ['GET', 'POST', 'OPTIONS'] as const;
+const PUBLIC_TOURNAMENT_PAYLOAD_ROUTE_METHODS = ['GET', 'OPTIONS'] as const;
 const PUBLIC_TOURNAMENTS_PAGE_SIZE = 20;
 
 class ApiError extends Error {
@@ -295,6 +301,20 @@ function buildOriginNotAllowedResponse(
   );
 }
 
+function buildNotFoundResponse(
+  allowedOrigin: string | null,
+  allowedMethods: readonly string[],
+): Response {
+  return errorResponse(
+    404,
+    'NOT_FOUND',
+    'public tournament not found',
+    allowedOrigin,
+    undefined,
+    allowedMethods,
+  );
+}
+
 async function handleListPublicTournaments(
   request: Request,
   repository: PublicTournamentRepository,
@@ -344,6 +364,43 @@ async function handleListPublicTournaments(
   );
 }
 
+async function handlePublicTournamentPayload(
+  publicId: string,
+  repository: PublicTournamentRepository,
+  allowedOrigin: string,
+): Promise<Response> {
+  const record = await repository.getActiveByPublicId(publicId);
+  if (!record) {
+    return buildNotFoundResponse(
+      allowedOrigin,
+      PUBLIC_TOURNAMENT_PAYLOAD_ROUTE_METHODS,
+    );
+  }
+
+  try {
+    const responseBody: PublicTournamentPayloadResponse = {
+      payloadParam: encodeTournamentPayload(JSON.parse(record.payloadJson)),
+    };
+
+    return jsonResponse(
+      200,
+      responseBody,
+      allowedOrigin,
+      PUBLIC_TOURNAMENT_PAYLOAD_ROUTE_METHODS,
+    );
+  } catch (error) {
+    console.error('public tournament payload encoding failed', error);
+    return errorResponse(
+      500,
+      'INTERNAL_ERROR',
+      'failed to load tournament payload',
+      allowedOrigin,
+      undefined,
+      PUBLIC_TOURNAMENT_PAYLOAD_ROUTE_METHODS,
+    );
+  }
+}
+
 export function createWorkerHandler(
   dependencies: PublicCatalogWorkerDependencies = {},
 ): ExportedHandler<PublicCatalogEnv> {
@@ -356,7 +413,10 @@ export function createWorkerHandler(
   return {
     async fetch(request, env) {
       const url = new URL(request.url);
-      if (url.pathname !== LIST_PUBLIC_TOURNAMENTS_PATH) {
+      const publicIdForPayload = matchPublicTournamentPayloadPath(url.pathname);
+      const isPublicTournamentCollectionPath =
+        url.pathname === LIST_PUBLIC_TOURNAMENTS_PATH;
+      if (!isPublicTournamentCollectionPath && !publicIdForPayload) {
         if (request.method === 'OPTIONS') {
           return new Response(null, { status: 404, headers: createVaryHeaders() });
         }
@@ -379,7 +439,10 @@ export function createWorkerHandler(
         request.headers.get('Origin'),
         config.allowedOrigins,
       );
-      const routeMethods = PUBLIC_TOURNAMENTS_ROUTE_METHODS;
+      const routeMethods = publicIdForPayload
+        ? PUBLIC_TOURNAMENT_PAYLOAD_ROUTE_METHODS
+        : PUBLIC_TOURNAMENTS_ROUTE_METHODS;
+
       if (request.method === 'OPTIONS') {
         if (!cors.allowedOrigin) {
           return new Response(null, { status: 403, headers: createVaryHeaders() });
@@ -388,6 +451,20 @@ export function createWorkerHandler(
           status: 204,
           headers: createCorsHeaders(cors.allowedOrigin, routeMethods),
         });
+      }
+
+      if (publicIdForPayload) {
+        if (request.method !== 'GET') {
+          return buildMethodNotAllowedResponse(cors.allowedOrigin, routeMethods);
+        }
+        if (!cors.allowedOrigin) {
+          return buildOriginNotAllowedResponse(routeMethods);
+        }
+        return handlePublicTournamentPayload(
+          publicIdForPayload,
+          createRepository(env.DB),
+          cors.allowedOrigin,
+        );
       }
 
       if (request.method === 'GET') {

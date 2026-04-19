@@ -61,6 +61,7 @@ export interface PublicTournamentRepository {
     sinceInclusive: string,
   ): Promise<number>;
   getByRegistryHash(registryHash: string): Promise<PublicTournamentRecord | null>;
+  getActiveByPublicId(publicId: string): Promise<PublicTournamentRecord | null>;
   listActive(
     options: ListActivePublicTournamentsOptions,
   ): Promise<ListActivePublicTournamentsResult>;
@@ -183,6 +184,36 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
         `,
       )
       .bind(registryHash)
+      .first<PublicTournamentRow>();
+
+    return row ? mapPublicTournamentRow(row) : null;
+  }
+
+  async getActiveByPublicId(publicId: string): Promise<PublicTournamentRecord | null> {
+    const row = await this.db
+      .prepare(
+        `
+          SELECT
+            public_id,
+            registry_hash,
+            payload_json,
+            name,
+            owner,
+            hashtag,
+            start_date,
+            end_date,
+            chart_count,
+            created_at,
+            updated_at,
+            deleted_at,
+            delete_reason
+          FROM public_tournaments
+          WHERE public_id = ?
+            AND deleted_at IS NULL
+          LIMIT 1
+        `,
+      )
+      .bind(publicId)
       .first<PublicTournamentRow>();
 
     return row ? mapPublicTournamentRow(row) : null;

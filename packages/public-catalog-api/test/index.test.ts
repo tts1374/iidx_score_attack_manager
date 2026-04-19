@@ -1,6 +1,13 @@
+import {
+  encodeTournamentPayload,
+  normalizeTournamentPayload,
+} from '@iidx/shared';
 import { describe, expect, it } from 'vitest';
 import { createWorkerHandler } from '../src/index.js';
-import { REGISTER_PUBLIC_TOURNAMENT_PATH } from '../src/routes.js';
+import {
+  LIST_PUBLIC_TOURNAMENTS_PATH,
+  REGISTER_PUBLIC_TOURNAMENT_PATH,
+} from '../src/routes.js';
 import type {
   ListActivePublicTournamentsOptions,
   ListActivePublicTournamentsResult,
@@ -32,12 +39,61 @@ class InMemoryRepository implements PublicTournamentRepository {
     return this.recordsByRegistryHash.get(registryHash) ?? null;
   }
 
+  async getActiveByPublicId(publicId: string): Promise<PublicTournamentRecord | null> {
+    const record = this.recordsByPublicId.get(publicId) ?? null;
+    return record && !record.deletedAt ? record : null;
+  }
+
   async listActive(
-    _options: ListActivePublicTournamentsOptions,
+    options: ListActivePublicTournamentsOptions,
   ): Promise<ListActivePublicTournamentsResult> {
+    const normalizedSearch = options.searchQuery?.trim().toLowerCase() ?? '';
+    const filtered = [...this.recordsByPublicId.values()]
+      .filter((record) => !record.deletedAt)
+      .filter((record) => {
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        return [record.name, record.owner, record.hashtag].some((value) =>
+          value.toLowerCase().includes(normalizedSearch),
+        );
+      })
+      .sort(
+        (left, right) =>
+          right.createdAt.localeCompare(left.createdAt) ||
+          right.publicId.localeCompare(left.publicId),
+      );
+
+    const paged = options.cursor
+      ? filtered.filter((record) => {
+          const cursor = options.cursor;
+          if (!cursor) {
+            return true;
+          }
+
+          return (
+            record.createdAt < cursor.createdAt ||
+            (record.createdAt === cursor.createdAt &&
+              record.publicId < cursor.publicId)
+          );
+        })
+      : filtered;
+
+    const items = paged.slice(0, options.limit + 1).map((record) => ({
+      publicId: record.publicId,
+      name: record.name,
+      owner: record.owner,
+      hashtag: record.hashtag,
+      start: record.startDate,
+      end: record.endDate,
+      chartCount: record.chartCount,
+      createdAt: record.createdAt,
+    }));
+
     return {
-      items: [],
-      hasMore: false,
+      items: items.slice(0, options.limit),
+      hasMore: items.length > options.limit,
     };
   }
 
@@ -80,12 +136,23 @@ function createEnv(overrides: Partial<Record<string, string>> = {}) {
 
 function createRequest(
   init: {
+    path?: string;
     method?: string;
     origin?: string;
     body?: unknown;
     headers?: Record<string, string>;
+    searchParams?: Record<string, string | undefined>;
   } = {},
 ): Request {
+  const url = new URL(
+    `https://api.example.com${init.path ?? REGISTER_PUBLIC_TOURNAMENT_PATH}`,
+  );
+  for (const [key, value] of Object.entries(init.searchParams ?? {})) {
+    if (value !== undefined) {
+      url.searchParams.set(key, value);
+    }
+  }
+
   const headers = new Headers(init.headers);
   headers.set('Origin', init.origin ?? 'https://tts1374.github.io');
   headers.set('CF-Connecting-IP', '203.0.113.10');
@@ -102,10 +169,7 @@ function createRequest(
     requestInit.body = JSON.stringify(init.body);
   }
 
-  return new Request(
-    `https://api.example.com${REGISTER_PUBLIC_TOURNAMENT_PATH}`,
-    requestInit,
-  );
+  return new Request(url, requestInit);
 }
 
 function createStreamingRequest(rawText: string): Request {
@@ -135,6 +199,37 @@ function createStreamingRequest(rawText: string): Request {
   } as Request;
 }
 
+function createRecord(
+  publicId: string,
+  createdAt: string,
+  overrides: Partial<PublicTournamentRecord> = {},
+): PublicTournamentRecord {
+  const normalizedPayload = normalizeTournamentPayload({
+    ...validPayload,
+    name: overrides.name ?? validPayload.name,
+    owner: overrides.owner ?? validPayload.owner,
+    hashtag: overrides.hashtag ?? validPayload.hashtag,
+    start: overrides.startDate ?? validPayload.start,
+    end: overrides.endDate ?? validPayload.end,
+  });
+
+  return {
+    publicId,
+    registryHash: `registry-${publicId}`,
+    payloadJson: JSON.stringify(normalizedPayload),
+    name: overrides.name ?? normalizedPayload.name,
+    owner: overrides.owner ?? normalizedPayload.owner,
+    hashtag: overrides.hashtag ?? normalizedPayload.hashtag,
+    startDate: overrides.startDate ?? normalizedPayload.start,
+    endDate: overrides.endDate ?? normalizedPayload.end,
+    chartCount: overrides.chartCount ?? normalizedPayload.charts.length,
+    createdAt,
+    updatedAt: overrides.updatedAt ?? createdAt,
+    deletedAt: overrides.deletedAt ?? null,
+    deleteReason: overrides.deleteReason ?? null,
+  };
+}
+
 function invokeWorker(
   worker: ReturnType<typeof createWorkerHandler>,
   request: Request,
@@ -149,7 +244,7 @@ function invokeWorker(
   );
 }
 
-describe('public catalog register worker', () => {
+describe('public catalog worker', () => {
   it('creates a public tournament and returns a publicId', async () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
@@ -438,5 +533,221 @@ describe('public catalog register worker', () => {
     expect(response.status).toBe(413);
     expect(body.error.code).toBe('PAYLOAD_TOO_LARGE');
     expect(repository.auditLogs.at(-1)?.result).toBe('payload_too_large');
+  });
+
+  it('lists active public tournaments with stable cursor pagination', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+    });
+
+    for (let index = 0; index < 19; index += 1) {
+      const publicId = `public-${String(index + 1).padStart(2, '0')}`;
+      const createdAt = `2026-04-${String(28 - index).padStart(2, '0')}T12:00:00.000Z`;
+      await repository.create(createRecord(publicId, createdAt));
+    }
+    await repository.create(
+      createRecord('public-20b', '2026-04-01T12:00:00.000Z', {
+        name: 'Boundary B',
+      }),
+    );
+    await repository.create(
+      createRecord('public-20a', '2026-04-01T12:00:00.000Z', {
+        name: 'Boundary A',
+      }),
+    );
+    await repository.create(
+      createRecord('deleted-public', '2026-05-01T12:00:00.000Z', {
+        deletedAt: '2026-05-02T12:00:00.000Z',
+        deleteReason: 'spam',
+      }),
+    );
+
+    const firstPage = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const firstBody = (await firstPage.json()) as {
+      items: Array<{ publicId: string }>;
+      nextCursor: string | null;
+    };
+
+    expect(firstPage.status).toBe(200);
+    expect(firstBody.items).toHaveLength(20);
+    expect(firstBody.items[0]?.publicId).toBe('public-01');
+    expect(firstBody.items.at(-1)?.publicId).toBe('public-20b');
+    expect(firstBody.items.some((item) => item.publicId === 'deleted-public')).toBe(
+      false,
+    );
+    expect(firstBody.nextCursor).toEqual(expect.any(String));
+
+    const secondPage = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+        searchParams: {
+          cursor: firstBody.nextCursor ?? undefined,
+        },
+      }),
+      createEnv(),
+    );
+    const secondBody = (await secondPage.json()) as {
+      items: Array<{ publicId: string }>;
+      nextCursor: string | null;
+    };
+
+    expect(secondPage.status).toBe(200);
+    expect(secondBody.items.map((item) => item.publicId)).toEqual(['public-20a']);
+    expect(secondBody.nextCursor).toBeNull();
+  });
+
+  it('trims search queries and treats blank q as unfiltered', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+    });
+
+    await repository.create(
+      createRecord('public-alpha', '2026-04-19T12:00:00.000Z', {
+        name: 'Alpha Cup',
+        owner: 'owner-a',
+        hashtag: 'alpha',
+      }),
+    );
+    await repository.create(
+      createRecord('public-beta', '2026-04-18T12:00:00.000Z', {
+        name: 'Beta Cup',
+        owner: 'owner-b',
+        hashtag: 'beta',
+      }),
+    );
+
+    const filtered = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+        searchParams: {
+          q: '  owner-b  ',
+        },
+      }),
+      createEnv(),
+    );
+    const filteredBody = (await filtered.json()) as {
+      items: Array<{ publicId: string }>;
+    };
+    const blankQuery = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+        searchParams: {
+          q: '   ',
+        },
+      }),
+      createEnv(),
+    );
+    const blankQueryBody = (await blankQuery.json()) as {
+      items: Array<{ publicId: string }>;
+    };
+
+    expect(filtered.status).toBe(200);
+    expect(filteredBody.items.map((item) => item.publicId)).toEqual(['public-beta']);
+    expect(blankQuery.status).toBe(200);
+    expect(blankQueryBody.items.map((item) => item.publicId)).toEqual([
+      'public-alpha',
+      'public-beta',
+    ]);
+  });
+
+  it('rejects invalid list cursors', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+    });
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+        searchParams: {
+          cursor: 'not-a-valid-cursor',
+        },
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      error: { code: string };
+    };
+
+    expect(response.status).toBe(400);
+    expect(body.error.code).toBe('BAD_REQUEST');
+  });
+
+  it('returns payloadParam for active public tournaments', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+    });
+
+    const record = createRecord('public-payload', '2026-04-19T12:00:00.000Z');
+    await repository.create(record);
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: `${LIST_PUBLIC_TOURNAMENTS_PATH}/public-payload/payload`,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      payloadParam: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      payloadParam: encodeTournamentPayload(JSON.parse(record.payloadJson)),
+    });
+  });
+
+  it('returns 404 for missing or deleted payload lookups', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+    });
+
+    await repository.create(
+      createRecord('public-deleted', '2026-04-19T12:00:00.000Z', {
+        deletedAt: '2026-04-20T12:00:00.000Z',
+        deleteReason: 'deleted',
+      }),
+    );
+
+    const missing = await invokeWorker(
+      worker,
+      createRequest({
+        path: `${LIST_PUBLIC_TOURNAMENTS_PATH}/missing/payload`,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const deleted = await invokeWorker(
+      worker,
+      createRequest({
+        path: `${LIST_PUBLIC_TOURNAMENTS_PATH}/public-deleted/payload`,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+
+    expect(missing.status).toBe(404);
+    expect(deleted.status).toBe(404);
   });
 });
