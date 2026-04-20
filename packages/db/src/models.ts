@@ -1,6 +1,7 @@
 import type { TournamentPayload } from '@iidx/shared';
 
 export type TournamentTab = 'active' | 'upcoming' | 'ended';
+export type TournamentPublicationStatus = 'unpublished' | 'publishing' | 'published' | 'retryable';
 
 export interface TournamentListItem {
   tournamentUuid: string;
@@ -15,6 +16,9 @@ export interface TournamentListItem {
   submittedCount: number;
   sendWaitingCount: number;
   pendingCount: number;
+  publicId?: string | null;
+  publicStatus?: TournamentPublicationStatus;
+  lastPublishAttemptAt?: string | null;
 }
 
 export interface TournamentDetailItem extends TournamentListItem {
@@ -46,6 +50,8 @@ export interface CreateTournamentInput {
   startDate: string;
   endDate: string;
   chartIds: number[];
+  publicStatus?: TournamentPublicationStatus;
+  lastPublishAttemptAt?: string | null;
 }
 
 export interface ImportTournamentImportedResult {

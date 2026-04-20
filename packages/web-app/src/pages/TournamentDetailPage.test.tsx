@@ -17,8 +17,15 @@ const serviceMocks = vi.hoisted(() => ({
   appDb: {
     getEvidenceRecord: vi.fn(),
     getEvidenceRelativePath: vi.fn(),
+    markTournamentPublishing: vi.fn(),
+    markTournamentPublished: vi.fn(),
+    markTournamentPublishRetryable: vi.fn(),
     markEvidenceSendCompleted: vi.fn(),
     markEvidenceSendPending: vi.fn(),
+  },
+  publicCatalogClient: {
+    isAvailable: vi.fn(),
+    registerTournament: vi.fn(),
   },
   opfs: {
     readFile: vi.fn(),
@@ -53,6 +60,9 @@ const detail: TournamentDetailItem = {
   submittedCount: 2,
   sendWaitingCount: 1,
   pendingCount: 1,
+  publicId: null,
+  publicStatus: 'unpublished',
+  lastPublishAttemptAt: null,
   lastSubmittedAt: '2026-02-10T12:00:00.000Z',
   charts: [
     {
@@ -108,6 +118,8 @@ function renderPage(
   options: {
     debugModeEnabled?: boolean;
     onOpenSubmit?: (chartId: number) => void;
+    onUpdated?: () => Promise<void> | void;
+    onReportDebugError?: (errorMessage: string | null) => void;
     returnSignal?: TournamentDetailReturnSignal | null;
     onConsumeReturnSignal?: (token: string) => void;
     prefersReducedMotion?: boolean;
@@ -118,11 +130,11 @@ function renderPage(
       detail={buildDetail(overrides)}
       todayDate={todayDate}
       onOpenSubmit={options.onOpenSubmit ?? (() => undefined)}
-      onUpdated={() => undefined}
+      onUpdated={options.onUpdated ?? (() => undefined)}
       onOpenSettings={() => undefined}
       debugModeEnabled={options.debugModeEnabled ?? false}
       debugLastError={null}
-      onReportDebugError={() => undefined}
+      onReportDebugError={options.onReportDebugError ?? (() => undefined)}
       returnSignal={options.returnSignal ?? null}
       {...(options.onConsumeReturnSignal ? { onConsumeReturnSignal: options.onConsumeReturnSignal } : {})}
       {...(options.prefersReducedMotion !== undefined ? { prefersReducedMotion: options.prefersReducedMotion } : {})}
@@ -271,8 +283,13 @@ describe('TournamentDetailPage', () => {
     vi.clearAllMocks();
     serviceMocks.appDb.getEvidenceRecord.mockResolvedValue({ fileDeleted: false });
     serviceMocks.appDb.getEvidenceRelativePath.mockResolvedValue('evidences/mock/1.jpg');
+    serviceMocks.appDb.markTournamentPublishing.mockResolvedValue(undefined);
+    serviceMocks.appDb.markTournamentPublished.mockResolvedValue(undefined);
+    serviceMocks.appDb.markTournamentPublishRetryable.mockResolvedValue(undefined);
     serviceMocks.appDb.markEvidenceSendCompleted.mockResolvedValue(undefined);
     serviceMocks.appDb.markEvidenceSendPending.mockResolvedValue(undefined);
+    serviceMocks.publicCatalogClient.isAvailable.mockReturnValue(false);
+    serviceMocks.publicCatalogClient.registerTournament.mockResolvedValue({ status: 'created', publicId: 'public-1' });
     serviceMocks.opfs.readFile.mockResolvedValue(new Uint8Array([1, 2, 3]));
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
   });
@@ -553,6 +570,70 @@ describe('TournamentDetailPage', () => {
       expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
     });
     expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
+  });
+
+  it('retries publication from detail when local tournament is retryable', async () => {
+    const onUpdated = vi.fn();
+    serviceMocks.publicCatalogClient.isAvailable.mockReturnValue(true);
+    serviceMocks.publicCatalogClient.registerTournament.mockResolvedValue({ status: 'created', publicId: 'public-99' });
+
+    renderPage(
+      {
+        publicStatus: 'retryable',
+        lastPublishAttemptAt: '2026-02-10T12:00:00.000Z',
+      },
+      '2026-02-10',
+      { onUpdated },
+    );
+
+    expect(screen.getByTestId('tournament-summary-publication-detail').textContent).toBe('未公開（再試行可）');
+    expect(screen.getByTestId('tournament-detail-publication-last-attempt').textContent).toContain('2026');
+
+    await userEvent.click(screen.getByTestId('tournament-detail-publication-retry-button'));
+
+    await waitFor(() => {
+      expect(serviceMocks.appDb.markTournamentPublishing).toHaveBeenCalledWith(detail.tournamentUuid);
+      expect(serviceMocks.publicCatalogClient.registerTournament).toHaveBeenCalledTimes(1);
+      expect(serviceMocks.appDb.markTournamentPublished).toHaveBeenCalledWith(detail.tournamentUuid, 'public-99');
+    });
+    expect(onUpdated).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('tournament-detail-publication-notice').textContent).toBe('公開登録しました。');
+  });
+
+  it('keeps retryable notice when publication retry fails', async () => {
+    const onReportDebugError = vi.fn();
+    serviceMocks.publicCatalogClient.isAvailable.mockReturnValue(true);
+    serviceMocks.publicCatalogClient.registerTournament.mockRejectedValue(new Error('network failed'));
+
+    renderPage(
+      {
+        publicStatus: 'retryable',
+      },
+      '2026-02-10',
+      { onReportDebugError },
+    );
+
+    await userEvent.click(screen.getByTestId('tournament-detail-publication-retry-button'));
+
+    await waitFor(() => {
+      expect(serviceMocks.appDb.markTournamentPublishRetryable).toHaveBeenCalledWith(detail.tournamentUuid);
+    });
+    expect(serviceMocks.appDb.markTournamentPublished).not.toHaveBeenCalled();
+    expect(screen.getByTestId('tournament-detail-publication-notice').textContent).toContain('network failed');
+    expect(onReportDebugError).toHaveBeenCalledWith(expect.stringContaining('network failed'));
+  });
+
+  it('hides publication panel for imported tournaments', () => {
+    serviceMocks.publicCatalogClient.isAvailable.mockReturnValue(true);
+
+    renderPage({
+      isImported: true,
+      publicStatus: 'published',
+      publicId: 'public-imported',
+    });
+
+    expect(screen.queryByTestId('tournament-detail-publication-panel')).toBeNull();
+    expect(screen.queryByTestId('tournament-summary-publication-detail')).toBeNull();
   });
 
   it('simplifies share dialog and keeps only required controls', async () => {

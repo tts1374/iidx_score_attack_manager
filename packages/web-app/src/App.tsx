@@ -60,7 +60,9 @@ import {
   restoreCreateTournamentDraft,
   type CreateTournamentDraft,
 } from './pages/create-tournament-draft';
+import { resolvePublicCatalogErrorI18n } from './services/public-catalog-client';
 import { useAppServices } from './services/context';
+import { buildPublicTournamentPayload, publishTournamentDefinition } from './services/public-catalog-publish';
 import { resolveSongMasterRuntimeConfig } from './services/song-master-config';
 import { extractQrTextFromImage } from './utils/image';
 import {
@@ -1083,7 +1085,7 @@ async function resolveOpfsStatus(): Promise<AppInfoCardData['opfsStatus']> {
 }
 
 export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
-  const { appDb, opfs, songMasterService } = useAppServices();
+  const { appDb, opfs, publicCatalogClient, songMasterService } = useAppServices();
   const { t } = useTranslation();
   const theme = useTheme();
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -1749,6 +1751,41 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setHomeTournamentBuckets({ active, upcoming, ended });
   }, [appDb]);
 
+  const startBackgroundTournamentPublication = React.useCallback(
+    (tournamentUuid: string, payload: TournamentPayload) => {
+      if (!publicCatalogClient.isAvailable()) {
+        return;
+      }
+
+      void (async () => {
+        const result = await publishTournamentDefinition({
+          appDb,
+          publicCatalogClient,
+          tournamentUuid,
+          payload,
+        });
+        await refreshTournamentList();
+
+        if (result.status === 'published') {
+          pushToast(t('public_catalog.notice.published'));
+          return;
+        }
+        if (result.status === 'duplicate') {
+          pushToast(t('public_catalog.notice.duplicate'));
+          return;
+        }
+        if (result.status === 'retryable') {
+          const spec = resolvePublicCatalogErrorI18n(result.error);
+          pushToast(spec.params ? t(spec.key, spec.params) : t(spec.key));
+        }
+      })().catch((error: unknown) => {
+        const spec = resolvePublicCatalogErrorI18n(error);
+        pushToast(spec.params ? t(spec.key, spec.params) : t(spec.key));
+      });
+    },
+    [appDb, publicCatalogClient, pushToast, refreshTournamentList, t],
+  );
+
   const refreshSettingsSnapshot = React.useCallback(async () => {
     const songMeta = await appDb.getSongMasterMeta();
     const songReady = await appDb.hasSongMaster();
@@ -2358,19 +2395,44 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     setCreateSaveError(null);
     try {
       const input = buildCreateTournamentInput(createDraft, validation.selectedChartIds);
-      await appDb.createTournament(input);
+      const publishPayload = buildPublicTournamentPayload(input.tournamentUuid ?? crypto.randomUUID(), input);
+      const publishEnabled = publicCatalogClient.isAvailable();
+      const tournamentUuid = await appDb.createTournament({
+        ...input,
+        ...(publishEnabled
+          ? {
+              tournamentUuid: publishPayload.uuid,
+              publicStatus: 'publishing',
+              lastPublishAttemptAt: new Date().toISOString(),
+            }
+          : {}),
+      });
       pushToast(t('notify.saved'));
       await refreshTournamentList();
       clearStoredCreateDraft();
       setCreateDraftDirty(false);
       setCreateDraft(null);
       resetRoute({ name: 'home' });
+      if (publishEnabled) {
+        startBackgroundTournamentPublication(tournamentUuid, publishPayload);
+      }
     } catch (error) {
       setCreateSaveError(resolveErrorMessage(t, error, 'error.description.generic'));
     } finally {
       setCreateSaving(false);
     }
-  }, [appDb, createDraft, createSaving, pushToast, refreshTournamentList, resetRoute, t, todayDate]);
+  }, [
+    appDb,
+    createDraft,
+    createSaving,
+    publicCatalogClient,
+    pushToast,
+    refreshTournamentList,
+    resetRoute,
+    startBackgroundTournamentPublication,
+    t,
+    todayDate,
+  ]);
 
   const saveAutoDelete = React.useCallback(
     async (enabled: boolean, days: number) => {

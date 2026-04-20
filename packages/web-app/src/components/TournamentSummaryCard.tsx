@@ -1,5 +1,6 @@
 import React from 'react';
 import { daysUntilStart } from '@iidx/shared';
+import type { TournamentPublicationStatus } from '@iidx/db';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +25,8 @@ interface TournamentSummaryCardProps {
   shareAction?: React.ReactNode;
   prefersReducedMotion?: boolean;
   animateProgress?: boolean;
+  publicationStatus?: TournamentPublicationStatus;
+  showPublicationStatus?: boolean;
 }
 
 function joinClasses(...values: Array<string | undefined | null | false>): string {
@@ -48,6 +51,19 @@ function resolveRelativeTone(status: TournamentStatus): RelativeTone {
     return 'urgent';
   }
   return 'normal';
+}
+
+function resolvePublicationLabelKey(status: TournamentPublicationStatus): string {
+  if (status === 'publishing') {
+    return 'public_catalog.status.publishing';
+  }
+  if (status === 'published') {
+    return 'public_catalog.status.published';
+  }
+  if (status === 'retryable') {
+    return 'public_catalog.status.retryable';
+  }
+  return 'public_catalog.status.unpublished';
 }
 
 export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.Element {
@@ -98,6 +114,8 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
   const progressValueText = `${submittedCount}/${totalCount}`;
   const showDetailLink = props.variant === 'list';
   const showShareAction = props.variant === 'detail' && Boolean(props.shareAction);
+  const publicationStatus = props.publicationStatus ?? 'unpublished';
+  const showPublicationStatus = Boolean(props.showPublicationStatus);
   const [displayedProgress, setDisplayedProgress] = React.useState(() => ({
     shared: shouldAnimateProgress ? 0 : sharedPercent,
     unshared: shouldAnimateProgress ? 0 : unsharedPercent,
@@ -180,6 +198,20 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
                 {t('home.progress.badge.send_waiting', { count: safeUnsharedCount })} {safeUnsharedCount}
               </span>
             ) : null}
+          </div>
+        ) : null}
+        {showPublicationStatus ? (
+          <div className="tournamentStatusLabelRow" data-testid={`tournament-summary-publication-row-${props.variant}`}>
+            <span
+              className={joinClasses(
+                'tournamentStatusLabel',
+                'tournamentStatusLabel-publication',
+                `tournamentStatusLabel-publication-${publicationStatus}`,
+              )}
+              data-testid={`tournament-summary-publication-${props.variant}`}
+            >
+              {t(resolvePublicationLabelKey(publicationStatus))}
+            </span>
           </div>
         ) : null}
         {showProgress ? (

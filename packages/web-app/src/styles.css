@@ -816,6 +816,30 @@ label {
   color: var(--status-unshared-text);
 }
 
+.tournamentStatusLabel-publication-unpublished {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.tournamentStatusLabel-publication-publishing {
+  background: var(--status-upcoming-bg);
+  border-color: transparent;
+  color: var(--status-upcoming-text);
+}
+
+.tournamentStatusLabel-publication-published {
+  background: var(--status-shared-bg);
+  border-color: transparent;
+  color: var(--status-shared-text);
+}
+
+.tournamentStatusLabel-publication-retryable {
+  background: var(--status-warning-bg);
+  border-color: transparent;
+  color: var(--status-warning-text);
+}
+
 .tournamentSummaryProgress {
   margin-top: 2px;
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { HomePage } from './HomePage';
@@ -152,5 +152,64 @@ describe('HomePage', () => {
     expect(emptyResetButton).toBeTruthy();
     await userEvent.click(emptyResetButton as HTMLButtonElement);
     expect(onOpenFilterInEmpty).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows publication status for local tournaments and hides it for imported tournaments', () => {
+    cleanup();
+    const { container, rerender } = render(
+      <HomePage
+        todayDate="2026-02-10"
+        state="active"
+        prefersReducedMotion
+        items={[
+          {
+            tournamentUuid: 't1',
+            sourceTournamentUuid: null,
+            tournamentName: '公開大会',
+            owner: 'owner',
+            hashtag: 'tag',
+            startDate: '2026-02-01',
+            endDate: '2026-02-12',
+            isImported: false,
+            chartCount: 1,
+            submittedCount: 0,
+            sendWaitingCount: 0,
+            pendingCount: 1,
+            publicStatus: 'retryable',
+          },
+        ]}
+        onOpenDetail={() => undefined}
+      />,
+    );
+
+    expect(container.querySelector('[data-testid="tournament-summary-publication-list"]')?.textContent).toBe('未公開（再試行可）');
+
+    rerender(
+      <HomePage
+        todayDate="2026-02-10"
+        state="active"
+        prefersReducedMotion
+        items={[
+          {
+            tournamentUuid: 't2',
+            sourceTournamentUuid: 'public-1',
+            tournamentName: '取込大会',
+            owner: 'owner',
+            hashtag: 'tag',
+            startDate: '2026-02-01',
+            endDate: '2026-02-12',
+            isImported: true,
+            chartCount: 1,
+            submittedCount: 0,
+            sendWaitingCount: 0,
+            pendingCount: 1,
+            publicStatus: 'published',
+          },
+        ]}
+        onOpenDetail={() => undefined}
+      />,
+    );
+
+    expect(container.querySelector('[data-testid="tournament-summary-publication-list"]')).toBeNull();
   });
 });

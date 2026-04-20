@@ -1,6 +1,6 @@
 import React from 'react';
 import { PAYLOAD_VERSION, encodeTournamentPayload, formatHashtagForDisplay, normalizeHashtag } from '@iidx/shared';
-import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
+import type { TournamentDetailChart, TournamentDetailItem, TournamentPublicationStatus } from '@iidx/db';
 import QRCode from 'qrcode';
 import { useTranslation } from 'react-i18next';
 import CloseIcon from '@mui/icons-material/Close';
@@ -28,6 +28,8 @@ import {
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { useAppServices } from '../services/context';
+import { resolvePublicCatalogErrorI18n } from '../services/public-catalog-client';
+import { buildPublicTournamentPayloadFromDetail, publishTournamentDefinition } from '../services/public-catalog-publish';
 import { ChartCard } from '../components/ChartCard';
 import { toSafeArrayBuffer } from '../utils/image';
 import { buildImportUrl } from '../utils/payload-url';
@@ -232,6 +234,30 @@ function resolveChartShareState(localSaved: boolean, submitted: boolean): ChartS
     return 'unregistered';
   }
   return submitted ? 'shared' : 'unshared';
+}
+
+function resolvePublicationStatusLabelKey(status: TournamentPublicationStatus): string {
+  if (status === 'publishing') {
+    return 'public_catalog.status.publishing';
+  }
+  if (status === 'published') {
+    return 'public_catalog.status.published';
+  }
+  if (status === 'retryable') {
+    return 'public_catalog.status.retryable';
+  }
+  return 'public_catalog.status.unpublished';
+}
+
+function formatPublicationAttempt(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString();
 }
 
 function resolveChartTaskStatus(
@@ -598,7 +624,7 @@ async function buildShareImage(detail: TournamentDetailItem, shareUrl: string, t
 }
 
 export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Element {
-  const { appDb, opfs } = useAppServices();
+  const { appDb, opfs, publicCatalogClient } = useAppServices();
   const { t } = useTranslation();
   const theme = useTheme();
   const prefersReducedMotion = props.prefersReducedMotion ?? useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -618,6 +644,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   const [submitUndoBusy, setSubmitUndoBusy] = React.useState(false);
   const [submitToast, setSubmitToast] = React.useState<SubmitToast | null>(null);
   const [submitToastOpen, setSubmitToastOpen] = React.useState(false);
+  const [publicationBusy, setPublicationBusy] = React.useState(false);
+  const [publicationNotice, setPublicationNotice] = React.useState<ShareNotice | null>(null);
   const [needsSendOverrides, setNeedsSendOverrides] = React.useState<Record<number, boolean>>({});
   const [chartSubmitLocked, setChartSubmitLocked] = React.useState(false);
   const [footerSubmitLocked, setFooterSubmitLocked] = React.useState(false);
@@ -684,6 +712,17 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     () => props.detail.charts.some((chart) => chart.resolveIssue === 'CHART_NOT_FOUND'),
     [props.detail.charts],
   );
+  const publicationStatus = publicationBusy ? 'publishing' : props.detail.publicStatus ?? 'unpublished';
+  const formattedLastPublishAttempt = React.useMemo(
+    () => formatPublicationAttempt(props.detail.lastPublishAttemptAt),
+    [props.detail.lastPublishAttemptAt],
+  );
+  const showPublicationSection = !props.detail.isImported;
+  const canRetryPublication =
+    showPublicationSection &&
+    publicCatalogClient.isAvailable() &&
+    publicationStatus === 'retryable' &&
+    !publicationBusy;
   const showChartResolveAlert = hasMasterMissing || hasChartNotFound;
   const resolveNeedsSend = React.useCallback(
     (chart: TournamentDetailChart): boolean => {
@@ -1268,6 +1307,49 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     t,
   ]);
 
+  const retryPublication = React.useCallback(async () => {
+    if (!canRetryPublication) {
+      return;
+    }
+
+    setPublicationBusy(true);
+    setPublicationNotice(null);
+    try {
+      const result = await publishTournamentDefinition({
+        appDb,
+        publicCatalogClient,
+        tournamentUuid: props.detail.tournamentUuid,
+        payload: buildPublicTournamentPayloadFromDetail(props.detail),
+        setPublishing: true,
+      });
+      await Promise.resolve(props.onUpdated());
+
+      if (result.status === 'published') {
+        setPublicationNotice({ severity: 'success', text: t('public_catalog.notice.published') });
+        props.onReportDebugError(null);
+        return;
+      }
+      if (result.status === 'duplicate') {
+        setPublicationNotice({ severity: 'success', text: t('public_catalog.notice.duplicate') });
+        props.onReportDebugError(null);
+        return;
+      }
+      if (result.status === 'retryable') {
+        const spec = resolvePublicCatalogErrorI18n(result.error);
+        const message = spec.params ? t(spec.key, spec.params) : t(spec.key);
+        setPublicationNotice({ severity: 'warning', text: message });
+        props.onReportDebugError(message);
+      }
+    } catch (error: unknown) {
+      const spec = resolvePublicCatalogErrorI18n(error);
+      const message = spec.params ? t(spec.key, spec.params) : t(spec.key);
+      setPublicationNotice({ severity: 'warning', text: message });
+      props.onReportDebugError(message);
+    } finally {
+      setPublicationBusy(false);
+    }
+  }, [appDb, canRetryPublication, props, publicCatalogClient, t]);
+
   return (
     <div className="page detailPageWithSubmitBar">
       <TournamentSummaryCard
@@ -1280,6 +1362,8 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         sharedCount={chartStateCounts.shared}
         unsharedCount={chartStateCounts.unshared}
         unregisteredCount={chartStateCounts.unregistered}
+        publicationStatus={publicationStatus}
+        showPublicationStatus={showPublicationSection}
         prefersReducedMotion={prefersReducedMotion}
         animateProgress={summaryProgressAnimationEnabled}
         shareAction={
@@ -1293,6 +1377,43 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           ) : null
         }
       />
+      {showPublicationSection ? (
+        <section className="detailCard" data-testid="tournament-detail-publication-panel">
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+          >
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                {t('public_catalog.section.title')}
+              </Typography>
+              <Typography variant="body2">{t(resolvePublicationStatusLabelKey(publicationStatus))}</Typography>
+              {formattedLastPublishAttempt ? (
+                <Typography variant="body2" color="text.secondary" data-testid="tournament-detail-publication-last-attempt">
+                  {t('public_catalog.summary.last_attempt', { value: formattedLastPublishAttempt })}
+                </Typography>
+              ) : null}
+            </Box>
+            {publicCatalogClient.isAvailable() && (publicationStatus === 'retryable' || publicationBusy) ? (
+              <Button
+                variant="outlined"
+                onClick={() => void retryPublication()}
+                disabled={!canRetryPublication}
+                data-testid="tournament-detail-publication-retry-button"
+              >
+                {publicationBusy ? t('public_catalog.action.retrying') : t('public_catalog.action.retry')}
+              </Button>
+            ) : null}
+          </Stack>
+          {publicationNotice ? (
+            <Alert severity={publicationNotice.severity} sx={{ mt: 1.5 }} data-testid="tournament-detail-publication-notice">
+              {publicationNotice.text}
+            </Alert>
+          ) : null}
+        </section>
+      ) : null}
 
       <section>
         <h2>{t('tournament_detail.chart.heading')}</h2>
