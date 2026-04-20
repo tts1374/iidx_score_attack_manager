@@ -36,6 +36,8 @@ Unless explicitly requested otherwise, default behavior is:
 - local validation
 - concise summary of changed files and verification
 
+Apply this default only when the current request boundary permits implementation. For `analysis-only`, `planning-only`, and `artifact-update-only` requests, stop at that boundary.
+
 ### 1.3 Prohibited Default Behavior
 Unless the task explicitly requires it:
 - no broad architecture review
@@ -44,7 +46,7 @@ Unless the task explicitly requires it:
 - no initial full traversal of PWA / SW / Locks / storage layers
 
 ### 1.4 Current Request Boundary
-Before acting, classify the current request ceiling as one of:
+Before acting, classify the current request ceiling as one of these canonical values:
 - analysis-only
 - planning-only
 - artifact-update-only
@@ -82,7 +84,7 @@ Do not produce long planning text for local tasks.
 - If a later request is broader but ambiguous, keep the narrower earlier constraint.
 
 ### 2.3 Human Decision Requests
-- If human input is required, return `WAITING_FOR_HUMAN_DECISION` or equivalent together with 2-3 concrete options.
+- If human input is required, return the literal token `WAITING_FOR_HUMAN_DECISION` together with 2-3 concrete options.
 - Include one recommended option and the consequence of each option.
 - Do not stop with an abstract blocker when a bounded decision can unblock the task.
 
@@ -121,15 +123,17 @@ The following are treated as high-risk:
 ## 4. Work Isolation
 
 ### 4.1 worktree
-- Use git worktree for implementation tasks and PR-sized changes.
+- Use git worktree for high-risk implementation tasks and high-risk PR work.
 - 1 worktree = 1 branch = 1 purpose.
+- Low-risk local implementation may proceed without a worktree unless explicitly required.
 
 ### 4.2 Base SHA
 - For PR work and high-risk work, record BASE_SHA at the start.
+- When this rule applies, record it in task output as `BASE_SHA: <sha>`.
 - Avoid mid-task rebase/merge unless required for review or conflict resolution.
 
 Note:
-- worktree path declaration and BASE_SHA declaration are execution controls for implementation work.
+- worktree path declaration and BASE_SHA declaration are execution controls when those rules apply.
 - They must not block lightweight review, drafting, inspection, or small local analysis tasks.
 
 ---
@@ -179,7 +183,7 @@ Examples:
 - changes spanning `packages/web-app`, `packages/shared`, `packages/db`, `packages/pwa`
 
 Required behavior:
-- follow WORKFLOW Plan Mode if applicable
+- follow WORKFLOW Plan Mode requirements before implementation
 - explicitly list affected layers
 - verify against QUALITY.md high-risk checks
 
@@ -237,7 +241,7 @@ Required behavior:
 
 ## 9. Local-Dependency Prohibition
 
-- no absolute paths
+- do not introduce absolute paths into committed source, config, task artifacts, or docs unless the task explicitly requires them
 - no embedded environment-specific values
 - do not edit `.env` directly unless the task explicitly requires environment configuration work
 
