@@ -2037,6 +2037,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     const bootstrap = async () => {
       try {
         await appDb.reconcileEvidenceFiles();
+        await appDb.reconcileInterruptedTournamentPublications();
         const purged = await appDb.purgeExpiredEvidenceIfNeeded();
         if (purged > 0) {
           appendRuntimeLog({

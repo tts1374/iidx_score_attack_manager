@@ -502,6 +502,18 @@ export class AppDatabase {
     );
   }
 
+  async reconcileInterruptedTournamentPublications(): Promise<void> {
+    const now = this.clock.nowIso();
+    await this.exec(
+      `UPDATE tournaments
+       SET public_status = 'retryable',
+           last_publish_attempt_at = COALESCE(last_publish_attempt_at, ?),
+           updated_at = ?
+       WHERE public_status = 'publishing'`,
+      [now, now],
+    );
+  }
+
   async findImportTargetTournament(sourceTournamentUuid: string): Promise<ImportTargetTournament | null> {
     const today = this.clock.todayJst();
     const rows = await this.query<{

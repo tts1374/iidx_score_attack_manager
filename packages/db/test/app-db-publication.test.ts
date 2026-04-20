@@ -151,6 +151,87 @@ describe('AppDatabase publication state', () => {
     }
   });
 
+  it('reconciles interrupted publishing tournaments as retryable on startup', async () => {
+    const { appDb, db } = await createAppDb([
+      '2026-04-20T13:00:00.000Z',
+      '2026-04-20T13:10:00.000Z',
+    ]);
+
+    try {
+      const tournamentUuid = await appDb.createTournament({
+        tournamentName: '中断公開テスト',
+        owner: '',
+        hashtag: 'RECOVER',
+        startDate: '2026-04-20',
+        endDate: '2026-04-25',
+        chartIds: [505],
+        publicStatus: 'publishing',
+      });
+
+      await appDb.reconcileInterruptedTournamentPublications();
+
+      const detail = await appDb.getTournamentDetail(tournamentUuid);
+      expect(detail).toMatchObject({
+        tournamentUuid,
+        publicId: null,
+        publicStatus: 'retryable',
+        lastPublishAttemptAt: '2026-04-20T13:00:00.000Z',
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it('leaves settled publication states unchanged during interrupted publish reconciliation', async () => {
+    const { appDb, db } = await createAppDb([
+      '2026-04-20T14:00:00.000Z',
+      '2026-04-20T14:05:00.000Z',
+      '2026-04-20T14:10:00.000Z',
+      '2026-04-20T14:15:00.000Z',
+    ]);
+
+    try {
+      const unpublishedTournamentUuid = await appDb.createTournament({
+        tournamentUuid: '44444444-4444-4444-8444-444444444444',
+        tournamentName: '未公開大会',
+        owner: '',
+        hashtag: 'UNPUBLISHED',
+        startDate: '2026-04-20',
+        endDate: '2026-04-25',
+        chartIds: [606],
+      });
+      const publishedTournamentUuid = await appDb.createTournament({
+        tournamentUuid: '55555555-5555-4555-8555-555555555555',
+        tournamentName: '公開済み大会',
+        owner: '',
+        hashtag: 'PUBLISHED',
+        startDate: '2026-04-20',
+        endDate: '2026-04-25',
+        chartIds: [707],
+      });
+      await appDb.markTournamentPublished(publishedTournamentUuid, 'public-707');
+
+      await appDb.reconcileInterruptedTournamentPublications();
+
+      const unpublishedDetail = await appDb.getTournamentDetail(unpublishedTournamentUuid);
+      const publishedDetail = await appDb.getTournamentDetail(publishedTournamentUuid);
+      expect(unpublishedDetail).toMatchObject({
+        tournamentUuid: unpublishedTournamentUuid,
+        publicId: null,
+        publicStatus: 'unpublished',
+        lastPublishAttemptAt: null,
+      });
+      expect(publishedDetail).toMatchObject({
+        tournamentUuid: publishedTournamentUuid,
+        publicId: 'public-707',
+        publicStatus: 'published',
+        lastPublishAttemptAt: '2026-04-20T14:10:00.000Z',
+      });
+    } finally {
+      db.close();
+    }
+  });
+
   it('rejects published updates without a usable publicId', async () => {
     const { appDb, db } = await createAppDb(['2026-04-20T12:00:00.000Z']);
 
