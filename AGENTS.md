@@ -189,10 +189,15 @@ Required behavior:
 
 - no direct push to protected mainline branch
 - 1 branch = 1 purpose
+- unless the user explicitly instructs otherwise, create/reopen PRs from GitHub account `tts1374-bot`
 - do not edit CI-generated outputs manually
 - do not mix machine-generated diffs with manual logic edits in the same commit unless explicitly intended and isolated
 
-### 7.1 Write-back Requires Read-back
+### 7.1 PR Author Account
+- Before `gh pr create` or equivalent PR creation, confirm the active GitHub account is `tts1374-bot`.
+- If a PR was created from another account and that author choice would block the intended approval flow, close/reopen it from `tts1374-bot` before proceeding to approval or merge.
+
+### 7.2 Write-back Requires Read-back
 - Issue comments, PR updates, merge, Issue close, branch cleanup, and similar external state changes are not complete until read-back confirms the resulting state.
 - Command success, empty stdout, or optimistic assumptions are insufficient.
 - If read-back cannot confirm the result, report the task as partial or blocked.
