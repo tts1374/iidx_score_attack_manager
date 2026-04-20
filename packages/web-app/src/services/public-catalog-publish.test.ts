@@ -40,6 +40,41 @@ describe('public catalog publish helpers', () => {
     expect(appDb.markTournamentPublishRetryable).not.toHaveBeenCalled();
   });
 
+  it('treats duplicate register responses as published without retryable fallback', async () => {
+    const appDb = {
+      markTournamentPublishing: vi.fn(),
+      markTournamentPublished: vi.fn(),
+      markTournamentPublishRetryable: vi.fn(),
+    };
+    const publicCatalogClient = {
+      isAvailable: () => true,
+      registerTournament: vi.fn().mockResolvedValue({ status: 'duplicate', publicId: 'public-existing' }),
+    };
+
+    const result = await publishTournamentDefinition({
+      appDb,
+      publicCatalogClient,
+      tournamentUuid: '44444444-4444-4444-8444-444444444444',
+      payload: buildPublicTournamentPayload('44444444-4444-4444-8444-444444444444', {
+        tournamentName: '重複公開テスト',
+        owner: '',
+        hashtag: 'DUPLICATE',
+        startDate: '2026-04-20',
+        endDate: '2026-04-25',
+        chartIds: [30, 40],
+      }),
+      setPublishing: true,
+    });
+
+    expect(result).toEqual({
+      status: 'duplicate',
+      publicId: 'public-existing',
+    });
+    expect(appDb.markTournamentPublishing).toHaveBeenCalledWith('44444444-4444-4444-8444-444444444444');
+    expect(appDb.markTournamentPublished).toHaveBeenCalledWith('44444444-4444-4444-8444-444444444444', 'public-existing');
+    expect(appDb.markTournamentPublishRetryable).not.toHaveBeenCalled();
+  });
+
   it('keeps retryable state when publish registration fails', async () => {
     const error = new Error('network failed');
     const appDb = {
