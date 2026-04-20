@@ -46,12 +46,15 @@ export function createVaryHeaders(): Headers {
   return headers;
 }
 
-export function createCorsHeaders(allowedOrigin: string): Headers {
+export function createCorsHeaders(
+  allowedOrigin: string,
+  allowedMethods: readonly string[] = ['POST', 'OPTIONS'],
+): Headers {
   const headers = createVaryHeaders();
   appendVary(headers, 'Access-Control-Request-Method');
   appendVary(headers, 'Access-Control-Request-Headers');
   headers.set('Access-Control-Allow-Origin', allowedOrigin);
-  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  headers.set('Access-Control-Allow-Methods', allowedMethods.join(', '));
   headers.set('Access-Control-Allow-Headers', 'content-type');
   headers.set('Access-Control-Max-Age', '86400');
   return headers;
