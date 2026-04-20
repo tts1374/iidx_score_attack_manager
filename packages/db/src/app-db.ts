@@ -21,6 +21,7 @@ import {
   TournamentDetailChart,
   TournamentDetailItem,
   TournamentListItem,
+  TournamentPublicationStatus,
   TournamentTab,
 } from './models.js';
 import { migrateAppDatabase } from './schema.js';
@@ -75,6 +76,18 @@ function normalizeDbText(value: unknown): string | null {
   }
   const text = String(value).trim();
   return text.length > 0 ? text : null;
+}
+
+function normalizeTournamentPublicationStatus(value: unknown): TournamentPublicationStatus {
+  const normalized = normalizeDbText(value);
+  if (
+    normalized === 'publishing' ||
+    normalized === 'published' ||
+    normalized === 'retryable'
+  ) {
+    return normalized;
+  }
+  return 'unpublished';
 }
 
 function toSongDisplayTitle(title: unknown, titleQualifier: unknown): string | null {
@@ -384,6 +397,9 @@ export class AppDatabase {
 
     const tournamentUuid = input.tournamentUuid ?? this.idFactory.uuid();
     const now = this.clock.nowIso();
+    const publicStatus = input.publicStatus ?? 'unpublished';
+    const lastPublishAttemptAt =
+      input.lastPublishAttemptAt ?? (publicStatus === 'publishing' ? now : null);
     const payload: TournamentPayload = normalizeTournamentPayload({
       v: PAYLOAD_VERSION,
       uuid: tournamentUuid,
@@ -409,9 +425,12 @@ export class AppDatabase {
            start_date,
            end_date,
            is_imported,
+           public_id,
+           public_status,
+           last_publish_attempt_at,
            created_at,
            updated_at
-         ) VALUES(?, NULL, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+         ) VALUES(?, NULL, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
         [
           tournamentUuid,
           defHash,
@@ -420,6 +439,8 @@ export class AppDatabase {
           payload.hashtag,
           payload.start,
           payload.end,
+          publicStatus,
+          lastPublishAttemptAt,
           now,
           now,
         ],
@@ -438,6 +459,59 @@ export class AppDatabase {
       await this.exec('ROLLBACK');
       throw error;
     }
+  }
+
+  async markTournamentPublishing(tournamentUuid: string): Promise<void> {
+    const now = this.clock.nowIso();
+    await this.exec(
+      `UPDATE tournaments
+       SET public_status = 'publishing',
+           last_publish_attempt_at = ?,
+           updated_at = ?
+       WHERE tournament_uuid = ?`,
+      [now, now, tournamentUuid],
+    );
+  }
+
+  async markTournamentPublished(tournamentUuid: string, publicId: string): Promise<void> {
+    const normalizedPublicId = normalizeDbText(publicId);
+    if (!normalizedPublicId) {
+      throw new Error('publicId is required.');
+    }
+    const now = this.clock.nowIso();
+    await this.exec(
+      `UPDATE tournaments
+       SET public_id = ?,
+           public_status = 'published',
+           last_publish_attempt_at = ?,
+           updated_at = ?
+       WHERE tournament_uuid = ?`,
+      [normalizedPublicId, now, now, tournamentUuid],
+    );
+  }
+
+  async markTournamentPublishRetryable(tournamentUuid: string): Promise<void> {
+    const now = this.clock.nowIso();
+    await this.exec(
+      `UPDATE tournaments
+       SET public_status = 'retryable',
+           last_publish_attempt_at = ?,
+           updated_at = ?
+       WHERE tournament_uuid = ?`,
+      [now, now, tournamentUuid],
+    );
+  }
+
+  async reconcileInterruptedTournamentPublications(): Promise<void> {
+    const now = this.clock.nowIso();
+    await this.exec(
+      `UPDATE tournaments
+       SET public_status = 'retryable',
+           last_publish_attempt_at = COALESCE(last_publish_attempt_at, ?),
+           updated_at = ?
+       WHERE public_status = 'publishing'`,
+      [now, now],
+    );
   }
 
   async findImportTargetTournament(sourceTournamentUuid: string): Promise<ImportTargetTournament | null> {
@@ -720,6 +794,9 @@ export class AppDatabase {
       start_date: string;
       end_date: string;
       is_imported: number;
+      public_id: string | null;
+      public_status: string | null;
+      last_publish_attempt_at: string | null;
       chart_count: number;
       submitted_count: number;
       send_waiting_count: number;
@@ -734,6 +811,9 @@ export class AppDatabase {
         t.start_date,
         t.end_date,
         t.is_imported,
+        t.public_id,
+        t.public_status,
+        t.last_publish_attempt_at,
         COUNT(DISTINCT tc.chart_id) AS chart_count,
         COUNT(DISTINCT CASE WHEN e.file_deleted = 0 THEN tc.chart_id END) AS submitted_count,
         COUNT(DISTINCT CASE WHEN e.file_deleted = 0 AND e.needs_send = 1 THEN tc.chart_id END) AS send_waiting_count
@@ -768,6 +848,9 @@ export class AppDatabase {
         submittedCount,
         sendWaitingCount,
         pendingCount: Math.max(0, chartCount - submittedCount),
+        publicId: row.public_id,
+        publicStatus: normalizeTournamentPublicationStatus(row.public_status),
+        lastPublishAttemptAt: row.last_publish_attempt_at,
       };
     });
   }
@@ -784,6 +867,9 @@ export class AppDatabase {
       start_date: string;
       end_date: string;
       is_imported: number;
+      public_id: string | null;
+      public_status: string | null;
+      last_publish_attempt_at: string | null;
       chart_count: number;
       submitted_count: number;
       send_waiting_count: number;
@@ -800,6 +886,9 @@ export class AppDatabase {
         t.start_date,
         t.end_date,
         t.is_imported,
+        t.public_id,
+        t.public_status,
+        t.last_publish_attempt_at,
         COUNT(DISTINCT tc.chart_id) AS chart_count,
         COUNT(DISTINCT CASE WHEN e.file_deleted = 0 THEN tc.chart_id END) AS submitted_count,
         COUNT(DISTINCT CASE WHEN e.file_deleted = 0 AND e.needs_send = 1 THEN tc.chart_id END) AS send_waiting_count,
@@ -838,6 +927,9 @@ export class AppDatabase {
       submittedCount: Number(base.submitted_count),
       sendWaitingCount: Number(base.send_waiting_count),
       pendingCount: Math.max(0, Number(base.chart_count) - Number(base.submitted_count)),
+      publicId: base.public_id,
+      publicStatus: normalizeTournamentPublicationStatus(base.public_status),
+      lastPublishAttemptAt: base.last_publish_attempt_at,
       lastSubmittedAt: base.last_submitted_at,
       charts,
     };

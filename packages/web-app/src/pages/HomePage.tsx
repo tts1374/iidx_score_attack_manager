@@ -341,6 +341,8 @@ export function HomePage(props: HomePageProps): JSX.Element {
                       sharedCount={progress.sharedCount}
                       unsharedCount={progress.sendWaitingCount}
                       unregisteredCount={progress.unregisteredCount}
+                      showPublicationStatus={!entry.item.isImported}
+                      {...(entry.item.publicStatus ? { publicationStatus: entry.item.publicStatus } : {})}
                       prefersReducedMotion={prefersReducedMotion}
                       onOpenDetail={() => props.onOpenDetail(entry.item.tournamentUuid)}
                     />

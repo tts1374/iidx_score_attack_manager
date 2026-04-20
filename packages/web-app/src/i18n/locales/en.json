@@ -414,6 +414,33 @@
     "deleted": "Deleted.",
     "updated": "Updated."
   },
+  "public_catalog": {
+    "section": {
+      "title": "Publication"
+    },
+    "action": {
+      "retry": "Retry publish",
+      "retrying": "Retrying..."
+    },
+    "status": {
+      "unpublished": "Unpublished",
+      "publishing": "Publishing",
+      "published": "Published",
+      "retryable": "Unpublished (retry available)"
+    },
+    "summary": {
+      "last_attempt": "Last publish attempt: {{value}}"
+    },
+    "notice": {
+      "published": "Published to the public catalog.",
+      "duplicate": "Matched an existing public catalog entry."
+    },
+    "error": {
+      "unavailable": "Public catalog API is not configured.",
+      "rate_limited": "The public catalog API is rate limited. Please try again later.",
+      "publish_failed": "Publishing failed. Please try again later."
+    }
+  },
   "create_tournament": {
     "wizard": {
       "aria_label": "Score Attack definition wizard",

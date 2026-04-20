@@ -28,7 +28,7 @@ describe('db schema and mode2 import', () => {
     const db = await createMemoryDb();
     const result = db.exec('PRAGMA user_version;');
     const userVersion = result[0]?.values?.[0]?.[0];
-    expect(userVersion).toBe(2);
+    expect(userVersion).toBe(3);
     db.close();
   });
 
@@ -53,6 +53,17 @@ describe('db schema and mode2 import', () => {
     const rows = result[0]?.values ?? [];
     const columnNames = rows.map((row) => String(row[1]));
     expect(columnNames).toContain('needs_send');
+    db.close();
+  });
+
+  it('adds publication columns to tournaments', async () => {
+    const db = await createMemoryDb();
+    const result = db.exec(`PRAGMA table_info('tournaments');`);
+    const rows = result[0]?.values ?? [];
+    const columnNames = rows.map((row) => String(row[1]));
+    expect(columnNames).toEqual(
+      expect.arrayContaining(['public_id', 'public_status', 'last_publish_attempt_at']),
+    );
     db.close();
   });
 

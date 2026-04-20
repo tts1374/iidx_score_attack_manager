@@ -8,6 +8,8 @@ import {
 } from '@iidx/db';
 import type { CreateSqliteWorkerClientOptions, IdFactory } from '@iidx/db';
 
+import { FetchPublicCatalogClient, type PublicCatalogClient } from './public-catalog-client';
+import { resolvePublicCatalogRuntimeConfig } from './public-catalog-config';
 import { resolveSongMasterRuntimeConfig } from './song-master-config';
 
 export interface AppServices {
@@ -15,6 +17,7 @@ export interface AppServices {
   opfs: OpfsStorage;
   appDb: AppDatabase;
   songMasterService: SongMasterService;
+  publicCatalogClient: PublicCatalogClient;
 }
 
 export interface AppServiceOverrides {
@@ -22,6 +25,7 @@ export interface AppServiceOverrides {
   opfs?: OpfsStorage;
   appDb?: AppDatabase;
   songMasterService?: SongMasterService;
+  publicCatalogClient?: PublicCatalogClient;
   clock?: RuntimeClock;
   idFactory?: IdFactory;
   fetchImpl?: typeof fetch;
@@ -30,6 +34,7 @@ export interface AppServiceOverrides {
 export async function createAppServices(overrides: AppServiceOverrides = {}): Promise<AppServices> {
   const workerUrl = `${import.meta.env.BASE_URL}sqlite/sqlite3-worker1.mjs`;
   const songMasterConfig = resolveSongMasterRuntimeConfig(import.meta.env);
+  const publicCatalogConfig = resolvePublicCatalogRuntimeConfig(import.meta.env);
 
   const sqliteClient =
     overrides.sqliteClient ??
@@ -54,11 +59,15 @@ export async function createAppServices(overrides: AppServiceOverrides = {}): Pr
   const songMasterService =
     overrides.songMasterService ??
     new SongMasterService(appDb, sqliteClient, opfs, songMasterOptions);
+  const publicCatalogClient =
+    overrides.publicCatalogClient ??
+    new FetchPublicCatalogClient(publicCatalogConfig, overrides.fetchImpl);
 
   return {
     sqliteClient,
     opfs,
     appDb,
     songMasterService,
+    publicCatalogClient,
   };
 }

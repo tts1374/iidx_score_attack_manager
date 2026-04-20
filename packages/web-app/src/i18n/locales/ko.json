@@ -414,6 +414,33 @@
     "deleted": "삭제했습니다.",
     "updated": "업데이트했습니다."
   },
+  "public_catalog": {
+    "section": {
+      "title": "공개 상태"
+    },
+    "action": {
+      "retry": "공개 다시 시도",
+      "retrying": "재시도 중..."
+    },
+    "status": {
+      "unpublished": "미공개",
+      "publishing": "공개 중",
+      "published": "공개됨",
+      "retryable": "미공개(재시도 가능)"
+    },
+    "summary": {
+      "last_attempt": "마지막 공개 시도: {{value}}"
+    },
+    "notice": {
+      "published": "공개 카탈로그에 등록했습니다.",
+      "duplicate": "이미 공개된 항목으로 반영했습니다."
+    },
+    "error": {
+      "unavailable": "공개 API가 설정되지 않아 공개할 수 없습니다.",
+      "rate_limited": "공개 API 호출 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
+      "publish_failed": "공개에 실패했습니다. 잠시 후 다시 시도해 주세요."
+    }
+  },
   "create_tournament": {
     "wizard": {
       "aria_label": "스코어 어택 정의 마법사",

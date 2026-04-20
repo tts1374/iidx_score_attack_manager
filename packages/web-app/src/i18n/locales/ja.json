@@ -414,6 +414,33 @@
     "deleted": "削除しました。",
     "updated": "更新しました。"
   },
+  "public_catalog": {
+    "section": {
+      "title": "公開状態"
+    },
+    "action": {
+      "retry": "公開を再試行",
+      "retrying": "再試行中..."
+    },
+    "status": {
+      "unpublished": "未公開",
+      "publishing": "公開中",
+      "published": "公開済み",
+      "retryable": "未公開（再試行可）"
+    },
+    "summary": {
+      "last_attempt": "最終公開試行: {{value}}"
+    },
+    "notice": {
+      "published": "公開登録しました。",
+      "duplicate": "既に公開済みとして反映しました。"
+    },
+    "error": {
+      "unavailable": "公開 API が未設定のため公開できません。",
+      "rate_limited": "公開 API の上限に達しました。時間を置いて再試行してください。",
+      "publish_failed": "公開に失敗しました。しばらくしてから再試行してください。"
+    }
+  },
   "create_tournament": {
     "wizard": {
       "aria_label": "スコアタ定義ウィザード",
