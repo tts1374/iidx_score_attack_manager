@@ -192,6 +192,7 @@
       "home": "스코어 어택 목록",
       "import": "스코어 어택 가져오기",
       "import_confirm": "가져오기 확인",
+      "public_catalog": "공개 카탈로그",
       "create": "스코어 어택 생성",
       "detail": "스코어 어택 상세",
       "submit": "점수 제출"
@@ -415,12 +416,25 @@
     "updated": "업데이트했습니다."
   },
   "public_catalog": {
+    "title": "공개 카탈로그",
     "section": {
       "title": "공개 상태"
     },
+    "search_title": "공개 스코어 어택 찾기",
+    "description": "공개된 스코어 어택을 검색하고 기존 import 흐름으로 가져올 수 있습니다.",
+    "search_placeholder": "대회명 / 주최자 / 해시태그",
+    "result_count": "{{count}}건 표시 중",
+    "loading": "공개 카탈로그를 불러오는 중...",
+    "loading_more": "추가 항목을 불러오는 중...",
+    "load_more": "더 보기",
+    "empty": "아직 공개된 스코어 어택이 없습니다.",
+    "empty_search": "검색 조건에 맞는 공개 스코어 어택이 없습니다.",
+    "song_master_required": "공개 카탈로그에서 가져오려면 먼저 곡 데이터를 받아오세요.",
     "action": {
       "retry": "공개 다시 시도",
-      "retrying": "재시도 중..."
+      "retrying": "재시도 중...",
+      "search": "검색",
+      "import": "Import"
     },
     "status": {
       "unpublished": "미공개",
@@ -431,14 +445,23 @@
     "summary": {
       "last_attempt": "마지막 공개 시도: {{value}}"
     },
+    "card": {
+      "owner": "주최자: {{value}}",
+      "hashtag": "해시태그: {{value}}",
+      "period": "기간: {{start}} ~ {{end}}",
+      "chart_count": "채보 수: {{count}}"
+    },
     "notice": {
       "published": "공개 카탈로그에 등록했습니다.",
       "duplicate": "이미 공개된 항목으로 반영했습니다."
     },
     "error": {
-      "unavailable": "공개 API가 설정되지 않아 공개할 수 없습니다.",
+      "unavailable": "공개 카탈로그 API가 설정되지 않아 이용할 수 없습니다.",
       "rate_limited": "공개 API 호출 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.",
-      "publish_failed": "공개에 실패했습니다. 잠시 후 다시 시도해 주세요."
+      "publish_failed": "공개에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      "list_failed": "공개 카탈로그를 불러오지 못했습니다.",
+      "import_failed": "선택한 공개 스코어 어택을 가져오지 못했습니다.",
+      "not_found": "선택한 공개 스코어 어택을 찾을 수 없습니다."
     }
   },
   "create_tournament": {

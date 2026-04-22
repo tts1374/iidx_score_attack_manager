@@ -16,6 +16,8 @@ describe('public catalog publish helpers', () => {
     const publicCatalogClient = {
       isAvailable: () => true,
       registerTournament: vi.fn().mockResolvedValue({ status: 'created', publicId: 'public-123' }),
+      listPublicTournaments: vi.fn(),
+      getPublicTournamentPayload: vi.fn(),
     };
 
     const result = await publishTournamentDefinition({
@@ -49,6 +51,8 @@ describe('public catalog publish helpers', () => {
     const publicCatalogClient = {
       isAvailable: () => true,
       registerTournament: vi.fn().mockResolvedValue({ status: 'duplicate', publicId: 'public-existing' }),
+      listPublicTournaments: vi.fn(),
+      getPublicTournamentPayload: vi.fn(),
     };
 
     const result = await publishTournamentDefinition({
@@ -85,6 +89,8 @@ describe('public catalog publish helpers', () => {
     const publicCatalogClient = {
       isAvailable: () => true,
       registerTournament: vi.fn().mockRejectedValue(error),
+      listPublicTournaments: vi.fn(),
+      getPublicTournamentPayload: vi.fn(),
     };
 
     const result = await publishTournamentDefinition({

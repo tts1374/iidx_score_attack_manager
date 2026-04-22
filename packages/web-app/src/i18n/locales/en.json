@@ -192,6 +192,7 @@
       "home": "Score Attack list",
       "import": "Score Attack import",
       "import_confirm": "Import confirmation",
+      "public_catalog": "Public Catalog",
       "create": "Create Score Attack",
       "detail": "Score Attack detail",
       "submit": "Submit score"
@@ -415,12 +416,25 @@
     "updated": "Updated."
   },
   "public_catalog": {
+    "title": "Public Catalog",
     "section": {
       "title": "Publication"
     },
+    "search_title": "Find a public score attack",
+    "description": "Browse public score attacks and import them into the existing import flow.",
+    "search_placeholder": "Tournament name / owner / hashtag",
+    "result_count": "Showing {{count}} item(s)",
+    "loading": "Loading the public catalog...",
+    "loading_more": "Loading more...",
+    "load_more": "Load more",
+    "empty": "There are no public score attacks yet.",
+    "empty_search": "No public score attacks matched your search.",
+    "song_master_required": "Fetch song data before importing from the public catalog.",
     "action": {
       "retry": "Retry publish",
-      "retrying": "Retrying..."
+      "retrying": "Retrying...",
+      "search": "Search",
+      "import": "Import"
     },
     "status": {
       "unpublished": "Unpublished",
@@ -431,6 +445,12 @@
     "summary": {
       "last_attempt": "Last publish attempt: {{value}}"
     },
+    "card": {
+      "owner": "Owner: {{value}}",
+      "hashtag": "Hashtag: {{value}}",
+      "period": "Period: {{start}} - {{end}}",
+      "chart_count": "Charts: {{count}}"
+    },
     "notice": {
       "published": "Published to the public catalog.",
       "duplicate": "Matched an existing public catalog entry."
@@ -438,7 +458,10 @@
     "error": {
       "unavailable": "Public catalog API is not configured.",
       "rate_limited": "The public catalog API is rate limited. Please try again later.",
-      "publish_failed": "Publishing failed. Please try again later."
+      "publish_failed": "Publishing failed. Please try again later.",
+      "list_failed": "Failed to load the public catalog.",
+      "import_failed": "Failed to import the selected public score attack.",
+      "not_found": "The selected public score attack could not be found."
     }
   },
   "create_tournament": {

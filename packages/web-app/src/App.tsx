@@ -47,6 +47,7 @@ import { CreateTournamentPage } from './pages/CreateTournamentPage';
 import { HomePage, sortForActiveTab, type HomeListAnimationMode } from './pages/HomePage';
 import { ImportConfirmPage } from './pages/ImportConfirmPage';
 import { ImportTournamentPage } from './pages/ImportTournamentPage';
+import { PublicCatalogPage } from './pages/PublicCatalogPage';
 import { SettingsPage, type AppInfoCardData, type AppSwStatus } from './pages/SettingsPage';
 import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage, type TournamentDetailReturnSignal } from './pages/TournamentDetailPage';
@@ -203,6 +204,7 @@ type RouteState =
   | { name: 'home' }
   | { name: 'import' }
   | { name: 'import-confirm' }
+  | { name: 'public-catalog' }
   | { name: 'create' }
   | { name: 'detail'; tournamentUuid: string }
   | { name: 'submit'; tournamentUuid: string; chartId: number; progressSnapshot: DetailProgressSnapshot }
@@ -2502,6 +2504,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         return t('common.page_title.import');
       case 'import-confirm':
         return t('common.page_title.import_confirm');
+      case 'public-catalog':
+        return t('common.page_title.public_catalog');
       case 'create':
         return t('common.page_title.create');
       case 'detail':
@@ -2548,6 +2552,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       return;
     }
     pushRoute({ name: 'settings' });
+  }, [pushRoute, route.name]);
+
+  const openPublicCatalogPage = React.useCallback(() => {
+    if (route.name === 'public-catalog') {
+      return;
+    }
+    pushRoute({ name: 'public-catalog' });
   }, [pushRoute, route.name]);
 
   const applyPendingAppUpdate = React.useCallback(() => {
@@ -2880,6 +2891,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   <MenuItem
                     onClick={() => {
                       closeHomeMenu();
+                      openPublicCatalogPage();
+                    }}
+                  >
+                    {t('public_catalog.title')}
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      closeHomeMenu();
                       openSettingsPage();
                     }}
                   >
@@ -3107,6 +3126,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             busy={busy}
             onImportPayload={importFromPayload}
             onImportFile={importFromFile}
+          />
+        )}
+
+        {route.name === 'public-catalog' && (
+          <PublicCatalogPage
+            client={publicCatalogClient}
+            songMasterReady={songMasterReady}
+            onOpenImportConfirm={openImportConfirm}
           />
         )}
 

@@ -192,6 +192,7 @@
       "home": "スコアタ一覧",
       "import": "スコアタ取込",
       "import_confirm": "取り込み確認",
+      "public_catalog": "公開カタログ",
       "create": "スコアタ作成",
       "detail": "スコアタ詳細",
       "submit": "スコア提出"
@@ -415,12 +416,25 @@
     "updated": "更新しました。"
   },
   "public_catalog": {
+    "title": "公開カタログ",
     "section": {
       "title": "公開状態"
     },
+    "search_title": "公開スコアタを探す",
+    "description": "公開されているスコアタを検索して Import できます。",
+    "search_placeholder": "大会名 / 開催者 / ハッシュタグ",
+    "result_count": "{{count}}件表示中",
+    "loading": "公開カタログを読み込み中...",
+    "loading_more": "続きを読み込み中...",
+    "load_more": "続きを読む",
+    "empty": "公開中のスコアタはまだありません。",
+    "empty_search": "条件に一致する公開スコアタが見つかりませんでした。",
+    "song_master_required": "Import するには先に曲マスタを取得してください。",
     "action": {
       "retry": "公開を再試行",
-      "retrying": "再試行中..."
+      "retrying": "再試行中...",
+      "search": "検索",
+      "import": "Import"
     },
     "status": {
       "unpublished": "未公開",
@@ -431,14 +445,23 @@
     "summary": {
       "last_attempt": "最終公開試行: {{value}}"
     },
+    "card": {
+      "owner": "開催者: {{value}}",
+      "hashtag": "ハッシュタグ: {{value}}",
+      "period": "開催期間: {{start}} 〜 {{end}}",
+      "chart_count": "譜面数: {{count}}"
+    },
     "notice": {
       "published": "公開登録しました。",
       "duplicate": "既に公開済みとして反映しました。"
     },
     "error": {
-      "unavailable": "公開 API が未設定のため公開できません。",
+      "unavailable": "公開カタログ API が未設定のため利用できません。",
       "rate_limited": "公開 API の上限に達しました。時間を置いて再試行してください。",
-      "publish_failed": "公開に失敗しました。しばらくしてから再試行してください。"
+      "publish_failed": "公開に失敗しました。しばらくしてから再試行してください。",
+      "list_failed": "公開カタログの取得に失敗しました。",
+      "import_failed": "公開スコアタの取り込みに失敗しました。",
+      "not_found": "対象の公開スコアタが見つかりませんでした。"
     }
   },
   "create_tournament": {
