@@ -451,7 +451,8 @@
       "owner": "Owner: {{value}}",
       "hashtag": "Hashtag: {{value}}",
       "period": "Period: {{start}} - {{end}}",
-      "chart_count": "Charts: {{count}}"
+      "chart_count": "Charts: {{count}}",
+      "chart_count_with_styles": "Charts: {{count}} (SP {{spCount}} / DP {{dpCount}})"
     },
     "notice": {
       "published": "Published to the public catalog.",

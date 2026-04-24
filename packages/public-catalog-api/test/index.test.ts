@@ -1,4 +1,5 @@
 import {
+  countPublicTournamentChartStyles,
   encodeTournamentPayload,
   normalizeTournamentPayload,
 } from '@iidx/shared';
@@ -80,16 +81,23 @@ class InMemoryRepository implements PublicTournamentRepository {
         })
       : filtered;
 
-    const items = paged.slice(0, options.limit + 1).map((record) => ({
-      publicId: record.publicId,
-      name: record.name,
-      owner: record.owner,
-      hashtag: record.hashtag,
-      start: record.startDate,
-      end: record.endDate,
-      chartCount: record.chartCount,
-      createdAt: record.createdAt,
-    }));
+    const items = paged.slice(0, options.limit + 1).map((record) => {
+      const payload = JSON.parse(record.payloadJson) as { charts: number[] };
+      const chartStyleCounts = countPublicTournamentChartStyles(payload.charts);
+
+      return {
+        publicId: record.publicId,
+        name: record.name,
+        owner: record.owner,
+        hashtag: record.hashtag,
+        start: record.startDate,
+        end: record.endDate,
+        chartCount: record.chartCount,
+        spChartCount: chartStyleCounts.spChartCount,
+        dpChartCount: chartStyleCounts.dpChartCount,
+        createdAt: record.createdAt,
+      };
+    });
 
     return {
       items: items.slice(0, options.limit),
@@ -216,7 +224,7 @@ function createRecord(
   return {
     publicId,
     registryHash: `registry-${publicId}`,
-    payloadJson: JSON.stringify(normalizedPayload),
+    payloadJson: overrides.payloadJson ?? JSON.stringify(normalizedPayload),
     name: overrides.name ?? normalizedPayload.name,
     owner: overrides.owner ?? normalizedPayload.owner,
     hashtag: overrides.hashtag ?? normalizedPayload.hashtag,
@@ -663,6 +671,48 @@ describe('public catalog worker', () => {
       'public-alpha',
       'public-beta',
     ]);
+  });
+
+  it('returns SP and DP chart counts in list responses', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+    });
+
+    await repository.create(
+      createRecord('public-style-counts', '2026-04-19T12:00:00.000Z', {
+        chartCount: 4,
+        payloadJson: JSON.stringify({
+          ...validPayload,
+          charts: [1, 5, 6, 9],
+        }),
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      items: Array<{
+        publicId: string;
+        chartCount: number;
+        spChartCount: number;
+        dpChartCount: number;
+      }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.items[0]).toMatchObject({
+      publicId: 'public-style-counts',
+      chartCount: 4,
+      spChartCount: 2,
+      dpChartCount: 2,
+    });
   });
 
   it('rejects invalid list cursors', async () => {

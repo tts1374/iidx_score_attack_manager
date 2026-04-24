@@ -25,6 +25,8 @@ export interface PublicTournamentListItem {
   start: string;
   end: string;
   chartCount: number;
+  spChartCount?: number;
+  dpChartCount?: number;
   createdAt: string;
 }
 
@@ -66,6 +68,42 @@ export interface PublicTournamentRegistryCanonicalPayload {
   start: string;
   end: string;
   charts: number[];
+}
+
+export interface PublicTournamentChartStyleCounts {
+  spChartCount: number;
+  dpChartCount: number;
+}
+
+function resolvePublicTournamentChartPlayStyle(chartId: number): 'SP' | 'DP' | null {
+  if (!Number.isInteger(chartId) || chartId <= 0) {
+    return null;
+  }
+
+  // Song master chart ids are allocated as five SP slots then four DP slots per song.
+  const chartSlot = (chartId - 1) % 9;
+  return chartSlot < 5 ? 'SP' : 'DP';
+}
+
+export function countPublicTournamentChartStyles(
+  chartIds: readonly number[],
+): PublicTournamentChartStyleCounts {
+  let spChartCount = 0;
+  let dpChartCount = 0;
+
+  for (const chartId of chartIds) {
+    const playStyle = resolvePublicTournamentChartPlayStyle(chartId);
+    if (playStyle === 'SP') {
+      spChartCount += 1;
+    } else if (playStyle === 'DP') {
+      dpChartCount += 1;
+    }
+  }
+
+  return {
+    spChartCount,
+    dpChartCount,
+  };
 }
 
 export function canonicalPublicTournamentRegistryPayload(

@@ -451,7 +451,8 @@
       "owner": "주최자: {{value}}",
       "hashtag": "해시태그: {{value}}",
       "period": "기간: {{start}} ~ {{end}}",
-      "chart_count": "채보 수: {{count}}"
+      "chart_count": "채보 수: {{count}}",
+      "chart_count_with_styles": "채보 수: {{count}} (SP {{spCount}} / DP {{dpCount}})"
     },
     "notice": {
       "published": "공개 카탈로그에 등록했습니다.",

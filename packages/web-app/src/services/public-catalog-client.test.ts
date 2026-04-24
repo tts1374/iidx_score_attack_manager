@@ -66,6 +66,8 @@ describe('FetchPublicCatalogClient', () => {
               start: '2026-04-01',
               end: '2026-04-07',
               chartCount: 12,
+              spChartCount: 7,
+              dpChartCount: 5,
               createdAt: '2026-04-01T00:00:00.000Z',
             },
           ],
@@ -94,6 +96,8 @@ describe('FetchPublicCatalogClient', () => {
 
     expect(response.items).toHaveLength(1);
     expect(response.items[0]?.publicId).toBe('public-1');
+    expect(response.items[0]?.spChartCount).toBe(7);
+    expect(response.items[0]?.dpChartCount).toBe(5);
     expect(response.nextCursor).toBe('cursor-2');
   });
 
@@ -129,6 +133,57 @@ describe('FetchPublicCatalogClient', () => {
 
     await expect(client.listPublicTournaments()).resolves.toEqual({
       items: [],
+      nextCursor: null,
+    });
+  });
+
+  it('accepts legacy list items without style chart counts', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              publicId: 'public-legacy',
+              name: 'Legacy Cup',
+              owner: 'Alice',
+              hashtag: 'IIDX',
+              start: '2026-04-01',
+              end: '2026-04-07',
+              chartCount: 12,
+              createdAt: '2026-04-01T00:00:00.000Z',
+            },
+          ],
+          nextCursor: null,
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+    const client = new FetchPublicCatalogClient(
+      {
+        apiBaseUrl: 'https://catalog.example.test/',
+        source: 'env',
+      },
+      fetchImpl,
+    );
+
+    await expect(client.listPublicTournaments()).resolves.toEqual({
+      items: [
+        {
+          publicId: 'public-legacy',
+          name: 'Legacy Cup',
+          owner: 'Alice',
+          hashtag: 'IIDX',
+          start: '2026-04-01',
+          end: '2026-04-07',
+          chartCount: 12,
+          createdAt: '2026-04-01T00:00:00.000Z',
+        },
+      ],
       nextCursor: null,
     });
   });

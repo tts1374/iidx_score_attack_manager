@@ -52,6 +52,10 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function isOptionalFiniteNumber(value: unknown): value is number | undefined {
+  return value === undefined || isFiniteNumber(value);
+}
+
 function isRegisterResponse(
   value: unknown,
 ): value is PublicTournamentRegisterResponse {
@@ -81,6 +85,8 @@ function isPublicTournamentListItem(
     typeof value.start === 'string' &&
     typeof value.end === 'string' &&
     isFiniteNumber(value.chartCount) &&
+    isOptionalFiniteNumber(value.spChartCount) &&
+    isOptionalFiniteNumber(value.dpChartCount) &&
     typeof value.createdAt === 'string'
   );
 }

@@ -451,7 +451,8 @@
       "owner": "開催者: {{value}}",
       "hashtag": "ハッシュタグ: {{value}}",
       "period": "開催期間: {{start}} 〜 {{end}}",
-      "chart_count": "譜面数: {{count}}"
+      "chart_count": "譜面数: {{count}}",
+      "chart_count_with_styles": "譜面数: {{count}}（SP {{spCount}} / DP {{dpCount}}）"
     },
     "notice": {
       "published": "公開登録しました。",

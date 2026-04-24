@@ -531,6 +531,17 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
           <Stack spacing={2}>
             {items.map((item) => {
               const isImporting = importingPublicId === item.publicId;
+              const chartCountText =
+                typeof item.spChartCount === 'number' &&
+                typeof item.dpChartCount === 'number'
+                  ? t('public_catalog.card.chart_count_with_styles', {
+                      count: item.chartCount,
+                      spCount: item.spChartCount,
+                      dpCount: item.dpChartCount,
+                    })
+                  : t('public_catalog.card.chart_count', {
+                      count: item.chartCount,
+                    });
               return (
                 <Paper
                   key={item.publicId}
@@ -586,9 +597,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                         />
                         <CatalogMetaRow
                           icon={<LibraryMusicIcon fontSize="small" />}
-                          text={t('public_catalog.card.chart_count', {
-                            count: item.chartCount,
-                          })}
+                          text={chartCountText}
                         />
                       </Stack>
                     </Stack>

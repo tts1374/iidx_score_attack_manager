@@ -62,6 +62,8 @@ describe('PublicCatalogPage', () => {
         start: string;
         end: string;
         chartCount: number;
+        spChartCount: number;
+        dpChartCount: number;
         createdAt: string;
       }>;
       nextCursor: string | null;
@@ -95,6 +97,8 @@ describe('PublicCatalogPage', () => {
           start: '2026-04-01',
           end: '2026-04-07',
           chartCount: 12,
+          spChartCount: 7,
+          dpChartCount: 5,
           createdAt: '2026-04-01T00:00:00.000Z',
         },
       ],
@@ -102,6 +106,7 @@ describe('PublicCatalogPage', () => {
     });
 
     expect(await screen.findByText('Alpha Cup')).toBeTruthy();
+    expect(screen.getByText('譜面数: 12（SP 7 / DP 5）')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Import' }));
 
     await waitFor(() => {
