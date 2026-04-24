@@ -272,7 +272,8 @@
     "empty": {
       "text": "표시할 수 있는 스코어 어택이 없습니다.",
       "action": {
-        "open_filter": "필터 열기"
+        "open_filter": "필터 열기",
+        "open_public_catalog": "공개 대회 찾기"
       }
     },
     "remaining_days": "{{days}}일 남음",
@@ -433,6 +434,7 @@
     "action": {
       "retry": "공개 다시 시도",
       "retrying": "재시도 중...",
+      "explore": "서버에서 찾기",
       "search": "검색",
       "import": "Import"
     },

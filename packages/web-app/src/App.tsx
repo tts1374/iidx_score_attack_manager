@@ -38,6 +38,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import SearchIcon from '@mui/icons-material/Search';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import { useTranslation } from 'react-i18next';
 
 import { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage, type AppLanguage } from './i18n';
@@ -1285,6 +1286,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeVisibleItems = React.useMemo(
     () => applyHomeQueryState(homeTournamentBuckets, homeQuery),
     [homeQuery, homeTournamentBuckets],
+  );
+  const homeTotalTournamentCount = React.useMemo(
+    () =>
+      homeTournamentBuckets.active.length +
+      homeTournamentBuckets.upcoming.length +
+      homeTournamentBuckets.ended.length,
+    [homeTournamentBuckets],
   );
   const homeListAnimationMode = React.useMemo<HomeListAnimationMode>(() => {
     const previous = previousHomeQueryRef.current;
@@ -2891,14 +2899,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   <MenuItem
                     onClick={() => {
                       closeHomeMenu();
-                      openPublicCatalogPage();
-                    }}
-                  >
-                    {t('public_catalog.title')}
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      closeHomeMenu();
                       openSettingsPage();
                     }}
                   >
@@ -3107,6 +3107,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               prefersReducedMotion={prefersReducedMotion}
               animationMode={homeListAnimationMode}
               onOpenFilterInEmpty={() => openHomeFilterSheet()}
+              onOpenPublicCatalogInEmpty={
+                homeTotalTournamentCount === 0
+                  ? () => openPublicCatalogPage()
+                  : undefined
+              }
               onOpenDetail={async (tournamentUuid) => {
                 const loaded = await reloadDetail(tournamentUuid);
                 if (!loaded) {
@@ -3444,6 +3449,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     closeCreateFabTooltip();
                     setSpeedDialOpen(false);
                     openImportPage();
+                  }}
+                />
+                <SpeedDialAction
+                  icon={<TravelExploreIcon />}
+                  tooltipTitle={t('public_catalog.action.explore')}
+                  FabProps={{ disabled: busy }}
+                  onClick={() => {
+                    closeCreateFabTooltip();
+                    setSpeedDialOpen(false);
+                    openPublicCatalogPage();
                   }}
                 />
               </SpeedDial>

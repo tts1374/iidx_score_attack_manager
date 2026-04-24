@@ -154,6 +154,27 @@ describe('HomePage', () => {
     expect(onOpenFilterInEmpty).toHaveBeenCalledTimes(1);
   });
 
+  it('shows public catalog CTA on empty state when provided', async () => {
+    const onOpenPublicCatalogInEmpty = vi.fn();
+
+    render(
+      <HomePage
+        todayDate="2026-02-08"
+        state="active"
+        prefersReducedMotion
+        items={[]}
+        onOpenPublicCatalogInEmpty={onOpenPublicCatalogInEmpty}
+        onOpenDetail={() => undefined}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole('button', { name: '公開されている大会を探す' }),
+    );
+
+    expect(onOpenPublicCatalogInEmpty).toHaveBeenCalledTimes(1);
+  });
+
   it('shows publication status for local tournaments and hides it for imported tournaments', () => {
     cleanup();
     const { container, rerender } = render(

@@ -272,7 +272,8 @@
     "empty": {
       "text": "No Score Attacks available to display.",
       "action": {
-        "open_filter": "Open filters"
+        "open_filter": "Open filters",
+        "open_public_catalog": "Browse public tournaments"
       }
     },
     "remaining_days": "{{days}} days left",
@@ -433,6 +434,7 @@
     "action": {
       "retry": "Retry publish",
       "retrying": "Retrying...",
+      "explore": "Browse server catalog",
       "search": "Search",
       "import": "Import"
     },

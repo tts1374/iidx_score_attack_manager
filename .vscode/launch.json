@@ -9,6 +9,28 @@
       "cwd": "${workspaceFolder}"
     },
     {
+      "name": "Web App: Dev Server (Local Public Catalog)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm --filter @iidx/web-app dev",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "VITE_PUBLIC_CATALOG_API_BASE_URL": "http://127.0.0.1:8788/"
+      }
+    },
+    {
+      "name": "Public Catalog API: Dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npx wrangler dev --local --persist-to .wrangler/state",
+      "cwd": "${workspaceFolder}/packages/public-catalog-api",
+      "env": {
+        "CLOUDFLARE_INCLUDE_PROCESS_ENV": "true",
+        "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,https://tts1374.github.io",
+        "RATE_LIMIT_SALT": "local-dev-salt"
+      }
+    },
+    {
       "name": "Web App: Chrome",
       "type": "pwa-chrome",
       "request": "launch",
@@ -18,9 +40,10 @@
   ],
   "compounds": [
     {
-      "name": "Web App: Dev + Chrome",
+      "name": "Web App: Dev + Chrome + public-catalog-api",
       "configurations": [
-        "Web App: Dev Server",
+        "Public Catalog API: Dev",
+        "Web App: Dev Server (Local Public Catalog)",
         "Web App: Chrome"
       ],
       "stopAll": true

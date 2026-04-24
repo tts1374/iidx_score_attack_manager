@@ -6,6 +6,7 @@ node_modules/
 coverage/
 **/dist/
 **/.vite/
+**/.wrangler/
 
 # Env
 .env
@@ -17,3 +18,4 @@ coverage/
 .vendor_py/
 .tmp_pytest/
 .tmp_pytest_base/
+.tmp_codex/

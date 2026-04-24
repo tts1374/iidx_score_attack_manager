@@ -4,6 +4,13 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-04-19",
   "compatibility_flags": ["nodejs_compat"],
+  "alias": {
+    "@iidx/shared": "../shared/src/index.ts"
+  },
+  "dev": {
+    "port": 8788,
+    "local_protocol": "http"
+  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

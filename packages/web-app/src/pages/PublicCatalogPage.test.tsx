@@ -1,3 +1,4 @@
+import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -82,7 +83,7 @@ describe('PublicCatalogPage', () => {
       />,
     );
 
-    expect(screen.getByText('公開カタログを読み込み中...')).toBeTruthy();
+    expect(screen.getAllByTestId('public-catalog-skeleton-card')).toHaveLength(3);
 
     deferred.resolve({
       items: [
@@ -124,6 +125,29 @@ describe('PublicCatalogPage', () => {
         songMasterReady
         onOpenImportConfirm={() => undefined}
       />,
+    );
+
+    expect(
+      await screen.findByText('公開中のスコアタはまだありません。'),
+    ).toBeTruthy();
+  });
+
+  it('finishes initial loading under React StrictMode', async () => {
+    const { client, listPublicTournaments } = createClientMock();
+
+    listPublicTournaments.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+
+    render(
+      <React.StrictMode>
+        <PublicCatalogPage
+          client={client}
+          songMasterReady
+          onOpenImportConfirm={() => undefined}
+        />
+      </React.StrictMode>,
     );
 
     expect(

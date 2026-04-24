@@ -272,7 +272,8 @@
     "empty": {
       "text": "表示できるスコアタがありません。",
       "action": {
-        "open_filter": "フィルタを開く"
+        "open_filter": "フィルタを開く",
+        "open_public_catalog": "公開されている大会を探す"
       }
     },
     "remaining_days": "残{{days}}日",
@@ -433,6 +434,7 @@
     "action": {
       "retry": "公開を再試行",
       "retrying": "再試行中...",
+      "explore": "サーバーから探す",
       "search": "検索",
       "import": "Import"
     },
