@@ -177,7 +177,8 @@ export class FetchPublicCatalogClient implements PublicCatalogClient {
     private readonly config: PublicCatalogRuntimeConfig,
     fetchImpl?: typeof fetch,
   ) {
-    this.fetchImpl = fetchImpl ?? fetch;
+    const resolvedFetch = fetchImpl ?? fetch.bind(globalThis);
+    this.fetchImpl = (input, init) => resolvedFetch(input, init);
   }
 
   isAvailable(): boolean {

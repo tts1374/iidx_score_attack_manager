@@ -97,6 +97,42 @@ describe('FetchPublicCatalogClient', () => {
     expect(response.nextCursor).toBe('cursor-2');
   });
 
+  it('calls the configured fetch function without binding it to the client instance', async () => {
+    const fetchImpl = vi.fn(function (this: unknown, input: RequestInfo | URL) {
+      expect(this).toBeUndefined();
+      expect(String(input)).toBe(
+        'https://catalog.example.test/api/public-tournaments',
+      );
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            items: [],
+            nextCursor: null,
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+    });
+    const client = new FetchPublicCatalogClient(
+      {
+        apiBaseUrl: 'https://catalog.example.test/',
+        source: 'env',
+      },
+      fetchImpl,
+    );
+
+    await expect(client.listPublicTournaments()).resolves.toEqual({
+      items: [],
+      nextCursor: null,
+    });
+  });
+
   it('throws a typed error when the payload endpoint returns an API error', async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       expect(String(input)).toBe(
