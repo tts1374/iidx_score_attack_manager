@@ -22,8 +22,9 @@
       "name": "Public Catalog API: Dev",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npx wrangler dev --local --persist-to .wrangler/state",
+      "command": "pnpm exec wrangler dev --local --persist-to .wrangler/state",
       "cwd": "${workspaceFolder}/packages/public-catalog-api",
+      "preLaunchTask": "Public Catalog API: Apply local D1 migrations",
       "env": {
         "CLOUDFLARE_INCLUDE_PROCESS_ENV": "true",
         "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,https://tts1374.github.io",
