@@ -33,10 +33,42 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
+      - name: Prepare public catalog API PROD config
+        shell: bash
+        env:
+          PUBLIC_CATALOG_ENV: production
+          PUBLIC_CATALOG_D1_DATABASE_ID: ${{ vars.PROD_PUBLIC_CATALOG_D1_DATABASE_ID }}
+          VITE_PUBLIC_CATALOG_API_BASE_URL: ${{ vars.PROD_PUBLIC_CATALOG_API_BASE_URL }}
+        run: |
+          test -n "${PUBLIC_CATALOG_D1_DATABASE_ID:?PROD_PUBLIC_CATALOG_D1_DATABASE_ID is required}"
+          test -n "${VITE_PUBLIC_CATALOG_API_BASE_URL:?PROD_PUBLIC_CATALOG_API_BASE_URL is required}"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'packages/public-catalog-api/wrangler.jsonc';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const envName = process.env.PUBLIC_CATALOG_ENV;
+          const dbId = process.env.PUBLIC_CATALOG_D1_DATABASE_ID;
+          config.env[envName].d1_databases[0].database_id = dbId;
+          fs.writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+          NODE
+
+      - name: Apply public catalog API PROD migrations
+        run: pnpm --filter @iidx/public-catalog-api exec wrangler d1 migrations apply iidx-public-catalog-prod --remote --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy public catalog API PROD
+        run: pnpm --filter @iidx/public-catalog-api exec wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
       - run: node scripts/sync-song-master-assets.mjs
       - run: pnpm --filter @iidx/web-app build
         env:
           VITE_BASE_PATH: /iidx_score_attack_manager/
+          VITE_PUBLIC_CATALOG_API_BASE_URL: ${{ vars.PROD_PUBLIC_CATALOG_API_BASE_URL }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
