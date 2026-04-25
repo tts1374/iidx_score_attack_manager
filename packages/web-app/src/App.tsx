@@ -38,6 +38,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import SearchIcon from '@mui/icons-material/Search';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import { useTranslation } from 'react-i18next';
 
 import { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage, type AppLanguage } from './i18n';
@@ -47,6 +48,7 @@ import { CreateTournamentPage } from './pages/CreateTournamentPage';
 import { HomePage, sortForActiveTab, type HomeListAnimationMode } from './pages/HomePage';
 import { ImportConfirmPage } from './pages/ImportConfirmPage';
 import { ImportTournamentPage } from './pages/ImportTournamentPage';
+import { PublicCatalogPage } from './pages/PublicCatalogPage';
 import { SettingsPage, type AppInfoCardData, type AppSwStatus } from './pages/SettingsPage';
 import { SubmitEvidencePage } from './pages/SubmitEvidencePage';
 import { TournamentDetailPage, type TournamentDetailReturnSignal } from './pages/TournamentDetailPage';
@@ -203,6 +205,7 @@ type RouteState =
   | { name: 'home' }
   | { name: 'import' }
   | { name: 'import-confirm' }
+  | { name: 'public-catalog' }
   | { name: 'create' }
   | { name: 'detail'; tournamentUuid: string }
   | { name: 'submit'; tournamentUuid: string; chartId: number; progressSnapshot: DetailProgressSnapshot }
@@ -1283,6 +1286,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeVisibleItems = React.useMemo(
     () => applyHomeQueryState(homeTournamentBuckets, homeQuery),
     [homeQuery, homeTournamentBuckets],
+  );
+  const homeTotalTournamentCount = React.useMemo(
+    () =>
+      homeTournamentBuckets.active.length +
+      homeTournamentBuckets.upcoming.length +
+      homeTournamentBuckets.ended.length,
+    [homeTournamentBuckets],
   );
   const homeListAnimationMode = React.useMemo<HomeListAnimationMode>(() => {
     const previous = previousHomeQueryRef.current;
@@ -2502,6 +2512,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         return t('common.page_title.import');
       case 'import-confirm':
         return t('common.page_title.import_confirm');
+      case 'public-catalog':
+        return t('common.page_title.public_catalog');
       case 'create':
         return t('common.page_title.create');
       case 'detail':
@@ -2548,6 +2560,13 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
       return;
     }
     pushRoute({ name: 'settings' });
+  }, [pushRoute, route.name]);
+
+  const openPublicCatalogPage = React.useCallback(() => {
+    if (route.name === 'public-catalog') {
+      return;
+    }
+    pushRoute({ name: 'public-catalog' });
   }, [pushRoute, route.name]);
 
   const applyPendingAppUpdate = React.useCallback(() => {
@@ -3088,6 +3107,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               prefersReducedMotion={prefersReducedMotion}
               animationMode={homeListAnimationMode}
               onOpenFilterInEmpty={() => openHomeFilterSheet()}
+              onOpenPublicCatalogInEmpty={
+                homeTotalTournamentCount === 0
+                  ? () => openPublicCatalogPage()
+                  : undefined
+              }
               onOpenDetail={async (tournamentUuid) => {
                 const loaded = await reloadDetail(tournamentUuid);
                 if (!loaded) {
@@ -3107,6 +3131,14 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             busy={busy}
             onImportPayload={importFromPayload}
             onImportFile={importFromFile}
+          />
+        )}
+
+        {route.name === 'public-catalog' && (
+          <PublicCatalogPage
+            client={publicCatalogClient}
+            songMasterReady={songMasterReady}
+            onOpenImportConfirm={openImportConfirm}
           />
         )}
 
@@ -3417,6 +3449,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                     closeCreateFabTooltip();
                     setSpeedDialOpen(false);
                     openImportPage();
+                  }}
+                />
+                <SpeedDialAction
+                  icon={<TravelExploreIcon />}
+                  tooltipTitle={t('public_catalog.action.explore')}
+                  FabProps={{ disabled: busy }}
+                  onClick={() => {
+                    closeCreateFabTooltip();
+                    setSpeedDialOpen(false);
+                    openPublicCatalogPage();
                   }}
                 />
               </SpeedDial>

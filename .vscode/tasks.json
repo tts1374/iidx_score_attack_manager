@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Public Catalog API: Apply local D1 migrations",
+      "type": "shell",
+      "command": "pnpm exec wrangler d1 migrations apply iidx-public-catalog --local --persist-to .wrangler/state",
+      "options": {
+        "cwd": "${workspaceFolder}/packages/public-catalog-api",
+        "env": {
+          "CI": "true"
+        }
+      },
+      "problemMatcher": []
+    }
+  ]
+}

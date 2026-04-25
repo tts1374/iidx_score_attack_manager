@@ -1,5 +1,9 @@
 import React from 'react';
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 import type { TournamentListItem, TournamentTab } from '@iidx/db';
 import { useTranslation } from 'react-i18next';
 
@@ -16,6 +20,7 @@ interface HomePageProps {
   items: TournamentListItem[];
   onOpenDetail: (tournamentUuid: string) => void;
   onOpenFilterInEmpty?: () => void;
+  onOpenPublicCatalogInEmpty?: (() => void) | undefined;
   prefersReducedMotion?: boolean;
   animationMode?: HomeListAnimationMode;
 }
@@ -312,11 +317,31 @@ export function HomePage(props: HomePageProps): JSX.Element {
       {cardEntries.length === 0 ? (
         <div className="emptyState">
           <p className="emptyText">{t('home.empty.text')}</p>
-          {props.onOpenFilterInEmpty ? (
-            <button type="button" className="emptyResetButton" onClick={props.onOpenFilterInEmpty}>
-              {t('home.empty.action.open_filter')}
-            </button>
-          ) : null}
+          <Stack spacing={1.25} sx={{ width: 'min(100%, 320px)', mt: 1.5 }}>
+            {props.onOpenPublicCatalogInEmpty ? (
+              <Button
+                type="button"
+                className="emptyPublicCatalogButton"
+                variant="contained"
+                size="large"
+                startIcon={<TravelExploreIcon />}
+                onClick={props.onOpenPublicCatalogInEmpty}
+              >
+                {t('home.empty.action.open_public_catalog')}
+              </Button>
+            ) : null}
+            {props.onOpenFilterInEmpty ? (
+              <Button
+                type="button"
+                className="emptyResetButton"
+                variant="outlined"
+                startIcon={<FilterListIcon />}
+                onClick={props.onOpenFilterInEmpty}
+              >
+                {t('home.empty.action.open_filter')}
+              </Button>
+            ) : null}
+          </Stack>
         </div>
       ) : (
         <ul className="cardList">

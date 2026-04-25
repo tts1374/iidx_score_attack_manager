@@ -3,6 +3,7 @@ import {
   buildPublicTournamentRegistryHash,
   buildTournamentDefHash,
   canonicalPublicTournamentRegistryPayload,
+  countPublicTournamentChartStyles,
 } from '../src/index.js';
 
 const basePayload = {
@@ -55,6 +56,20 @@ describe('public catalog helpers', () => {
       start: '2026-02-01',
       end: '2026-02-28',
       charts: [100, 300],
+    });
+  });
+
+  it('counts SP and DP charts from song master chart ids', () => {
+    expect(countPublicTournamentChartStyles([1, 5, 6, 9, 10, 14, 15])).toEqual({
+      spChartCount: 4,
+      dpChartCount: 3,
+    });
+  });
+
+  it('ignores invalid chart ids when counting chart styles', () => {
+    expect(countPublicTournamentChartStyles([0, -1, 1.5, Number.NaN, 6])).toEqual({
+      spChartCount: 0,
+      dpChartCount: 1,
     });
   });
 });

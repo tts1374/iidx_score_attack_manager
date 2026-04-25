@@ -1,4 +1,7 @@
-import type { PublicTournamentListItem } from '@iidx/shared';
+import {
+  countPublicTournamentChartStyles,
+  type PublicTournamentListItem,
+} from '@iidx/shared';
 
 export interface PublicTournamentRecord {
   publicId: string;
@@ -91,6 +94,7 @@ interface PublicTournamentRow {
 
 interface PublicTournamentListRow {
   public_id: string;
+  payload_json: string;
   name: string;
   owner: string;
   hashtag: string;
@@ -119,6 +123,10 @@ function mapPublicTournamentRow(row: PublicTournamentRow): PublicTournamentRecor
 }
 
 function mapPublicTournamentListRow(row: PublicTournamentListRow): PublicTournamentListItem {
+  const chartStyleCounts = countPublicTournamentChartStylesFromPayloadJson(
+    row.payload_json,
+  );
+
   return {
     publicId: row.public_id,
     name: row.name,
@@ -127,12 +135,29 @@ function mapPublicTournamentListRow(row: PublicTournamentListRow): PublicTournam
     start: row.start_date,
     end: row.end_date,
     chartCount: Number(row.chart_count),
+    spChartCount: chartStyleCounts.spChartCount,
+    dpChartCount: chartStyleCounts.dpChartCount,
     createdAt: row.created_at,
   };
 }
 
 function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
+}
+
+function countPublicTournamentChartStylesFromPayloadJson(payloadJson: string): {
+  spChartCount: number;
+  dpChartCount: number;
+} {
+  try {
+    const parsed = JSON.parse(payloadJson) as { charts?: unknown };
+    if (!Array.isArray(parsed.charts)) {
+      return { spChartCount: 0, dpChartCount: 0 };
+    }
+    return countPublicTournamentChartStyles(parsed.charts.map(Number));
+  } catch {
+    return { spChartCount: 0, dpChartCount: 0 };
+  }
 }
 
 export class D1PublicTournamentRepository implements PublicTournamentRepository {
@@ -232,6 +257,7 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
             `
               SELECT
                 public_id,
+                payload_json,
                 name,
                 owner,
                 hashtag,
