@@ -28,5 +28,39 @@
       "preview_database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "./migrations"
     }
-  ]
+  ],
+  "env": {
+    "staging": {
+      "name": "iidx-public-catalog-api-stg",
+      "vars": {
+        "ALLOWED_ORIGINS": "https://tts1374.github.io",
+        "RATE_LIMIT_MAX_REQUESTS": "10",
+        "RATE_LIMIT_WINDOW_SECONDS": "3600"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "iidx-public-catalog-stg",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "./migrations"
+        }
+      ]
+    },
+    "production": {
+      "name": "iidx-public-catalog-api",
+      "vars": {
+        "ALLOWED_ORIGINS": "https://tts1374.github.io",
+        "RATE_LIMIT_MAX_REQUESTS": "10",
+        "RATE_LIMIT_WINDOW_SECONDS": "3600"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "iidx-public-catalog-prod",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "./migrations"
+        }
+      ]
+    }
+  }
 }
