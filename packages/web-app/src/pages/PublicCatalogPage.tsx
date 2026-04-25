@@ -215,6 +215,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       setBannerMessage(null);
       setItems([]);
       setNextCursor(null);
+      setIsLoadingMore(false);
 
       try {
         const response = await props.client.listPublicTournaments({ query });

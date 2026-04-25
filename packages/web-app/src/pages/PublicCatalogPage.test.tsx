@@ -6,6 +6,10 @@ import userEvent from '@testing-library/user-event';
 import { PublicCatalogPage } from './PublicCatalogPage';
 import type { PublicCatalogClient } from '../services/public-catalog-client';
 
+type PublicTournamentListResult = Awaited<
+  ReturnType<PublicCatalogClient['listPublicTournaments']>
+>;
+
 afterEach(() => {
   cleanup();
 });
@@ -189,5 +193,104 @@ describe('PublicCatalogPage', () => {
       await screen.findByText('公開中のスコアタはまだありません。'),
     ).toBeTruthy();
     expect(listPublicTournaments).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears loading-more state when a new search cancels the request', async () => {
+    const user = userEvent.setup();
+    const firstPage = createDeferred<PublicTournamentListResult>();
+    const loadingMorePage = createDeferred<PublicTournamentListResult>();
+    const searchPage = createDeferred<PublicTournamentListResult>();
+    const searchNextPage = createDeferred<PublicTournamentListResult>();
+    const { client, listPublicTournaments } = createClientMock();
+
+    listPublicTournaments.mockImplementation(
+      (options?: { query?: string; cursor?: string | null }) => {
+        if (options?.cursor === 'cursor-2') {
+          return loadingMorePage.promise;
+        }
+        if (options?.cursor === 'beta-cursor-2') {
+          return searchNextPage.promise;
+        }
+        if (options?.query === 'Beta') {
+          return searchPage.promise;
+        }
+        return firstPage.promise;
+      },
+    );
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    firstPage.resolve({
+      items: [
+        {
+          publicId: 'public-1',
+          name: 'Alpha Cup',
+          owner: 'Alice',
+          hashtag: 'IIDX',
+          start: '2026-04-01',
+          end: '2026-04-07',
+          chartCount: 12,
+          createdAt: '2026-04-01T00:00:00.000Z',
+        },
+      ],
+      nextCursor: 'cursor-2',
+    });
+
+    expect(await screen.findByText('Alpha Cup')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: '続きを読む' }));
+    await waitFor(() => {
+      expect(listPublicTournaments).toHaveBeenCalledWith({
+        query: '',
+        cursor: 'cursor-2',
+      });
+    });
+
+    await user.type(
+      screen.getByLabelText('大会名 / 開催者 / ハッシュタグ'),
+      'Beta',
+    );
+    await user.click(screen.getByRole('button', { name: '検索' }));
+
+    searchPage.resolve({
+      items: [
+        {
+          publicId: 'public-2',
+          name: 'Beta Cup',
+          owner: 'Bob',
+          hashtag: 'IIDX',
+          start: '2026-05-01',
+          end: '2026-05-07',
+          chartCount: 10,
+          createdAt: '2026-05-01T00:00:00.000Z',
+        },
+      ],
+      nextCursor: 'beta-cursor-2',
+    });
+
+    expect(await screen.findByText('Beta Cup')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: '続きを読む' }));
+    await waitFor(() => {
+      expect(listPublicTournaments).toHaveBeenCalledWith({
+        query: 'Beta',
+        cursor: 'beta-cursor-2',
+      });
+    });
+
+    loadingMorePage.resolve({
+      items: [],
+      nextCursor: null,
+    });
+    searchNextPage.resolve({
+      items: [],
+      nextCursor: null,
+    });
   });
 });
