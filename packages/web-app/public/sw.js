@@ -40,6 +40,11 @@ function shouldBypassSongMasterCache(urlText) {
   );
 }
 
+function isCacheableRequestUrl(urlText) {
+  const protocol = new URL(urlText).protocol;
+  return protocol === 'http:' || protocol === 'https:';
+}
+
 const SCOPE_PATH = resolveScopePath();
 const INDEX_PATH = `${SCOPE_PATH}index.html`;
 const APP_SHELL = [SCOPE_PATH, INDEX_PATH];
@@ -70,6 +75,11 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  if (!isCacheableRequestUrl(event.request.url)) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
