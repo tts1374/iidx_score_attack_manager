@@ -616,6 +616,63 @@ describe('public catalog worker', () => {
     expect(secondBody.nextCursor).toBeNull();
   });
 
+  it('keeps the initial JST date boundary across cursor pagination', async () => {
+    const repository = new InMemoryRepository();
+    let currentTime = new Date('2026-04-18T14:30:00.000Z');
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => currentTime,
+    });
+
+    for (let index = 0; index < 21; index += 1) {
+      const publicId = `boundary-public-${String(index + 1).padStart(2, '0')}`;
+      const createdAt = `2026-04-${String(28 - index).padStart(2, '0')}T12:00:00.000Z`;
+      await repository.create(
+        createRecord(publicId, createdAt, {
+          startDate: '2026-04-18',
+        }),
+      );
+    }
+
+    const firstPage = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const firstBody = (await firstPage.json()) as {
+      items: Array<{ publicId: string }>;
+      nextCursor: string | null;
+    };
+    currentTime = new Date('2026-04-18T15:30:00.000Z');
+
+    const secondPage = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+        searchParams: {
+          cursor: firstBody.nextCursor ?? undefined,
+        },
+      }),
+      createEnv(),
+    );
+    const secondBody = (await secondPage.json()) as {
+      items: Array<{ publicId: string }>;
+      nextCursor: string | null;
+    };
+
+    expect(firstPage.status).toBe(200);
+    expect(firstBody.items).toHaveLength(20);
+    expect(secondPage.status).toBe(200);
+    expect(secondBody.items.map((item) => item.publicId)).toEqual([
+      'boundary-public-21',
+    ]);
+    expect(secondBody.nextCursor).toBeNull();
+  });
+
   it('trims search queries and treats blank q as unfiltered', async () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({

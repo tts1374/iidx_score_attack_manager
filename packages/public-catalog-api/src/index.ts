@@ -328,7 +328,7 @@ async function handleListPublicTournaments(
 ): Promise<Response> {
   const url = new URL(request.url);
   const rawCursor = url.searchParams.get('cursor');
-  let cursor: { createdAt: string; publicId: string } | null = null;
+  let cursor: { createdAt: string; publicId: string; startDateFrom?: string } | null = null;
   if (rawCursor !== null) {
     try {
       cursor = decodePublicTournamentListCursor(rawCursor);
@@ -345,10 +345,11 @@ async function handleListPublicTournaments(
   }
 
   const searchQuery = url.searchParams.get('q')?.trim() ?? '';
+  const startDateFrom = cursor?.startDateFrom ?? formatJstDate(currentTime);
   const result = await repository.listActive({
     searchQuery: searchQuery.length > 0 ? searchQuery : null,
     cursor,
-    startDateFrom: formatJstDate(currentTime),
+    startDateFrom,
     limit: PUBLIC_TOURNAMENTS_PAGE_SIZE,
   });
   const lastItem = result.items.at(-1);
@@ -359,6 +360,7 @@ async function handleListPublicTournaments(
         ? encodePublicTournamentListCursor({
             createdAt: lastItem.createdAt,
             publicId: lastItem.publicId,
+            startDateFrom,
           })
         : null,
   };
