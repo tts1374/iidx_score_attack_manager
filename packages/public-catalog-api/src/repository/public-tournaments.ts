@@ -216,6 +216,7 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
             delete_token_hash
           FROM public_tournaments
           WHERE registry_hash = ?
+            AND deleted_at IS NULL
           LIMIT 1
         `,
       )
@@ -356,7 +357,48 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
       )
       .run();
 
-    return (result.meta.changes ?? 0) > 0;
+    if ((result.meta.changes ?? 0) > 0) {
+      return true;
+    }
+
+    const restored = await this.db
+      .prepare(
+        `
+          UPDATE public_tournaments
+          SET public_id = ?,
+              payload_json = ?,
+              name = ?,
+              owner = ?,
+              hashtag = ?,
+              start_date = ?,
+              end_date = ?,
+              chart_count = ?,
+              created_at = ?,
+              updated_at = ?,
+              deleted_at = NULL,
+              delete_reason = NULL,
+              delete_token_hash = ?
+          WHERE registry_hash = ?
+            AND deleted_at IS NOT NULL
+        `,
+      )
+      .bind(
+        record.publicId,
+        record.payloadJson,
+        record.name,
+        record.owner,
+        record.hashtag,
+        record.startDate,
+        record.endDate,
+        record.chartCount,
+        record.createdAt,
+        record.updatedAt,
+        record.deleteTokenHash,
+        record.registryHash,
+      )
+      .run();
+
+    return (restored.meta.changes ?? 0) > 0;
   }
 
   async softDeleteByPublicId(
