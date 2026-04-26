@@ -51,6 +51,7 @@ class InMemoryRepository implements PublicTournamentRepository {
     const normalizedSearch = options.searchQuery?.trim().toLowerCase() ?? '';
     const filtered = [...this.recordsByPublicId.values()]
       .filter((record) => !record.deletedAt)
+      .filter((record) => record.startDate >= options.startDateFrom)
       .filter((record) => {
         if (!normalizedSearch) {
           return true;
@@ -126,8 +127,8 @@ const validPayload = {
   name: 'PUBLIC TOURNAMENT',
   owner: 'owner',
   hashtag: 'iidx',
-  start: '2026-02-01',
-  end: '2026-02-28',
+  start: '2026-04-19',
+  end: '2026-05-06',
   charts: [200, 100],
 };
 
@@ -547,6 +548,7 @@ describe('public catalog worker', () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
     });
 
     for (let index = 0; index < 19; index += 1) {
@@ -618,6 +620,7 @@ describe('public catalog worker', () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
     });
 
     await repository.create(
@@ -677,6 +680,7 @@ describe('public catalog worker', () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
     });
 
     await repository.create(
@@ -719,6 +723,7 @@ describe('public catalog worker', () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
     });
 
     const response = await invokeWorker(
@@ -738,6 +743,48 @@ describe('public catalog worker', () => {
 
     expect(response.status).toBe(400);
     expect(body.error.code).toBe('BAD_REQUEST');
+  });
+
+  it('lists only tournaments starting today or later in JST', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-18T15:30:00.000Z'),
+    });
+
+    await repository.create(
+      createRecord('past-public', '2026-04-21T12:00:00.000Z', {
+        startDate: '2026-04-18',
+      }),
+    );
+    await repository.create(
+      createRecord('today-public', '2026-04-20T12:00:00.000Z', {
+        startDate: '2026-04-19',
+      }),
+    );
+    await repository.create(
+      createRecord('future-public', '2026-04-19T12:00:00.000Z', {
+        startDate: '2026-04-20',
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      items: Array<{ publicId: string }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.items.map((item) => item.publicId)).toEqual([
+      'today-public',
+      'future-public',
+    ]);
   });
 
   it('returns payloadParam for active public tournaments', async () => {

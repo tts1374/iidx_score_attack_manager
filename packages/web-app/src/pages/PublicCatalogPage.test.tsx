@@ -54,6 +54,19 @@ function createClientMock(): {
   };
 }
 
+function createListItem(index: number) {
+  return {
+    publicId: `public-${index}`,
+    name: `Cup ${index}`,
+    owner: `Owner ${index}`,
+    hashtag: 'IIDX',
+    start: '2026-04-01',
+    end: '2026-04-07',
+    chartCount: 12,
+    createdAt: `2026-04-01T00:${String(index).padStart(2, '0')}:00.000Z`,
+  };
+}
+
 describe('PublicCatalogPage', () => {
   it('shows a loading state, renders list items, and opens import confirm', async () => {
     const user = userEvent.setup();
@@ -118,6 +131,39 @@ describe('PublicCatalogPage', () => {
     });
     expect(onOpenImportConfirm).toHaveBeenCalledWith('payload-123');
     expect(listPublicTournaments).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows loaded item count across cursor pagination', async () => {
+    const user = userEvent.setup();
+    const { client, listPublicTournaments } = createClientMock();
+
+    listPublicTournaments
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 20 }, (_, index) => createListItem(index + 1)),
+        nextCursor: 'cursor-2',
+      })
+      .mockResolvedValueOnce({
+        items: Array.from({ length: 20 }, (_, index) => createListItem(index + 21)),
+        nextCursor: null,
+      });
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('20件表示中')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: '続きを読む' }));
+
+    expect(await screen.findByText('40件表示中')).toBeTruthy();
+    expect(listPublicTournaments).toHaveBeenCalledWith({
+      query: '',
+      cursor: 'cursor-2',
+    });
   });
 
   it('shows an empty state when the list API returns no items', async () => {

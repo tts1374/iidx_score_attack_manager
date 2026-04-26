@@ -43,6 +43,7 @@ const MAX_REQUEST_BODY_BYTES = 32 * 1024;
 const PUBLIC_TOURNAMENTS_ROUTE_METHODS = ['GET', 'POST', 'OPTIONS'] as const;
 const PUBLIC_TOURNAMENT_PAYLOAD_ROUTE_METHODS = ['GET', 'OPTIONS'] as const;
 const PUBLIC_TOURNAMENTS_PAGE_SIZE = 20;
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 class ApiError extends Error {
   constructor(
@@ -315,10 +316,15 @@ function buildNotFoundResponse(
   );
 }
 
+function formatJstDate(date: Date): string {
+  return new Date(date.getTime() + JST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 async function handleListPublicTournaments(
   request: Request,
   repository: PublicTournamentRepository,
   allowedOrigin: string,
+  currentTime: Date,
 ): Promise<Response> {
   const url = new URL(request.url);
   const rawCursor = url.searchParams.get('cursor');
@@ -342,6 +348,7 @@ async function handleListPublicTournaments(
   const result = await repository.listActive({
     searchQuery: searchQuery.length > 0 ? searchQuery : null,
     cursor,
+    startDateFrom: formatJstDate(currentTime),
     limit: PUBLIC_TOURNAMENTS_PAGE_SIZE,
   });
   const lastItem = result.items.at(-1);
@@ -475,6 +482,7 @@ export function createWorkerHandler(
           request,
           createRepository(env.DB),
           cors.allowedOrigin,
+          now(),
         );
       }
 
