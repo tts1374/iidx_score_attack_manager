@@ -17,6 +17,7 @@ export interface PublicTournamentRecord {
   updatedAt: string;
   deletedAt: string | null;
   deleteReason: string | null;
+  deleteTokenHash: string | null;
 }
 
 export type PublicTournamentAuditResult =
@@ -70,6 +71,12 @@ export interface PublicTournamentRepository {
     options: ListActivePublicTournamentsOptions,
   ): Promise<ListActivePublicTournamentsResult>;
   create(record: PublicTournamentRecord): Promise<boolean>;
+  softDeleteByPublicId(
+    publicId: string,
+    deleteTokenHash: string,
+    deletedAt: string,
+    deleteReason: string,
+  ): Promise<boolean>;
   insertAuditLog(entry: PublicTournamentAuditLogEntry): Promise<void>;
 }
 
@@ -91,6 +98,7 @@ interface PublicTournamentRow {
   updated_at: string;
   deleted_at: string | null;
   delete_reason: string | null;
+  delete_token_hash: string | null;
 }
 
 interface PublicTournamentListRow {
@@ -120,6 +128,7 @@ function mapPublicTournamentRow(row: PublicTournamentRow): PublicTournamentRecor
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
     deleteReason: row.delete_reason,
+    deleteTokenHash: row.delete_token_hash,
   };
 }
 
@@ -203,7 +212,8 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
             created_at,
             updated_at,
             deleted_at,
-            delete_reason
+            delete_reason,
+            delete_token_hash
           FROM public_tournaments
           WHERE registry_hash = ?
           LIMIT 1
@@ -232,7 +242,8 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
             created_at,
             updated_at,
             deleted_at,
-            delete_reason
+            delete_reason,
+            delete_token_hash
           FROM public_tournaments
           WHERE public_id = ?
             AND deleted_at IS NULL
@@ -322,8 +333,9 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
             created_at,
             updated_at,
             deleted_at,
-            delete_reason
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            delete_reason,
+            delete_token_hash
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
       )
       .bind(
@@ -340,7 +352,32 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
         record.updatedAt,
         record.deletedAt,
         record.deleteReason,
+        record.deleteTokenHash,
       )
+      .run();
+
+    return (result.meta.changes ?? 0) > 0;
+  }
+
+  async softDeleteByPublicId(
+    publicId: string,
+    deleteTokenHash: string,
+    deletedAt: string,
+    deleteReason: string,
+  ): Promise<boolean> {
+    const result = await this.db
+      .prepare(
+        `
+          UPDATE public_tournaments
+          SET deleted_at = ?,
+              delete_reason = ?,
+              updated_at = ?
+          WHERE public_id = ?
+            AND delete_token_hash = ?
+            AND deleted_at IS NULL
+        `,
+      )
+      .bind(deletedAt, deleteReason, deletedAt, publicId, deleteTokenHash)
       .run();
 
     return (result.meta.changes ?? 0) > 0;

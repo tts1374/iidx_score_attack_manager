@@ -34,11 +34,13 @@ function createClientMock(): {
   registerTournament: ReturnType<typeof vi.fn>;
   listPublicTournaments: ReturnType<typeof vi.fn>;
   getPublicTournamentPayload: ReturnType<typeof vi.fn>;
+  deletePublicTournament: ReturnType<typeof vi.fn>;
 } {
   const isAvailable = vi.fn(() => true);
   const registerTournament = vi.fn();
   const listPublicTournaments = vi.fn();
   const getPublicTournamentPayload = vi.fn();
+  const deletePublicTournament = vi.fn();
 
   return {
     client: {
@@ -46,11 +48,13 @@ function createClientMock(): {
       registerTournament,
       listPublicTournaments,
       getPublicTournamentPayload,
+      deletePublicTournament,
     },
     isAvailable,
     registerTournament,
     listPublicTournaments,
     getPublicTournamentPayload,
+    deletePublicTournament,
   };
 }
 

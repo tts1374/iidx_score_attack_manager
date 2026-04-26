@@ -2714,6 +2714,16 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     }
     setDeleteTournamentBusy(true);
     try {
+      if (
+        detail.publicId &&
+        detail.publicDeleteToken &&
+        publicCatalogClient.isAvailable()
+      ) {
+        await publicCatalogClient.deletePublicTournament(
+          detail.publicId,
+          detail.publicDeleteToken,
+        );
+      }
       await appDb.deleteTournament(detail.tournamentUuid);
       pushToast(t('notify.deleted'));
       setDetail(null);
@@ -2726,7 +2736,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     } finally {
       setDeleteTournamentBusy(false);
     }
-  }, [appDb, closeDetailMenu, deleteTournamentBusy, detail, pushToast, refreshTournamentList, resetRoute, t]);
+  }, [appDb, closeDetailMenu, deleteTournamentBusy, detail, publicCatalogClient, pushToast, refreshTournamentList, resetRoute, t]);
 
   const resetLocalData = React.useCallback(async () => {
     if (busy) {

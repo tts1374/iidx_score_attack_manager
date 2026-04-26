@@ -1,4 +1,4 @@
-export const APP_DB_USER_VERSION = 3;
+export const APP_DB_USER_VERSION = 4;
 
 export const APP_DB_SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
   end_date TEXT NOT NULL,
   is_imported INTEGER NOT NULL CHECK(is_imported IN (0,1)),
   public_id TEXT,
+  public_delete_token TEXT,
   public_status TEXT NOT NULL DEFAULT 'unpublished' CHECK(public_status IN ('unpublished','publishing','published','retryable')),
   last_publish_attempt_at TEXT,
   created_at TEXT NOT NULL,
@@ -57,7 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_tournament_charts_tournament_uuid ON tournament_c
 CREATE INDEX IF NOT EXISTS idx_evidences_tournament_uuid ON evidences(tournament_uuid);
 CREATE INDEX IF NOT EXISTS idx_evidences_file_deleted ON evidences(file_deleted);
 
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;
 `;
 
 export async function migrateAppDatabase(executeSql: (sql: string) => Promise<void>): Promise<void> {
@@ -74,6 +75,14 @@ export async function migrateAppDatabase(executeSql: (sql: string) => Promise<vo
     await executeSql(`
       ALTER TABLE tournaments
       ADD COLUMN public_status TEXT NOT NULL DEFAULT 'unpublished' CHECK(public_status IN ('unpublished','publishing','published','retryable'));
+    `);
+  } catch {
+    // Column already exists.
+  }
+  try {
+    await executeSql(`
+      ALTER TABLE tournaments
+      ADD COLUMN public_delete_token TEXT;
     `);
   } catch {
     // Column already exists.
