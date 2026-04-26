@@ -426,11 +426,12 @@ export class AppDatabase {
            end_date,
            is_imported,
            public_id,
+           public_delete_token,
            public_status,
            last_publish_attempt_at,
            created_at,
            updated_at
-         ) VALUES(?, NULL, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?)`,
+         ) VALUES(?, NULL, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?, ?, ?, ?)`,
         [
           tournamentUuid,
           defHash,
@@ -473,20 +474,22 @@ export class AppDatabase {
     );
   }
 
-  async markTournamentPublished(tournamentUuid: string, publicId: string): Promise<void> {
+  async markTournamentPublished(tournamentUuid: string, publicId: string, publicDeleteToken?: string | null): Promise<void> {
     const normalizedPublicId = normalizeDbText(publicId);
     if (!normalizedPublicId) {
       throw new Error('publicId is required.');
     }
+    const normalizedPublicDeleteToken = normalizeDbText(publicDeleteToken);
     const now = this.clock.nowIso();
     await this.exec(
       `UPDATE tournaments
        SET public_id = ?,
+           public_delete_token = ?,
            public_status = 'published',
            last_publish_attempt_at = ?,
            updated_at = ?
        WHERE tournament_uuid = ?`,
-      [normalizedPublicId, now, now, tournamentUuid],
+      [normalizedPublicId, normalizedPublicDeleteToken, now, now, tournamentUuid],
     );
   }
 
@@ -795,6 +798,7 @@ export class AppDatabase {
       end_date: string;
       is_imported: number;
       public_id: string | null;
+      public_delete_token: string | null;
       public_status: string | null;
       last_publish_attempt_at: string | null;
       chart_count: number;
@@ -812,6 +816,7 @@ export class AppDatabase {
         t.end_date,
         t.is_imported,
         t.public_id,
+        t.public_delete_token,
         t.public_status,
         t.last_publish_attempt_at,
         COUNT(DISTINCT tc.chart_id) AS chart_count,
@@ -849,6 +854,7 @@ export class AppDatabase {
         sendWaitingCount,
         pendingCount: Math.max(0, chartCount - submittedCount),
         publicId: row.public_id,
+        publicDeleteToken: row.public_delete_token,
         publicStatus: normalizeTournamentPublicationStatus(row.public_status),
         lastPublishAttemptAt: row.last_publish_attempt_at,
       };
@@ -868,6 +874,7 @@ export class AppDatabase {
       end_date: string;
       is_imported: number;
       public_id: string | null;
+      public_delete_token: string | null;
       public_status: string | null;
       last_publish_attempt_at: string | null;
       chart_count: number;
@@ -887,6 +894,7 @@ export class AppDatabase {
         t.end_date,
         t.is_imported,
         t.public_id,
+        t.public_delete_token,
         t.public_status,
         t.last_publish_attempt_at,
         COUNT(DISTINCT tc.chart_id) AS chart_count,
@@ -928,6 +936,7 @@ export class AppDatabase {
       sendWaitingCount: Number(base.send_waiting_count),
       pendingCount: Math.max(0, Number(base.chart_count) - Number(base.submitted_count)),
       publicId: base.public_id,
+      publicDeleteToken: base.public_delete_token,
       publicStatus: normalizeTournamentPublicationStatus(base.public_status),
       lastPublishAttemptAt: base.last_publish_attempt_at,
       lastSubmittedAt: base.last_submitted_at,

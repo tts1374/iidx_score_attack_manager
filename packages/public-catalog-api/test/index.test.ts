@@ -2,6 +2,7 @@ import {
   countPublicTournamentChartStyles,
   encodeTournamentPayload,
   normalizeTournamentPayload,
+  sha256Text,
 } from '@iidx/shared';
 import { describe, expect, it } from 'vitest';
 import { createWorkerHandler } from '../src/index.js';
@@ -37,7 +38,8 @@ class InMemoryRepository implements PublicTournamentRepository {
   async getByRegistryHash(
     registryHash: string,
   ): Promise<PublicTournamentRecord | null> {
-    return this.recordsByRegistryHash.get(registryHash) ?? null;
+    const record = this.recordsByRegistryHash.get(registryHash) ?? null;
+    return record && !record.deletedAt ? record : null;
   }
 
   async getActiveByPublicId(publicId: string): Promise<PublicTournamentRecord | null> {
@@ -51,6 +53,7 @@ class InMemoryRepository implements PublicTournamentRepository {
     const normalizedSearch = options.searchQuery?.trim().toLowerCase() ?? '';
     const filtered = [...this.recordsByPublicId.values()]
       .filter((record) => !record.deletedAt)
+      .filter((record) => record.startDate >= options.startDateFrom)
       .filter((record) => {
         if (!normalizedSearch) {
           return true;
@@ -106,12 +109,37 @@ class InMemoryRepository implements PublicTournamentRepository {
   }
 
   async create(record: PublicTournamentRecord): Promise<boolean> {
-    if (this.recordsByRegistryHash.has(record.registryHash)) {
+    const existing = this.recordsByRegistryHash.get(record.registryHash);
+    if (existing && !existing.deletedAt) {
       return false;
+    }
+    if (existing) {
+      this.recordsByPublicId.delete(existing.publicId);
     }
 
     this.recordsByPublicId.set(record.publicId, record);
     this.recordsByRegistryHash.set(record.registryHash, record);
+    return true;
+  }
+
+  async softDeleteByPublicId(
+    publicId: string,
+    deleteTokenHash: string,
+    deletedAt: string,
+    deleteReason: string,
+  ): Promise<boolean> {
+    const record = this.recordsByPublicId.get(publicId);
+    if (!record || record.deletedAt || record.deleteTokenHash !== deleteTokenHash) {
+      return false;
+    }
+    const deletedRecord = {
+      ...record,
+      updatedAt: deletedAt,
+      deletedAt,
+      deleteReason,
+    };
+    this.recordsByPublicId.set(publicId, deletedRecord);
+    this.recordsByRegistryHash.set(record.registryHash, deletedRecord);
     return true;
   }
 
@@ -126,8 +154,8 @@ const validPayload = {
   name: 'PUBLIC TOURNAMENT',
   owner: 'owner',
   hashtag: 'iidx',
-  start: '2026-02-01',
-  end: '2026-02-28',
+  start: '2026-04-19',
+  end: '2026-05-06',
   charts: [200, 100],
 };
 
@@ -235,6 +263,7 @@ function createRecord(
     updatedAt: overrides.updatedAt ?? createdAt,
     deletedAt: overrides.deletedAt ?? null,
     deleteReason: overrides.deleteReason ?? null,
+    deleteTokenHash: overrides.deleteTokenHash ?? 'delete-token-hash',
   };
 }
 
@@ -275,6 +304,7 @@ describe('public catalog worker', () => {
     expect(body).toEqual({
       status: 'created',
       publicId: 'public-created-id',
+      deleteToken: 'public-created-id',
     });
     expect(repository.recordsByPublicId.size).toBe(1);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
@@ -284,7 +314,7 @@ describe('public catalog worker', () => {
 
   it('returns duplicate when the same registry hash is registered again', async () => {
     const repository = new InMemoryRepository();
-    const generatedIds = ['public-first-id', 'public-second-id'];
+    const generatedIds = ['public-first-id', 'delete-token-first', 'public-second-id', 'delete-token-second'];
     const worker = createWorkerHandler({
       createRepository: () => repository,
       now: () => new Date('2026-04-19T12:00:00.000Z'),
@@ -395,12 +425,14 @@ describe('public catalog worker', () => {
     const body = (await response.json()) as {
       status: string;
       publicId: string;
+      deleteToken?: string;
     };
 
     expect(response.status).toBe(201);
     expect(body).toEqual({
       status: 'created',
       publicId: 'public-created-id',
+      deleteToken: 'public-created-id',
     });
     expect(repository.auditLogs.at(-1)?.result).toBe('accepted');
   });
@@ -547,6 +579,7 @@ describe('public catalog worker', () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
     });
 
     for (let index = 0; index < 19; index += 1) {
@@ -614,10 +647,68 @@ describe('public catalog worker', () => {
     expect(secondBody.nextCursor).toBeNull();
   });
 
+  it('keeps the initial JST date boundary across cursor pagination', async () => {
+    const repository = new InMemoryRepository();
+    let currentTime = new Date('2026-04-18T14:30:00.000Z');
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => currentTime,
+    });
+
+    for (let index = 0; index < 21; index += 1) {
+      const publicId = `boundary-public-${String(index + 1).padStart(2, '0')}`;
+      const createdAt = `2026-04-${String(28 - index).padStart(2, '0')}T12:00:00.000Z`;
+      await repository.create(
+        createRecord(publicId, createdAt, {
+          startDate: '2026-04-18',
+        }),
+      );
+    }
+
+    const firstPage = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const firstBody = (await firstPage.json()) as {
+      items: Array<{ publicId: string }>;
+      nextCursor: string | null;
+    };
+    currentTime = new Date('2026-04-18T15:30:00.000Z');
+
+    const secondPage = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+        searchParams: {
+          cursor: firstBody.nextCursor ?? undefined,
+        },
+      }),
+      createEnv(),
+    );
+    const secondBody = (await secondPage.json()) as {
+      items: Array<{ publicId: string }>;
+      nextCursor: string | null;
+    };
+
+    expect(firstPage.status).toBe(200);
+    expect(firstBody.items).toHaveLength(20);
+    expect(secondPage.status).toBe(200);
+    expect(secondBody.items.map((item) => item.publicId)).toEqual([
+      'boundary-public-21',
+    ]);
+    expect(secondBody.nextCursor).toBeNull();
+  });
+
   it('trims search queries and treats blank q as unfiltered', async () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
     });
 
     await repository.create(
@@ -677,6 +768,7 @@ describe('public catalog worker', () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
     });
 
     await repository.create(
@@ -719,6 +811,7 @@ describe('public catalog worker', () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
     });
 
     const response = await invokeWorker(
@@ -738,6 +831,190 @@ describe('public catalog worker', () => {
 
     expect(response.status).toBe(400);
     expect(body.error.code).toBe('BAD_REQUEST');
+  });
+
+  it('lists only tournaments starting today or later in JST', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-18T15:30:00.000Z'),
+    });
+
+    await repository.create(
+      createRecord('past-public', '2026-04-21T12:00:00.000Z', {
+        startDate: '2026-04-18',
+      }),
+    );
+    await repository.create(
+      createRecord('today-public', '2026-04-20T12:00:00.000Z', {
+        startDate: '2026-04-19',
+      }),
+    );
+    await repository.create(
+      createRecord('future-public', '2026-04-19T12:00:00.000Z', {
+        startDate: '2026-04-20',
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      items: Array<{ publicId: string }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.items.map((item) => item.publicId)).toEqual([
+      'today-public',
+      'future-public',
+    ]);
+  });
+
+  it('soft deletes public tournaments with a delete token', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+      randomUUID: () => 'public-delete-id',
+    });
+
+    await repository.create(
+      createRecord('public-delete-id', '2026-04-19T12:00:00.000Z', {
+        deleteTokenHash: sha256Text('delete-token-1'),
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: `${LIST_PUBLIC_TOURNAMENTS_PATH}/public-delete-id`,
+        method: 'DELETE',
+        headers: {
+          'X-Public-Catalog-Delete-Token': 'delete-token-1',
+        },
+      }),
+      createEnv(),
+    );
+    const listResponse = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const listBody = (await listResponse.json()) as {
+      items: Array<{ publicId: string }>;
+    };
+
+    expect(response.status).toBe(204);
+    expect(repository.recordsByPublicId.get('public-delete-id')).toMatchObject({
+      deletedAt: '2026-04-19T12:00:00.000Z',
+      deleteReason: 'local_tournament_deleted',
+    });
+    expect(listBody.items).toEqual([]);
+  });
+
+  it('recreates a public tournament after the same payload is soft deleted', async () => {
+    const repository = new InMemoryRepository();
+    const generatedIds = [
+      'public-first-id',
+      'delete-token-first',
+      'public-second-id',
+      'delete-token-second',
+    ];
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+      randomUUID: () => generatedIds.shift() ?? 'fallback-id',
+    });
+
+    const createResponse = await invokeWorker(
+      worker,
+      createRequest({ body: validPayload }),
+      createEnv(),
+    );
+    const createBody = (await createResponse.json()) as {
+      publicId: string;
+      deleteToken: string;
+    };
+    await invokeWorker(
+      worker,
+      createRequest({
+        path: `${LIST_PUBLIC_TOURNAMENTS_PATH}/${createBody.publicId}`,
+        method: 'DELETE',
+        headers: {
+          'X-Public-Catalog-Delete-Token': createBody.deleteToken,
+        },
+      }),
+      createEnv(),
+    );
+
+    const recreateResponse = await invokeWorker(
+      worker,
+      createRequest({ body: validPayload }),
+      createEnv(),
+    );
+    const recreateBody = (await recreateResponse.json()) as {
+      status: string;
+      publicId: string;
+      deleteToken?: string;
+    };
+
+    expect(recreateResponse.status).toBe(201);
+    expect(recreateBody).toEqual({
+      status: 'created',
+      publicId: 'public-second-id',
+      deleteToken: 'delete-token-second',
+    });
+    expect(repository.recordsByPublicId.has('public-first-id')).toBe(false);
+    expect(repository.recordsByPublicId.get('public-second-id')).toMatchObject({
+      deletedAt: null,
+      deleteTokenHash: sha256Text('delete-token-second'),
+    });
+  });
+
+  it('rejects public tournament deletes with a missing or invalid token', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+    });
+
+    await repository.create(
+      createRecord('public-delete-id', '2026-04-19T12:00:00.000Z', {
+        deleteTokenHash: sha256Text('delete-token-1'),
+      }),
+    );
+
+    const missingToken = await invokeWorker(
+      worker,
+      createRequest({
+        path: `${LIST_PUBLIC_TOURNAMENTS_PATH}/public-delete-id`,
+        method: 'DELETE',
+      }),
+      createEnv(),
+    );
+    const invalidToken = await invokeWorker(
+      worker,
+      createRequest({
+        path: `${LIST_PUBLIC_TOURNAMENTS_PATH}/public-delete-id`,
+        method: 'DELETE',
+        headers: {
+          'X-Public-Catalog-Delete-Token': 'wrong-token',
+        },
+      }),
+      createEnv(),
+    );
+
+    expect(missingToken.status).toBe(400);
+    expect(invalidToken.status).toBe(404);
+    expect(repository.recordsByPublicId.get('public-delete-id')?.deletedAt).toBeNull();
   });
 
   it('returns payloadParam for active public tournaments', async () => {

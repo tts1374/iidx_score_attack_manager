@@ -30,6 +30,7 @@ export interface PublicCatalogClient {
   getPublicTournamentPayload(
     publicId: string,
   ): Promise<PublicTournamentPayloadResponse>;
+  deletePublicTournament(publicId: string, deleteToken: string): Promise<void>;
 }
 
 export class PublicCatalogClientError extends Error {
@@ -67,7 +68,8 @@ function isRegisterResponse(
   return (
     typeof publicId === 'string' &&
     publicId.trim().length > 0 &&
-    (status === 'created' || status === 'duplicate')
+    (status === 'created' || status === 'duplicate') &&
+    (value.deleteToken === undefined || typeof value.deleteToken === 'string')
   );
 }
 
@@ -331,6 +333,30 @@ export class FetchPublicCatalogClient implements PublicCatalogClient {
     }
 
     return body;
+  }
+
+  async deletePublicTournament(publicId: string, deleteToken: string): Promise<void> {
+    if (!this.config.apiBaseUrl) {
+      throw new PublicCatalogClientError(
+        'unavailable',
+        'public catalog api is unavailable.',
+      );
+    }
+
+    await this.requestJson(
+      buildEndpointUrl(
+        this.config.apiBaseUrl,
+        `${PUBLIC_TOURNAMENTS_PATH}/${encodeURIComponent(publicId.trim())}`,
+      ),
+      {
+        method: 'DELETE',
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+          'X-Public-Catalog-Delete-Token': deleteToken,
+        },
+      },
+    );
   }
 }
 

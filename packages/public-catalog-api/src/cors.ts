@@ -55,7 +55,7 @@ export function createCorsHeaders(
   appendVary(headers, 'Access-Control-Request-Headers');
   headers.set('Access-Control-Allow-Origin', allowedOrigin);
   headers.set('Access-Control-Allow-Methods', allowedMethods.join(', '));
-  headers.set('Access-Control-Allow-Headers', 'content-type');
+  headers.set('Access-Control-Allow-Headers', 'content-type, x-public-catalog-delete-token');
   headers.set('Access-Control-Max-Age', '86400');
   return headers;
 }

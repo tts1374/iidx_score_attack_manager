@@ -13,6 +13,7 @@ export type PublicTournamentRegisterStatus = 'created' | 'duplicate';
 export interface PublicTournamentRegisterResponse {
   status: PublicTournamentRegisterStatus;
   publicId: string;
+  deleteToken?: string;
 }
 
 export type PublicTournamentListCursor = string;

@@ -3,11 +3,13 @@ import type { PublicTournamentListCursor } from '@iidx/shared';
 export interface PublicTournamentPageCursor {
   createdAt: string;
   publicId: string;
+  startDateFrom?: string;
 }
 
 interface PublicTournamentPageCursorShape {
   createdAt: string;
   publicId: string;
+  startDateFrom?: string;
 }
 
 function toBase64Url(value: string): string {
@@ -76,5 +78,9 @@ export function decodePublicTournamentListCursor(
   return {
     createdAt: parsedCursor.createdAt,
     publicId: parsedCursor.publicId,
+    ...(typeof parsedCursor.startDateFrom === 'string' &&
+    parsedCursor.startDateFrom.trim().length > 0
+      ? { startDateFrom: parsedCursor.startDateFrom }
+      : {}),
   };
 }

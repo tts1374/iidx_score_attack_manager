@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import type { Plugin } from 'vite';
 
 const packageJson = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
   version?: string;
@@ -25,10 +26,53 @@ function resolveBasePath(): string {
   return normalized;
 }
 
+function createManifestPlugin(basePath: string): Plugin {
+  const manifest = {
+    name: 'スコアタログ',
+    short_name: 'スコアタログ',
+    start_url: basePath,
+    display: 'standalone',
+    background_color: '#f4f6fb',
+    theme_color: '#243a5e',
+    icons: [
+      {
+        src: `${basePath}icon-512.png`,
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any maskable',
+      },
+    ],
+  };
+
+  return {
+    name: 'iidx-manifest',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith(`${basePath}manifest.webmanifest`)) {
+          next();
+          return;
+        }
+
+        res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+        res.end(`${JSON.stringify(manifest, null, 2)}\n`);
+      });
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'manifest.webmanifest',
+        source: `${JSON.stringify(manifest, null, 2)}\n`,
+      });
+    },
+  };
+}
+
+const basePath = resolveBasePath();
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), createManifestPlugin(basePath)],
   // e.g. /iidx_score_attack_manager/ (prod), /iidx_score_attack_manager-stg/ (stg)
-  base: resolveBasePath(),
+  base: basePath,
   optimizeDeps: {
     exclude: [
       '@sqlite.org/sqlite-wasm',
