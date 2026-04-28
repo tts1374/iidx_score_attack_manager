@@ -25,8 +25,8 @@ Rules:
 
 ### 1.1 Search Budget
 For the first pass:
-- inspect at most 3 files or perform at most 3 focused searches
-- if still unclear, expand incrementally
+- inspect at most 3 directly related files or perform at most 3 focused searches
+- if still unclear, expand incrementally and state why the extra scope is needed
 - do not begin with repo-wide exploration by default
 
 ### 1.2 Default Execution
@@ -46,7 +46,7 @@ Unless the task explicitly requires it:
 - no initial full traversal of PWA / SW / Locks / storage layers
 
 ### 1.4 Current Request Boundary
-Before acting, classify the current request ceiling as one of these canonical values:
+Before acting, classify the current request ceiling internally as one of these canonical values:
 - analysis-only
 - planning-only
 - artifact-update-only
@@ -55,9 +55,15 @@ Before acting, classify the current request ceiling as one of these canonical va
 - merge / close / cleanup authorized
 
 Rules:
+- State the classification only when it affects scope, risk, or user expectations.
 - Do not cross the current request boundary unless the user explicitly expands it.
 - Requests to create a plan, task artifact, or issue comment do not authorize implementation in the same pass.
 - Requests to fix review feedback do not authorize unrelated merge or cleanup.
+
+### 1.5 Version-Sensitive OpenAI Guidance
+For questions or implementation guidance about OpenAI APIs, Codex, ChatGPT Apps SDK, or related developer behavior:
+- consult the OpenAI developer documentation MCP/server or official OpenAI docs before giving version-sensitive guidance
+- prefer official documentation over memory when model, tool, or API behavior may have changed
 
 ---
 
