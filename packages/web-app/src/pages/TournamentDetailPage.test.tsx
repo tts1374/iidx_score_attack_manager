@@ -26,6 +26,7 @@ const serviceMocks = vi.hoisted(() => ({
   publicCatalogClient: {
     isAvailable: vi.fn(),
     registerTournament: vi.fn(),
+    deletePublicTournament: vi.fn(),
   },
   opfs: {
     readFile: vi.fn(),
@@ -575,7 +576,11 @@ describe('TournamentDetailPage', () => {
   it('retries publication from detail when local tournament is retryable', async () => {
     const onUpdated = vi.fn();
     serviceMocks.publicCatalogClient.isAvailable.mockReturnValue(true);
-    serviceMocks.publicCatalogClient.registerTournament.mockResolvedValue({ status: 'created', publicId: 'public-99' });
+    serviceMocks.publicCatalogClient.registerTournament.mockResolvedValue({
+      status: 'created',
+      publicId: 'public-99',
+      deleteToken: 'delete-token-99',
+    });
 
     renderPage(
       {
@@ -594,7 +599,11 @@ describe('TournamentDetailPage', () => {
     await waitFor(() => {
       expect(serviceMocks.appDb.markTournamentPublishing).toHaveBeenCalledWith(detail.tournamentUuid);
       expect(serviceMocks.publicCatalogClient.registerTournament).toHaveBeenCalledTimes(1);
-      expect(serviceMocks.appDb.markTournamentPublished).toHaveBeenCalledWith(detail.tournamentUuid, 'public-99');
+      expect(serviceMocks.appDb.markTournamentPublished).toHaveBeenCalledWith(
+        detail.tournamentUuid,
+        'public-99',
+        'delete-token-99',
+      );
     });
     expect(onUpdated).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('tournament-detail-publication-notice').textContent).toBe('公開登録しました。');

@@ -1389,7 +1389,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
                 {t('public_catalog.section.title')}
               </Typography>
-              <Typography variant="body2">{t(resolvePublicationStatusLabelKey(publicationStatus))}</Typography>
               {formattedLastPublishAttempt ? (
                 <Typography variant="body2" color="text.secondary" data-testid="tournament-detail-publication-last-attempt">
                   {t('public_catalog.summary.last_attempt', { value: formattedLastPublishAttempt })}

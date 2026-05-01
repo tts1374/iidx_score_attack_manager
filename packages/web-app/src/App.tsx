@@ -62,7 +62,7 @@ import {
   restoreCreateTournamentDraft,
   type CreateTournamentDraft,
 } from './pages/create-tournament-draft';
-import { resolvePublicCatalogErrorI18n } from './services/public-catalog-client';
+import { resolvePublicCatalogErrorI18n, type PublicCatalogClient } from './services/public-catalog-client';
 import { useAppServices } from './services/context';
 import { buildPublicTournamentPayload, publishTournamentDefinition } from './services/public-catalog-publish';
 import { resolveSongMasterRuntimeConfig } from './services/song-master-config';
@@ -215,6 +215,33 @@ interface DetailProgressSnapshot {
   shared: number;
   unshared: number;
   unregistered: number;
+}
+
+interface PublicCatalogDeletionTarget {
+  publicId?: string | null;
+  publicDeleteToken?: string | null;
+}
+
+export async function deleteRemotePublicTournamentBestEffort(
+  publicCatalogClient: Pick<PublicCatalogClient, 'isAvailable' | 'deletePublicTournament'>,
+  target: PublicCatalogDeletionTarget,
+): Promise<void> {
+  if (
+    !target.publicId ||
+    !target.publicDeleteToken ||
+    !publicCatalogClient.isAvailable()
+  ) {
+    return;
+  }
+
+  try {
+    await publicCatalogClient.deletePublicTournament(
+      target.publicId,
+      target.publicDeleteToken,
+    );
+  } catch {
+    // Local deletion must remain available even when remote catalog cleanup fails.
+  }
 }
 
 function resolveDetailProgressSnapshot(detail: TournamentDetailItem): DetailProgressSnapshot {
@@ -2714,6 +2741,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     }
     setDeleteTournamentBusy(true);
     try {
+      await deleteRemotePublicTournamentBestEffort(publicCatalogClient, detail);
       await appDb.deleteTournament(detail.tournamentUuid);
       pushToast(t('notify.deleted'));
       setDetail(null);
@@ -2726,7 +2754,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     } finally {
       setDeleteTournamentBusy(false);
     }
-  }, [appDb, closeDetailMenu, deleteTournamentBusy, detail, pushToast, refreshTournamentList, resetRoute, t]);
+  }, [appDb, closeDetailMenu, deleteTournamentBusy, detail, publicCatalogClient, pushToast, refreshTournamentList, resetRoute, t]);
 
   const resetLocalData = React.useCallback(async () => {
     if (busy) {

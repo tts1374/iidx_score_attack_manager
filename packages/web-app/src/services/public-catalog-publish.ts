@@ -61,7 +61,7 @@ export async function publishTournamentDefinition(
 
   try {
     const response = await publicCatalogClient.registerTournament(payload);
-    await appDb.markTournamentPublished(tournamentUuid, response.publicId);
+    await appDb.markTournamentPublished(tournamentUuid, response.publicId, response.deleteToken);
     return {
       status: response.status === 'duplicate' ? 'duplicate' : 'published',
       publicId: response.publicId,

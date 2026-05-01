@@ -101,6 +101,31 @@ describe('FetchPublicCatalogClient', () => {
     expect(response.nextCursor).toBe('cursor-2');
   });
 
+  it('deletes public tournaments with the stored delete token', async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe(
+        'https://catalog.example.test/api/public-tournaments/public-1',
+      );
+      expect(init?.method).toBe('DELETE');
+      expect(new Headers(init?.headers).get('X-Public-Catalog-Delete-Token')).toBe(
+        'delete-token-1',
+      );
+
+      return new Response(null, { status: 204 });
+    });
+    const client = new FetchPublicCatalogClient(
+      {
+        apiBaseUrl: 'https://catalog.example.test/',
+        source: 'env',
+      },
+      fetchImpl,
+    );
+
+    await expect(
+      client.deletePublicTournament('public-1', 'delete-token-1'),
+    ).resolves.toBeUndefined();
+  });
+
   it('calls the configured fetch function without binding it to the client instance', async () => {
     const fetchImpl = vi.fn(function (this: unknown, input: RequestInfo | URL) {
       expect(this).toBeUndefined();

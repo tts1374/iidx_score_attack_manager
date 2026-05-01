@@ -17,6 +17,7 @@ export interface TournamentListItem {
   sendWaitingCount: number;
   pendingCount: number;
   publicId?: string | null;
+  publicDeleteToken?: string | null;
   publicStatus?: TournamentPublicationStatus;
   lastPublishAttemptAt?: string | null;
 }

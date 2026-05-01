@@ -97,7 +97,7 @@ describe('AppDatabase publication state', () => {
         publicStatus: 'publishing',
       });
 
-      await appDb.markTournamentPublished(tournamentUuid, 'public-001');
+      await appDb.markTournamentPublished(tournamentUuid, 'public-001', 'delete-token-001');
 
       const list = await appDb.listTournaments('active');
       const detail = await appDb.getTournamentDetail(tournamentUuid);
@@ -105,12 +105,14 @@ describe('AppDatabase publication state', () => {
       expect(list[0]).toMatchObject({
         tournamentUuid,
         publicId: 'public-001',
+        publicDeleteToken: 'delete-token-001',
         publicStatus: 'published',
         lastPublishAttemptAt: '2026-04-20T10:05:00.000Z',
       });
       expect(detail).toMatchObject({
         tournamentUuid,
         publicId: 'public-001',
+        publicDeleteToken: 'delete-token-001',
         publicStatus: 'published',
         lastPublishAttemptAt: '2026-04-20T10:05:00.000Z',
       });

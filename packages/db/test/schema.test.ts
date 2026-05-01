@@ -28,7 +28,7 @@ describe('db schema and mode2 import', () => {
     const db = await createMemoryDb();
     const result = db.exec('PRAGMA user_version;');
     const userVersion = result[0]?.values?.[0]?.[0];
-    expect(userVersion).toBe(3);
+    expect(userVersion).toBe(4);
     db.close();
   });
 
@@ -62,7 +62,7 @@ describe('db schema and mode2 import', () => {
     const rows = result[0]?.values ?? [];
     const columnNames = rows.map((row) => String(row[1]));
     expect(columnNames).toEqual(
-      expect.arrayContaining(['public_id', 'public_status', 'last_publish_attempt_at']),
+      expect.arrayContaining(['public_id', 'public_delete_token', 'public_status', 'last_publish_attempt_at']),
     );
     db.close();
   });

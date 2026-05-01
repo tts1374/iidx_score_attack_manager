@@ -3,6 +3,7 @@ import {
   buildPublicTournamentRegistryHash,
   encodeTournamentPayload,
   normalizeTournamentPayload,
+  sha256Text,
   type ErrorParams,
   type PublicCatalogApiErrorCode,
   type PublicCatalogApiErrorResponse,
@@ -36,13 +37,17 @@ import {
 } from './rate-limit.js';
 import {
   LIST_PUBLIC_TOURNAMENTS_PATH,
+  matchPublicTournamentItemPath,
   matchPublicTournamentPayloadPath,
 } from './routes.js';
 
 const MAX_REQUEST_BODY_BYTES = 32 * 1024;
 const PUBLIC_TOURNAMENTS_ROUTE_METHODS = ['GET', 'POST', 'OPTIONS'] as const;
 const PUBLIC_TOURNAMENT_PAYLOAD_ROUTE_METHODS = ['GET', 'OPTIONS'] as const;
+const PUBLIC_TOURNAMENT_ITEM_ROUTE_METHODS = ['DELETE', 'OPTIONS'] as const;
 const PUBLIC_TOURNAMENTS_PAGE_SIZE = 20;
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const DELETE_REASON_LOCAL_TOURNAMENT_DELETED = 'local_tournament_deleted';
 
 class ApiError extends Error {
   constructor(
@@ -235,6 +240,7 @@ function toPublicTournamentRecord(
   payload: ReturnType<typeof normalizeTournamentPayload>,
   registryHash: string,
   publicId: string,
+  deleteTokenHash: string,
   createdAt: string,
 ): PublicTournamentRecord {
   const payloadJson = JSON.stringify(payload);
@@ -253,6 +259,7 @@ function toPublicTournamentRecord(
     updatedAt: createdAt,
     deletedAt: null,
     deleteReason: null,
+    deleteTokenHash,
   };
 }
 
@@ -315,14 +322,19 @@ function buildNotFoundResponse(
   );
 }
 
+function formatJstDate(date: Date): string {
+  return new Date(date.getTime() + JST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 async function handleListPublicTournaments(
   request: Request,
   repository: PublicTournamentRepository,
   allowedOrigin: string,
+  currentTime: Date,
 ): Promise<Response> {
   const url = new URL(request.url);
   const rawCursor = url.searchParams.get('cursor');
-  let cursor: { createdAt: string; publicId: string } | null = null;
+  let cursor: { createdAt: string; publicId: string; startDateFrom?: string } | null = null;
   if (rawCursor !== null) {
     try {
       cursor = decodePublicTournamentListCursor(rawCursor);
@@ -339,9 +351,15 @@ async function handleListPublicTournaments(
   }
 
   const searchQuery = url.searchParams.get('q')?.trim() ?? '';
+  const currentStartDateFrom = formatJstDate(currentTime);
+  const startDateFrom =
+    cursor?.startDateFrom && cursor.startDateFrom > currentStartDateFrom
+      ? cursor.startDateFrom
+      : currentStartDateFrom;
   const result = await repository.listActive({
     searchQuery: searchQuery.length > 0 ? searchQuery : null,
     cursor,
+    startDateFrom,
     limit: PUBLIC_TOURNAMENTS_PAGE_SIZE,
   });
   const lastItem = result.items.at(-1);
@@ -352,6 +370,7 @@ async function handleListPublicTournaments(
         ? encodePublicTournamentListCursor({
             createdAt: lastItem.createdAt,
             publicId: lastItem.publicId,
+            startDateFrom,
           })
         : null,
   };
@@ -401,6 +420,48 @@ async function handlePublicTournamentPayload(
   }
 }
 
+async function handleDeletePublicTournament(
+  publicId: string,
+  request: Request,
+  repository: PublicTournamentRepository,
+  allowedOrigin: string,
+  currentTime: Date,
+): Promise<Response> {
+  const deleteToken = request.headers.get('X-Public-Catalog-Delete-Token')?.trim() ?? '';
+  if (!deleteToken) {
+    return errorResponse(
+      400,
+      'BAD_REQUEST',
+      'delete token is required',
+      allowedOrigin,
+      undefined,
+      PUBLIC_TOURNAMENT_ITEM_ROUTE_METHODS,
+    );
+  }
+
+  const deletedAt = currentTime.toISOString();
+  const deleted = await repository.softDeleteByPublicId(
+    publicId,
+    sha256Text(deleteToken),
+    deletedAt,
+    DELETE_REASON_LOCAL_TOURNAMENT_DELETED,
+  );
+  if (!deleted) {
+    return buildNotFoundResponse(
+      allowedOrigin,
+      PUBLIC_TOURNAMENT_ITEM_ROUTE_METHODS,
+    );
+  }
+
+  return new Response(null, {
+    status: 204,
+    headers: buildJsonHeaders(
+      allowedOrigin,
+      PUBLIC_TOURNAMENT_ITEM_ROUTE_METHODS,
+    ),
+  });
+}
+
 export function createWorkerHandler(
   dependencies: PublicCatalogWorkerDependencies = {},
 ): ExportedHandler<PublicCatalogEnv> {
@@ -414,9 +475,10 @@ export function createWorkerHandler(
     async fetch(request, env) {
       const url = new URL(request.url);
       const publicIdForPayload = matchPublicTournamentPayloadPath(url.pathname);
+      const publicIdForItem = publicIdForPayload ? null : matchPublicTournamentItemPath(url.pathname);
       const isPublicTournamentCollectionPath =
         url.pathname === LIST_PUBLIC_TOURNAMENTS_PATH;
-      if (!isPublicTournamentCollectionPath && !publicIdForPayload) {
+      if (!isPublicTournamentCollectionPath && !publicIdForPayload && !publicIdForItem) {
         if (request.method === 'OPTIONS') {
           return new Response(null, { status: 404, headers: createVaryHeaders() });
         }
@@ -441,6 +503,8 @@ export function createWorkerHandler(
       );
       const routeMethods = publicIdForPayload
         ? PUBLIC_TOURNAMENT_PAYLOAD_ROUTE_METHODS
+        : publicIdForItem
+          ? PUBLIC_TOURNAMENT_ITEM_ROUTE_METHODS
         : PUBLIC_TOURNAMENTS_ROUTE_METHODS;
 
       if (request.method === 'OPTIONS') {
@@ -467,6 +531,22 @@ export function createWorkerHandler(
         );
       }
 
+      if (publicIdForItem) {
+        if (request.method !== 'DELETE') {
+          return buildMethodNotAllowedResponse(cors.allowedOrigin, routeMethods);
+        }
+        if (!cors.allowedOrigin) {
+          return buildOriginNotAllowedResponse(routeMethods);
+        }
+        return handleDeletePublicTournament(
+          publicIdForItem,
+          request,
+          createRepository(env.DB),
+          cors.allowedOrigin,
+          now(),
+        );
+      }
+
       if (request.method === 'GET') {
         if (!cors.allowedOrigin) {
           return buildOriginNotAllowedResponse(routeMethods);
@@ -475,6 +555,7 @@ export function createWorkerHandler(
           request,
           createRepository(env.DB),
           cors.allowedOrigin,
+          now(),
         );
       }
 
@@ -585,10 +666,13 @@ export function createWorkerHandler(
       }
 
       const registryHash = buildPublicTournamentRegistryHash(normalizedPayload);
+      const publicId = randomUUID();
+      const deleteToken = randomUUID();
       const record = toPublicTournamentRecord(
         normalizedPayload,
         registryHash,
-        randomUUID(),
+        publicId,
+        sha256Text(deleteToken),
         createdAt,
       );
 
@@ -597,6 +681,7 @@ export function createWorkerHandler(
         const responseBody: PublicTournamentRegisterResponse = {
           status: result.created ? 'created' : 'duplicate',
           publicId: result.record.publicId,
+          ...(result.created ? { deleteToken } : {}),
         };
         await repository.insertAuditLog(
           createAuditEntry(
