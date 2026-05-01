@@ -6,6 +6,7 @@ import {
 } from '@iidx/shared';
 import { describe, expect, it } from 'vitest';
 import { createWorkerHandler } from '../src/index.js';
+import { encodePublicTournamentListCursor } from '../src/pagination.js';
 import {
   LIST_PUBLIC_TOURNAMENTS_PATH,
   REGISTER_PUBLIC_TOURNAMENT_PATH,
@@ -647,7 +648,7 @@ describe('public catalog worker', () => {
     expect(secondBody.nextCursor).toBeNull();
   });
 
-  it('keeps the initial JST date boundary across cursor pagination', async () => {
+  it('does not let cursor pagination use a date boundary before current JST date', async () => {
     const repository = new InMemoryRepository();
     let currentTime = new Date('2026-04-18T14:30:00.000Z');
     const worker = createWorkerHandler({
@@ -660,7 +661,7 @@ describe('public catalog worker', () => {
       const createdAt = `2026-04-${String(28 - index).padStart(2, '0')}T12:00:00.000Z`;
       await repository.create(
         createRecord(publicId, createdAt, {
-          startDate: '2026-04-18',
+          startDate: index === 20 ? '2026-04-19' : '2026-04-18',
         }),
       );
     }
@@ -702,6 +703,47 @@ describe('public catalog worker', () => {
       'boundary-public-21',
     ]);
     expect(secondBody.nextCursor).toBeNull();
+  });
+
+  it('enforces the current JST date floor when list cursor startDateFrom is forged older', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+    });
+
+    await repository.create(
+      createRecord('past-public', '2026-04-21T12:00:00.000Z', {
+        startDate: '2026-04-18',
+      }),
+    );
+    await repository.create(
+      createRecord('today-public', '2026-04-20T12:00:00.000Z', {
+        startDate: '2026-04-19',
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+        searchParams: {
+          cursor: encodePublicTournamentListCursor({
+            createdAt: '9999-12-31T23:59:59.999Z',
+            publicId: 'zzzz',
+            startDateFrom: '2026-04-18',
+          }),
+        },
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      items: Array<{ publicId: string }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.items.map((item) => item.publicId)).toEqual(['today-public']);
   });
 
   it('trims search queries and treats blank q as unfiltered', async () => {

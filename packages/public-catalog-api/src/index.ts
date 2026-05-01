@@ -351,7 +351,11 @@ async function handleListPublicTournaments(
   }
 
   const searchQuery = url.searchParams.get('q')?.trim() ?? '';
-  const startDateFrom = cursor?.startDateFrom ?? formatJstDate(currentTime);
+  const currentStartDateFrom = formatJstDate(currentTime);
+  const startDateFrom =
+    cursor?.startDateFrom && cursor.startDateFrom > currentStartDateFrom
+      ? cursor.startDateFrom
+      : currentStartDateFrom;
   const result = await repository.listActive({
     searchQuery: searchQuery.length > 0 ? searchQuery : null,
     cursor,
