@@ -1057,12 +1057,13 @@
   },
   "whats_new": {
     "modal": {
-      "title": "Update Notice (v1.0.0)",
+      "title": "Update Notice (v1.1.0)",
       "description": "What's changed"
     },
     "items": [
-      "Added app icons.",
-      "The app now shows a notice when song data updates are available."
+      "You can now find and import tournaments from the public catalog.",
+      "Improved public catalog listing, pagination, and recovery for publish states.",
+      "Changed song master updates to run weekly."
     ]
   }
 }
