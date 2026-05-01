@@ -1,7 +1,7 @@
 {
   "name": "iidx-score-attack-manager-web",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "pnpm --filter @iidx/web-app dev",
