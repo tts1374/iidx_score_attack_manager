@@ -1,5 +1,5 @@
-const CACHE_NAME = 'iidx-app-shell-v2';
-const SW_VERSION = '2026-02-18-1';
+const CACHE_NAME = 'iidx-app-shell-v3';
+const SW_VERSION = '2026-05-16-1';
 const SONG_MASTER_GITHUB_LATEST_JSON_RE =
   /^\/tts1374\/iidx_all_songs_master\/releases\/latest\/download\/latest\.json$/;
 const SONG_MASTER_GITHUB_SQLITE_RE =
@@ -80,6 +80,11 @@ self.addEventListener('fetch', (event) => {
 
   if (!isCacheableRequestUrl(event.request.url)) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (event.request.mode !== 'navigate' && event.request.cache === 'no-store') {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }).then((response) => withIsolationHeaders(response)));
     return;
   }
 

@@ -351,15 +351,15 @@ async function handleListPublicTournaments(
   }
 
   const searchQuery = url.searchParams.get('q')?.trim() ?? '';
-  const currentStartDateFrom = formatJstDate(currentTime);
-  const startDateFrom =
-    cursor?.startDateFrom && cursor.startDateFrom > currentStartDateFrom
+  const currentActiveDateFrom = formatJstDate(currentTime);
+  const activeDateFrom =
+    cursor?.startDateFrom && cursor.startDateFrom > currentActiveDateFrom
       ? cursor.startDateFrom
-      : currentStartDateFrom;
+      : currentActiveDateFrom;
   const result = await repository.listActive({
     searchQuery: searchQuery.length > 0 ? searchQuery : null,
     cursor,
-    startDateFrom,
+    activeDateFrom,
     limit: PUBLIC_TOURNAMENTS_PAGE_SIZE,
   });
   const lastItem = result.items.at(-1);
@@ -370,7 +370,7 @@ async function handleListPublicTournaments(
         ? encodePublicTournamentListCursor({
             createdAt: lastItem.createdAt,
             publicId: lastItem.publicId,
-            startDateFrom,
+            startDateFrom: activeDateFrom,
           })
         : null,
   };

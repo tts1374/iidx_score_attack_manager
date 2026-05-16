@@ -51,7 +51,7 @@ export interface PublicTournamentListCursorInput {
 export interface ListActivePublicTournamentsOptions {
   searchQuery: string | null;
   cursor: PublicTournamentListCursorInput | null;
-  startDateFrom: string;
+  activeDateFrom: string;
   limit: number;
 }
 
@@ -280,7 +280,7 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
                 created_at
               FROM public_tournaments
               WHERE deleted_at IS NULL
-                AND start_date >= ?
+                AND end_date >= ?
                 AND (
                   ? IS NULL
                   OR name LIKE ? ESCAPE '\\'
@@ -297,7 +297,7 @@ export class D1PublicTournamentRepository implements PublicTournamentRepository 
             `,
           )
           .bind(
-            options.startDateFrom,
+            options.activeDateFrom,
             searchPattern,
             searchPattern,
             searchPattern,

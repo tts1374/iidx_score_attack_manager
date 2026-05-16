@@ -54,7 +54,7 @@ class InMemoryRepository implements PublicTournamentRepository {
     const normalizedSearch = options.searchQuery?.trim().toLowerCase() ?? '';
     const filtered = [...this.recordsByPublicId.values()]
       .filter((record) => !record.deletedAt)
-      .filter((record) => record.startDate >= options.startDateFrom)
+      .filter((record) => record.endDate >= options.activeDateFrom)
       .filter((record) => {
         if (!normalizedSearch) {
           return true;
@@ -705,7 +705,7 @@ describe('public catalog worker', () => {
     expect(secondBody.nextCursor).toBeNull();
   });
 
-  it('enforces the current JST date floor when list cursor startDateFrom is forged older', async () => {
+  it('enforces the current JST active date floor when list cursor startDateFrom is forged older', async () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
@@ -715,11 +715,13 @@ describe('public catalog worker', () => {
     await repository.create(
       createRecord('past-public', '2026-04-21T12:00:00.000Z', {
         startDate: '2026-04-18',
+        endDate: '2026-04-18',
       }),
     );
     await repository.create(
       createRecord('today-public', '2026-04-20T12:00:00.000Z', {
-        startDate: '2026-04-19',
+        startDate: '2026-04-18',
+        endDate: '2026-04-19',
       }),
     );
 
@@ -875,7 +877,7 @@ describe('public catalog worker', () => {
     expect(body.error.code).toBe('BAD_REQUEST');
   });
 
-  it('lists only tournaments starting today or later in JST', async () => {
+  it('lists tournaments that end today or later in JST', async () => {
     const repository = new InMemoryRepository();
     const worker = createWorkerHandler({
       createRepository: () => repository,
@@ -885,16 +887,19 @@ describe('public catalog worker', () => {
     await repository.create(
       createRecord('past-public', '2026-04-21T12:00:00.000Z', {
         startDate: '2026-04-18',
+        endDate: '2026-04-18',
       }),
     );
     await repository.create(
       createRecord('today-public', '2026-04-20T12:00:00.000Z', {
-        startDate: '2026-04-19',
+        startDate: '2026-04-18',
+        endDate: '2026-04-19',
       }),
     );
     await repository.create(
       createRecord('future-public', '2026-04-19T12:00:00.000Z', {
         startDate: '2026-04-20',
+        endDate: '2026-04-21',
       }),
     );
 
