@@ -1057,13 +1057,13 @@
   },
   "whats_new": {
     "modal": {
-      "title": "Update Notice (v1.1.0)",
+      "title": "Update Notice (v1.1.1)",
       "description": "What's changed"
     },
     "items": [
-      "You can now find and import tournaments from the public catalog.",
-      "Improved public catalog listing, pagination, and recovery for publish states.",
-      "Changed song master updates to run weekly."
+      "Kept the public catalog API configured in production deploy flows.",
+      "Public catalog now keeps active score attacks visible after their start date.",
+      "Prevented stale public catalog list caches from affecting the initial view."
     ]
   }
 }
