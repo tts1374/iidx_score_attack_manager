@@ -13,7 +13,6 @@ import Typography from '@mui/material/Typography';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
-import PersonIcon from '@mui/icons-material/Person';
 import SearchIcon from '@mui/icons-material/Search';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
@@ -583,12 +582,6 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                         useFlexGap
                         flexWrap="wrap"
                       >
-                        <CatalogMetaRow
-                          icon={<PersonIcon fontSize="small" />}
-                          text={t('public_catalog.card.owner', {
-                            value: item.owner,
-                          })}
-                        />
                         <CatalogMetaRow
                           icon={<CalendarTodayIcon fontSize="small" />}
                           text={t('public_catalog.card.period', {
