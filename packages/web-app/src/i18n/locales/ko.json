@@ -436,7 +436,8 @@
       "retrying": "재시도 중...",
       "explore": "서버에서 찾기",
       "search": "검색",
-      "import": "Import"
+      "import": "Import",
+      "delete": "삭제"
     },
     "status": {
       "unpublished": "미공개",
@@ -456,7 +457,8 @@
     },
     "notice": {
       "published": "공개 카탈로그에 등록했습니다.",
-      "duplicate": "이미 공개된 항목으로 반영했습니다."
+      "duplicate": "이미 공개된 항목으로 반영했습니다.",
+      "deleted": "공개 스코어 어택을 삭제했습니다."
     },
     "error": {
       "unavailable": "공개 카탈로그 API가 설정되지 않아 이용할 수 없습니다.",
@@ -464,7 +466,12 @@
       "publish_failed": "공개에 실패했습니다. 잠시 후 다시 시도해 주세요.",
       "list_failed": "공개 카탈로그를 불러오지 못했습니다.",
       "import_failed": "선택한 공개 스코어 어택을 가져오지 못했습니다.",
+      "delete_failed": "공개 스코어 어택을 삭제하지 못했습니다.",
       "not_found": "선택한 공개 스코어 어택을 찾을 수 없습니다."
+    },
+    "delete_dialog": {
+      "title": "공개 스코어 어택을 삭제할까요?",
+      "description": "\"{{name}}\"을 공개 카탈로그에서 삭제합니다. 이 기기에 저장된 스코어 어택은 삭제되지 않습니다."
     }
   },
   "create_tournament": {

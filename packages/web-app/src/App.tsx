@@ -1259,6 +1259,19 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     () => runtimeLogs.find((entry) => entry.level === 'error') ?? null,
     [runtimeLogs],
   );
+  const publicCatalogDeleteTokensByPublicId = React.useMemo(() => {
+    const tokens = new Map<string, string>();
+    [
+      ...homeTournamentBuckets.active,
+      ...homeTournamentBuckets.upcoming,
+      ...homeTournamentBuckets.ended,
+    ].forEach((item) => {
+      if (item.publicId && item.publicDeleteToken) {
+        tokens.set(item.publicId, item.publicDeleteToken);
+      }
+    });
+    return tokens;
+  }, [homeTournamentBuckets]);
   const detailPayloadSizeBytes = React.useMemo(() => {
     if (!detail) {
       return 0;
@@ -3166,6 +3179,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           <PublicCatalogPage
             client={publicCatalogClient}
             songMasterReady={songMasterReady}
+            localDeleteTokensByPublicId={publicCatalogDeleteTokensByPublicId}
             onOpenImportConfirm={openImportConfirm}
           />
         )}

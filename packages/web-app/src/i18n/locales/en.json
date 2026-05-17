@@ -436,7 +436,8 @@
       "retrying": "Retrying...",
       "explore": "Browse server catalog",
       "search": "Search",
-      "import": "Import"
+      "import": "Import",
+      "delete": "Delete"
     },
     "status": {
       "unpublished": "Unpublished",
@@ -456,7 +457,8 @@
     },
     "notice": {
       "published": "Published to the public catalog.",
-      "duplicate": "Matched an existing public catalog entry."
+      "duplicate": "Matched an existing public catalog entry.",
+      "deleted": "Deleted the public score attack."
     },
     "error": {
       "unavailable": "Public catalog API is not configured.",
@@ -464,7 +466,12 @@
       "publish_failed": "Publishing failed. Please try again later.",
       "list_failed": "Failed to load the public catalog.",
       "import_failed": "Failed to import the selected public score attack.",
+      "delete_failed": "Failed to delete the public score attack.",
       "not_found": "The selected public score attack could not be found."
+    },
+    "delete_dialog": {
+      "title": "Delete this public score attack?",
+      "description": "Delete \"{{name}}\" from the public catalog. The score attack stored on this device will not be deleted."
     }
   },
   "create_tournament": {

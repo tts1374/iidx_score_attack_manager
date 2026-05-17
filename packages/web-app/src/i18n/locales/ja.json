@@ -436,7 +436,8 @@
       "retrying": "再試行中...",
       "explore": "サーバーから探す",
       "search": "検索",
-      "import": "Import"
+      "import": "Import",
+      "delete": "削除"
     },
     "status": {
       "unpublished": "未公開",
@@ -456,7 +457,8 @@
     },
     "notice": {
       "published": "公開登録しました。",
-      "duplicate": "既に公開済みとして反映しました。"
+      "duplicate": "既に公開済みとして反映しました。",
+      "deleted": "公開スコアタを削除しました。"
     },
     "error": {
       "unavailable": "公開スコアタ機能が未設定のため利用できません。",
@@ -464,7 +466,12 @@
       "publish_failed": "公開に失敗しました。しばらくしてから再試行してください。",
       "list_failed": "公開スコアタの取得に失敗しました。",
       "import_failed": "公開スコアタの取り込みに失敗しました。",
+      "delete_failed": "公開スコアタの削除に失敗しました。",
       "not_found": "対象の公開スコアタが見つかりませんでした。"
+    },
+    "delete_dialog": {
+      "title": "公開スコアタを削除しますか？",
+      "description": "「{{name}}」を公開カタログから削除します。この端末に保存されているスコアタは削除されません。"
     }
   },
   "create_tournament": {

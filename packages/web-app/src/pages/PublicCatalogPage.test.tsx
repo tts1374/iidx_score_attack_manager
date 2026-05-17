@@ -344,4 +344,139 @@ describe('PublicCatalogPage', () => {
       nextCursor: null,
     });
   });
+
+  it('shows delete action only for locally owned public score attacks', async () => {
+    const { client, listPublicTournaments } = createClientMock();
+
+    listPublicTournaments.mockResolvedValue({
+      items: [createListItem(1), createListItem(2)],
+      nextCursor: null,
+    });
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        localDeleteTokensByPublicId={new Map([['public-1', 'delete-token-1']])}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('Cup 1')).toBeTruthy();
+    expect(await screen.findByText('Cup 2')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '削除' })).toHaveLength(1);
+  });
+
+  it('deletes a locally owned public score attack and removes it from the list', async () => {
+    const user = userEvent.setup();
+    const { client, listPublicTournaments, deletePublicTournament } =
+      createClientMock();
+
+    listPublicTournaments.mockResolvedValue({
+      items: [createListItem(1)],
+      nextCursor: null,
+    });
+    deletePublicTournament.mockResolvedValue(undefined);
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        localDeleteTokensByPublicId={new Map([['public-1', 'delete-token-1']])}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('Cup 1')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: '削除' }));
+    expect(
+      screen.getByText('公開スコアタを削除しますか？'),
+    ).toBeTruthy();
+
+    const deleteButtons = screen.getAllByRole('button', { name: '削除' });
+    await user.click(deleteButtons[deleteButtons.length - 1]!);
+
+    await waitFor(() => {
+      expect(deletePublicTournament).toHaveBeenCalledWith(
+        'public-1',
+        'delete-token-1',
+      );
+    });
+    expect(await screen.findByText('公開スコアタを削除しました。')).toBeTruthy();
+    expect(screen.queryByText('Cup 1')).toBeNull();
+  });
+
+  it('keeps the item and shows an error when delete fails', async () => {
+    const user = userEvent.setup();
+    const { client, listPublicTournaments, deletePublicTournament } =
+      createClientMock();
+
+    listPublicTournaments.mockResolvedValue({
+      items: [createListItem(1)],
+      nextCursor: null,
+    });
+    deletePublicTournament.mockRejectedValue(new Error('delete failed'));
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        localDeleteTokensByPublicId={new Map([['public-1', 'delete-token-1']])}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('Cup 1')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: '削除' }));
+    const deleteButtons = screen.getAllByRole('button', { name: '削除' });
+    await user.click(deleteButtons[deleteButtons.length - 1]!);
+
+    expect(
+      await screen.findByText('公開スコアタの削除に失敗しました。'),
+    ).toBeTruthy();
+    expect(screen.getByText('Cup 1')).toBeTruthy();
+  });
+
+  it('disables import while delete is pending', async () => {
+    const user = userEvent.setup();
+    const deleteRequest = createDeferred<void>();
+    const { client, listPublicTournaments, deletePublicTournament } =
+      createClientMock();
+
+    listPublicTournaments.mockResolvedValue({
+      items: [createListItem(1)],
+      nextCursor: null,
+    });
+    deletePublicTournament.mockReturnValue(deleteRequest.promise);
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        localDeleteTokensByPublicId={new Map([['public-1', 'delete-token-1']])}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('Cup 1')).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: '削除' }));
+    const deleteButtons = screen.getAllByRole('button', { name: '削除' });
+    await user.click(deleteButtons[deleteButtons.length - 1]!);
+
+    expect(
+      screen
+        .getByTestId('public-catalog-delete-button-public-1')
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    expect(
+      screen
+        .getByTestId('public-catalog-import-button-public-1')
+        .hasAttribute('disabled'),
+    ).toBe(true);
+
+    deleteRequest.resolve();
+  });
 });
