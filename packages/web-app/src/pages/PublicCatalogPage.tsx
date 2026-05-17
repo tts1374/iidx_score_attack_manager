@@ -4,6 +4,10 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import InputAdornment from '@mui/material/InputAdornment';
 import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
@@ -12,6 +16,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import DeleteIcon from '@mui/icons-material/Delete';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import SearchIcon from '@mui/icons-material/Search';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
@@ -25,11 +30,13 @@ import { PublicCatalogClientError } from '../services/public-catalog-client';
 interface PublicCatalogPageProps {
   client: PublicCatalogClient;
   songMasterReady: boolean;
+  localDeleteTokensByPublicId?: ReadonlyMap<string, string>;
   onOpenImportConfirm: (rawPayloadParam: string) => void;
 }
 
 interface BannerMessage {
   text: string;
+  severity: 'success' | 'warning' | 'error';
 }
 
 type LoadPhase = 'idle' | 'loading' | 'ready' | 'error';
@@ -189,6 +196,11 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
   const [importingPublicId, setImportingPublicId] = React.useState<string | null>(
     null,
   );
+  const [deletingPublicId, setDeletingPublicId] = React.useState<string | null>(
+    null,
+  );
+  const [deleteDialogItem, setDeleteDialogItem] =
+    React.useState<PublicTournamentListItem | null>(null);
   const mountedRef = React.useRef(true);
   const requestTokenRef = React.useRef(0);
 
@@ -279,6 +291,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
           error,
           'public_catalog.error.list_failed',
         ),
+        severity: 'warning',
       });
     } finally {
       if (mountedRef.current && requestToken === requestTokenRef.current) {
@@ -308,12 +321,14 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       if (!props.client.isAvailable()) {
         setBannerMessage({
           text: t('public_catalog.error.unavailable'),
+          severity: 'warning',
         });
         return;
       }
       if (!props.songMasterReady) {
         setBannerMessage({
           text: t('public_catalog.song_master_required'),
+          severity: 'warning',
         });
         return;
       }
@@ -337,6 +352,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
             error,
             'public_catalog.error.import_failed',
           ),
+          severity: 'warning',
         });
       } finally {
         if (mountedRef.current) {
@@ -354,6 +370,69 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       t,
     ],
   );
+
+  const handleDeleteConfirm = React.useCallback(async () => {
+    if (!deleteDialogItem || deletingPublicId) {
+      return;
+    }
+
+    const deleteToken = props.localDeleteTokensByPublicId?.get(
+      deleteDialogItem.publicId,
+    );
+    if (!deleteToken) {
+      setBannerMessage({
+        text: t('public_catalog.error.delete_failed'),
+        severity: 'error',
+      });
+      setDeleteDialogItem(null);
+      return;
+    }
+
+    setBannerMessage(null);
+    setDeletingPublicId(deleteDialogItem.publicId);
+
+    try {
+      await props.client.deletePublicTournament(
+        deleteDialogItem.publicId,
+        deleteToken,
+      );
+      if (!mountedRef.current) {
+        return;
+      }
+      setItems((previous) =>
+        previous.filter((item) => item.publicId !== deleteDialogItem.publicId),
+      );
+      setBannerMessage({
+        text: t('public_catalog.notice.deleted'),
+        severity: 'success',
+      });
+      setDeleteDialogItem(null);
+    } catch (error) {
+      if (!mountedRef.current) {
+        return;
+      }
+      setBannerMessage({
+        text: resolveActionErrorMessage(
+          t,
+          error,
+          'public_catalog.error.delete_failed',
+        ),
+        severity: 'error',
+      });
+    } finally {
+      if (mountedRef.current) {
+        setDeletingPublicId((current) =>
+          current === deleteDialogItem.publicId ? null : current,
+        );
+      }
+    }
+  }, [
+    deleteDialogItem,
+    deletingPublicId,
+    props.client,
+    props.localDeleteTokensByPublicId,
+    t,
+  ]);
 
   const hasSearchQuery = searchText.length > 0 || currentQuery.length > 0;
   const initialLoading = clientAvailable && loadPhase === 'loading' && items.length === 0;
@@ -463,7 +542,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       ) : null}
 
       {bannerMessage ? (
-        <Alert severity="warning">{bannerMessage.text}</Alert>
+        <Alert severity={bannerMessage.severity}>{bannerMessage.text}</Alert>
       ) : null}
 
       {initialLoading ? (
@@ -531,6 +610,10 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
           <Stack spacing={2}>
             {items.map((item) => {
               const isImporting = importingPublicId === item.publicId;
+              const isDeleting = deletingPublicId === item.publicId;
+              const deleteToken = props.localDeleteTokensByPublicId?.get(
+                item.publicId,
+              );
               const chartCountText =
                 typeof item.spChartCount === 'number' &&
                 typeof item.dpChartCount === 'number'
@@ -600,14 +683,43 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                       sx={{
                         display: 'flex',
                         justifyContent: 'flex-end',
+                        gap: 1,
+                        flexWrap: 'wrap',
                       }}
                     >
+                      {deleteToken ? (
+                        <Button
+                          type="button"
+                          variant="outlined"
+                          color="error"
+                          data-testid={`public-catalog-delete-button-${item.publicId}`}
+                          disabled={
+                            importingPublicId !== null ||
+                            deletingPublicId !== null
+                          }
+                          startIcon={
+                            isDeleting ? (
+                              <CircularProgress color="inherit" size={18} />
+                            ) : (
+                              <DeleteIcon />
+                            )
+                          }
+                          onClick={() => setDeleteDialogItem(item)}
+                        >
+                          {isDeleting
+                            ? t('common.loading')
+                            : t('public_catalog.action.delete')}
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         variant="contained"
                         disableElevation
+                        data-testid={`public-catalog-import-button-${item.publicId}`}
                         disabled={
-                          importingPublicId !== null || !props.songMasterReady
+                          importingPublicId !== null ||
+                          deletingPublicId !== null ||
+                          !props.songMasterReady
                         }
                         startIcon={
                           isImporting ? (
@@ -650,6 +762,47 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
           ) : null}
         </>
       ) : null}
+
+      <Dialog
+        open={deleteDialogItem !== null}
+        onClose={() => {
+          if (!deletingPublicId) {
+            setDeleteDialogItem(null);
+          }
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>{t('public_catalog.delete_dialog.title')}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            {t('public_catalog.delete_dialog.description', {
+              name: deleteDialogItem?.name ?? '',
+            })}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setDeleteDialogItem(null)}
+            disabled={deletingPublicId !== null}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => void handleDeleteConfirm()}
+            disabled={deletingPublicId !== null}
+            startIcon={
+              deletingPublicId ? (
+                <CircularProgress color="inherit" size={18} />
+              ) : undefined
+            }
+          >
+            {t('public_catalog.action.delete')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
