@@ -453,7 +453,9 @@
       "hashtag": "해시태그: {{value}}",
       "period": "기간: {{start}} ~ {{end}}",
       "chart_count": "채보 수: {{count}}",
-      "chart_count_with_styles": "채보 수: {{count}} (SP {{spCount}} / DP {{dpCount}})"
+      "chart_count_with_styles": "채보 수: {{count}} (SP {{spCount}} / DP {{dpCount}})",
+      "chart_preview_label": "등록곡",
+      "chart_preview_more": "그 외 {{count}}보면"
     },
     "notice": {
       "published": "공개 카탈로그에 등록했습니다.",

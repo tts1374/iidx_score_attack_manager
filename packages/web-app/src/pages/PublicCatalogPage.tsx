@@ -21,16 +21,24 @@ import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import SearchIcon from '@mui/icons-material/Search';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
-import type { PublicTournamentListItem } from '@iidx/shared';
+import type {
+  PublicTournamentChartPreviewItem,
+  PublicTournamentListItem,
+} from '@iidx/shared';
 import { useTranslation } from 'react-i18next';
 
 import type { PublicCatalogClient } from '../services/public-catalog-client';
 import { PublicCatalogClientError } from '../services/public-catalog-client';
 
+type ResolveChartPreviewTitles = (
+  chartIds: readonly number[],
+) => Promise<ReadonlyMap<number, string>>;
+
 interface PublicCatalogPageProps {
   client: PublicCatalogClient;
   songMasterReady: boolean;
   localDeleteTokensByPublicId?: ReadonlyMap<string, string>;
+  resolveChartPreviewTitles?: ResolveChartPreviewTitles;
   onOpenImportConfirm: (rawPayloadParam: string) => void;
 }
 
@@ -42,6 +50,7 @@ interface BannerMessage {
 type LoadPhase = 'idle' | 'loading' | 'ready' | 'error';
 
 const SKELETON_CARD_COUNT = 3;
+const CHART_PREVIEW_VISIBLE_COUNT = 3;
 
 function formatHashtag(value: string): string {
   const trimmed = value.trim();
@@ -93,6 +102,50 @@ function CatalogMetaRow(props: {
       </Typography>
     </Box>
   );
+}
+
+async function resolveItemsWithChartPreviewTitles(
+  items: PublicTournamentListItem[],
+  options: {
+    enabled: boolean;
+    resolveChartPreviewTitles: ResolveChartPreviewTitles | undefined;
+  },
+): Promise<PublicTournamentListItem[]> {
+  if (!options.enabled || !options.resolveChartPreviewTitles) {
+    return items;
+  }
+
+  const chartIds = [
+    ...new Set(
+      items.flatMap((item) =>
+        item.chartPreview?.map((previewItem) => previewItem.chartId) ?? [],
+      ),
+    ),
+  ];
+  if (chartIds.length === 0) {
+    return items;
+  }
+
+  try {
+    const titlesByChartId = await options.resolveChartPreviewTitles(chartIds);
+    return items.map((item) => {
+      if (!item.chartPreview) {
+        return item;
+      }
+
+      const chartPreview: PublicTournamentChartPreviewItem[] =
+        item.chartPreview.map((previewItem) => ({
+          ...previewItem,
+          title: titlesByChartId.get(previewItem.chartId) ?? previewItem.title,
+        }));
+      return {
+        ...item,
+        chartPreview,
+      };
+    });
+  } catch {
+    return items;
+  }
 }
 
 function CatalogSkeletonCard(): JSX.Element {
@@ -230,10 +283,17 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
 
       try {
         const response = await props.client.listPublicTournaments({ query });
+        const resolvedItems = await resolveItemsWithChartPreviewTitles(
+          response.items,
+          {
+            enabled: props.songMasterReady,
+            resolveChartPreviewTitles: props.resolveChartPreviewTitles,
+          },
+        );
         if (!mountedRef.current || requestToken !== requestTokenRef.current) {
           return;
         }
-        setItems(response.items);
+        setItems(resolvedItems);
         setNextCursor(response.nextCursor);
         setLoadPhase('ready');
       } catch (error) {
@@ -246,7 +306,12 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         setLoadPhase('error');
       }
     },
-    [props.client, t],
+    [
+      props.client,
+      props.resolveChartPreviewTitles,
+      props.songMasterReady,
+      t,
+    ],
   );
 
   React.useEffect(() => {
@@ -276,10 +341,17 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         query: currentQuery,
         cursor: nextCursor,
       });
+      const resolvedItems = await resolveItemsWithChartPreviewTitles(
+        response.items,
+        {
+          enabled: props.songMasterReady,
+          resolveChartPreviewTitles: props.resolveChartPreviewTitles,
+        },
+      );
       if (!mountedRef.current || requestToken !== requestTokenRef.current) {
         return;
       }
-      setItems((previous) => [...previous, ...response.items]);
+      setItems((previous) => [...previous, ...resolvedItems]);
       setNextCursor(response.nextCursor);
     } catch (error) {
       if (!mountedRef.current || requestToken !== requestTokenRef.current) {
@@ -298,7 +370,15 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         setIsLoadingMore(false);
       }
     }
-  }, [currentQuery, isLoadingMore, nextCursor, props.client, t]);
+  }, [
+    currentQuery,
+    isLoadingMore,
+    nextCursor,
+    props.client,
+    props.resolveChartPreviewTitles,
+    props.songMasterReady,
+    t,
+  ]);
 
   const handleSearchSubmit = React.useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -625,6 +705,12 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                   : t('public_catalog.card.chart_count', {
                       count: item.chartCount,
                     });
+              const visibleChartPreview =
+                item.chartPreview?.slice(0, CHART_PREVIEW_VISIBLE_COUNT) ?? [];
+              const hiddenChartPreviewCount = Math.max(
+                0,
+                (item.chartPreview?.length ?? 0) - visibleChartPreview.length,
+              );
               return (
                 <Paper
                   key={item.publicId}
@@ -677,6 +763,47 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                           text={chartCountText}
                         />
                       </Stack>
+
+                      {visibleChartPreview.length > 0 ? (
+                        <Stack spacing={0.75}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontWeight: 700 }}
+                          >
+                            {t('public_catalog.card.chart_preview_label')}
+                          </Typography>
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            useFlexGap
+                            flexWrap="wrap"
+                          >
+                            {visibleChartPreview.map((previewItem) => (
+                              <Chip
+                                key={previewItem.chartId}
+                                label={
+                                  previewItem.playStyle
+                                    ? `${previewItem.title} / ${previewItem.playStyle}`
+                                    : previewItem.title
+                                }
+                                size="small"
+                                variant="outlined"
+                                sx={{ maxWidth: '100%' }}
+                              />
+                            ))}
+                            {hiddenChartPreviewCount > 0 ? (
+                              <Chip
+                                label={t('public_catalog.card.chart_preview_more', {
+                                  count: hiddenChartPreviewCount,
+                                })}
+                                size="small"
+                                variant="filled"
+                              />
+                            ) : null}
+                          </Stack>
+                        </Stack>
+                      ) : null}
                     </Stack>
 
                     <Box

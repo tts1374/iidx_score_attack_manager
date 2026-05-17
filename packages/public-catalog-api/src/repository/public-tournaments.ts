@@ -1,4 +1,5 @@
 import {
+  buildPublicTournamentChartPreview,
   countPublicTournamentChartStyles,
   type PublicTournamentListItem,
 } from '@iidx/shared';
@@ -133,9 +134,9 @@ function mapPublicTournamentRow(row: PublicTournamentRow): PublicTournamentRecor
 }
 
 function mapPublicTournamentListRow(row: PublicTournamentListRow): PublicTournamentListItem {
-  const chartStyleCounts = countPublicTournamentChartStylesFromPayloadJson(
-    row.payload_json,
-  );
+  const chartIds = readChartIdsFromPayloadJson(row.payload_json);
+  const chartStyleCounts = countPublicTournamentChartStyles(chartIds);
+  const chartPreview = buildPublicTournamentChartPreview(chartIds);
 
   return {
     publicId: row.public_id,
@@ -147,6 +148,7 @@ function mapPublicTournamentListRow(row: PublicTournamentListRow): PublicTournam
     chartCount: Number(row.chart_count),
     spChartCount: chartStyleCounts.spChartCount,
     dpChartCount: chartStyleCounts.dpChartCount,
+    ...(chartPreview.length > 0 ? { chartPreview } : {}),
     createdAt: row.created_at,
   };
 }
@@ -155,18 +157,15 @@ function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
 }
 
-function countPublicTournamentChartStylesFromPayloadJson(payloadJson: string): {
-  spChartCount: number;
-  dpChartCount: number;
-} {
+function readChartIdsFromPayloadJson(payloadJson: string): number[] {
   try {
     const parsed = JSON.parse(payloadJson) as { charts?: unknown };
     if (!Array.isArray(parsed.charts)) {
-      return { spChartCount: 0, dpChartCount: 0 };
+      return [];
     }
-    return countPublicTournamentChartStyles(parsed.charts.map(Number));
+    return parsed.charts.map(Number);
   } catch {
-    return { spChartCount: 0, dpChartCount: 0 };
+    return [];
   }
 }
 

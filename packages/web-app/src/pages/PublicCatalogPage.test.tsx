@@ -85,6 +85,11 @@ describe('PublicCatalogPage', () => {
         chartCount: number;
         spChartCount: number;
         dpChartCount: number;
+        chartPreview: Array<{
+          chartId: number;
+          title: string;
+          playStyle: 'SP' | 'DP' | null;
+        }>;
         createdAt: string;
       }>;
       nextCursor: string | null;
@@ -120,6 +125,12 @@ describe('PublicCatalogPage', () => {
           chartCount: 12,
           spChartCount: 7,
           dpChartCount: 5,
+          chartPreview: [
+            { chartId: 1, title: 'music:1', playStyle: 'SP' },
+            { chartId: 6, title: 'music:1', playStyle: 'DP' },
+            { chartId: 10, title: 'music:2', playStyle: 'SP' },
+            { chartId: 15, title: 'music:2', playStyle: 'DP' },
+          ],
           createdAt: '2026-04-01T00:00:00.000Z',
         },
       ],
@@ -129,6 +140,11 @@ describe('PublicCatalogPage', () => {
     expect(await screen.findByText('Alpha Cup')).toBeTruthy();
     expect(screen.queryByText('開催者: Alice')).toBeNull();
     expect(screen.getByText('譜面数: 12（SP 7 / DP 5）')).toBeTruthy();
+    expect(screen.getByText('登録曲')).toBeTruthy();
+    expect(screen.getByText('music:1 / SP')).toBeTruthy();
+    expect(screen.getByText('music:1 / DP')).toBeTruthy();
+    expect(screen.getByText('music:2 / SP')).toBeTruthy();
+    expect(screen.getByText('ほか 1 譜面')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Import' }));
 
     await waitFor(() => {
@@ -161,6 +177,7 @@ describe('PublicCatalogPage', () => {
     );
 
     expect(await screen.findByText('20件表示中')).toBeTruthy();
+    expect(screen.queryByText('登録曲')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: '続きを読む' }));
 
@@ -169,6 +186,42 @@ describe('PublicCatalogPage', () => {
       query: '',
       cursor: 'cursor-2',
     });
+  });
+
+  it('uses resolved song master titles for chart preview when provided', async () => {
+    const { client, listPublicTournaments } = createClientMock();
+    const resolveChartPreviewTitles = vi.fn(async () =>
+      new Map([
+        [1, 'MAX 300'],
+        [6, 'MAX 300'],
+      ]),
+    );
+
+    listPublicTournaments.mockResolvedValue({
+      items: [
+        {
+          ...createListItem(1),
+          chartPreview: [
+            { chartId: 1, title: 'music:1', playStyle: 'SP' },
+            { chartId: 6, title: 'music:1', playStyle: 'DP' },
+          ],
+        },
+      ],
+      nextCursor: null,
+    });
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        resolveChartPreviewTitles={resolveChartPreviewTitles}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('MAX 300 / SP')).toBeTruthy();
+    expect(screen.getByText('MAX 300 / DP')).toBeTruthy();
+    expect(resolveChartPreviewTitles).toHaveBeenCalledWith([1, 6]);
   });
 
   it('shows an empty state when the list API returns no items', async () => {

@@ -1272,6 +1272,15 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     });
     return tokens;
   }, [homeTournamentBuckets]);
+  const resolvePublicCatalogChartPreviewTitles = React.useCallback(
+    async (chartIds: readonly number[]) => {
+      const chartDetails = await appDb.listSongMasterChartsByIds([...chartIds]);
+      return new Map(
+        chartDetails.map((chart) => [chart.chartId, chart.title] as const),
+      );
+    },
+    [appDb],
+  );
   const detailPayloadSizeBytes = React.useMemo(() => {
     if (!detail) {
       return 0;
@@ -3180,6 +3189,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             client={publicCatalogClient}
             songMasterReady={songMasterReady}
             localDeleteTokensByPublicId={publicCatalogDeleteTokensByPublicId}
+            resolveChartPreviewTitles={resolvePublicCatalogChartPreviewTitles}
             onOpenImportConfirm={openImportConfirm}
           />
         )}

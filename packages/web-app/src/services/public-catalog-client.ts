@@ -57,6 +57,26 @@ function isOptionalFiniteNumber(value: unknown): value is number | undefined {
   return value === undefined || isFiniteNumber(value);
 }
 
+function isPublicTournamentChartPreviewItem(value: unknown): boolean {
+  if (!isObjectRecord(value)) {
+    return false;
+  }
+  return (
+    isFiniteNumber(value.chartId) &&
+    typeof value.title === 'string' &&
+    (value.playStyle === 'SP' ||
+      value.playStyle === 'DP' ||
+      value.playStyle === null)
+  );
+}
+
+function isOptionalChartPreview(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (Array.isArray(value) && value.every(isPublicTournamentChartPreviewItem))
+  );
+}
+
 function isRegisterResponse(
   value: unknown,
 ): value is PublicTournamentRegisterResponse {
@@ -89,6 +109,7 @@ function isPublicTournamentListItem(
     isFiniteNumber(value.chartCount) &&
     isOptionalFiniteNumber(value.spChartCount) &&
     isOptionalFiniteNumber(value.dpChartCount) &&
+    isOptionalChartPreview(value.chartPreview) &&
     typeof value.createdAt === 'string'
   );
 }
