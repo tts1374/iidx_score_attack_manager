@@ -224,6 +224,37 @@ describe('PublicCatalogPage', () => {
     expect(resolveChartPreviewTitles).toHaveBeenCalledWith([1, 6]);
   });
 
+  it('keeps the current list when song master readiness changes', async () => {
+    const { client, listPublicTournaments } = createClientMock();
+
+    listPublicTournaments.mockResolvedValue({
+      items: [createListItem(1)],
+      nextCursor: null,
+    });
+
+    const { rerender } = render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady={false}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('Cup 1')).toBeTruthy();
+
+    rerender(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        resolveChartPreviewTitles={async () => new Map()}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText('Cup 1')).toBeTruthy();
+    expect(listPublicTournaments).toHaveBeenCalledTimes(1);
+  });
+
   it('shows an empty state when the list API returns no items', async () => {
     const { client, listPublicTournaments } = createClientMock();
 

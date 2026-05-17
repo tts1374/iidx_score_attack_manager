@@ -256,6 +256,18 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     React.useState<PublicTournamentListItem | null>(null);
   const mountedRef = React.useRef(true);
   const requestTokenRef = React.useRef(0);
+  const chartPreviewResolverRef = React.useRef<{
+    enabled: boolean;
+    resolveChartPreviewTitles: ResolveChartPreviewTitles | undefined;
+  }>({
+    enabled: props.songMasterReady,
+    resolveChartPreviewTitles: props.resolveChartPreviewTitles,
+  });
+
+  chartPreviewResolverRef.current = {
+    enabled: props.songMasterReady,
+    resolveChartPreviewTitles: props.resolveChartPreviewTitles,
+  };
 
   React.useEffect(() => {
     mountedRef.current = true;
@@ -285,10 +297,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         const response = await props.client.listPublicTournaments({ query });
         const resolvedItems = await resolveItemsWithChartPreviewTitles(
           response.items,
-          {
-            enabled: props.songMasterReady,
-            resolveChartPreviewTitles: props.resolveChartPreviewTitles,
-          },
+          chartPreviewResolverRef.current,
         );
         if (!mountedRef.current || requestToken !== requestTokenRef.current) {
           return;
@@ -306,12 +315,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         setLoadPhase('error');
       }
     },
-    [
-      props.client,
-      props.resolveChartPreviewTitles,
-      props.songMasterReady,
-      t,
-    ],
+    [props.client, t],
   );
 
   React.useEffect(() => {
@@ -343,10 +347,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       });
       const resolvedItems = await resolveItemsWithChartPreviewTitles(
         response.items,
-        {
-          enabled: props.songMasterReady,
-          resolveChartPreviewTitles: props.resolveChartPreviewTitles,
-        },
+        chartPreviewResolverRef.current,
       );
       if (!mountedRef.current || requestToken !== requestTokenRef.current) {
         return;
@@ -375,8 +376,6 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     isLoadingMore,
     nextCursor,
     props.client,
-    props.resolveChartPreviewTitles,
-    props.songMasterReady,
     t,
   ]);
 
