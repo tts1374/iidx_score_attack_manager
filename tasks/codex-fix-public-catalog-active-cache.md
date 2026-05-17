@@ -1,7 +1,6 @@
 # Plan: codex/fix-public-catalog-active-cache
 
 - BASE_SHA: `838b228c67de044ae819b0cec5314a420852f1cf`
-- worktree: `C:/work/score_attack_manager/iidx_score_attack_manager-codex-fix-public-catalog-active-cache`
 - branch: `codex/fix-public-catalog-active-cache`
 - request ceiling: implementation-authorized
 - task artifact: implementation branch artifact included with this fix
