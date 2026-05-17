@@ -169,7 +169,7 @@ describe('HomePage', () => {
     );
 
     await userEvent.click(
-      screen.getByRole('button', { name: '公開されている大会を探す' }),
+      screen.getByRole('button', { name: '公開スコアタを探す' }),
     );
 
     expect(onOpenPublicCatalogInEmpty).toHaveBeenCalledTimes(1);

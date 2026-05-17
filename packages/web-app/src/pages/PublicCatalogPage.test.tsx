@@ -127,6 +127,7 @@ describe('PublicCatalogPage', () => {
     });
 
     expect(await screen.findByText('Alpha Cup')).toBeTruthy();
+    expect(screen.queryByText('開催者: Alice')).toBeNull();
     expect(screen.getByText('譜面数: 12（SP 7 / DP 5）')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Import' }));
 
@@ -234,7 +235,7 @@ describe('PublicCatalogPage', () => {
     );
 
     expect(
-      await screen.findByText('公開カタログの取得に失敗しました。'),
+      await screen.findByText('公開スコアタの取得に失敗しました。'),
     ).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: '再読み込み' }));
@@ -303,7 +304,7 @@ describe('PublicCatalogPage', () => {
     });
 
     await user.type(
-      screen.getByLabelText('大会名 / 開催者 / ハッシュタグ'),
+      screen.getByLabelText('大会名 / ハッシュタグ'),
       'Beta',
     );
     await user.click(screen.getByRole('button', { name: '検索' }));
