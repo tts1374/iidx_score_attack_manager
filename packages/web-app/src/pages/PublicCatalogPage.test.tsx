@@ -226,9 +226,17 @@ describe('PublicCatalogPage', () => {
 
   it('keeps the current list when song master readiness changes', async () => {
     const { client, listPublicTournaments } = createClientMock();
+    const resolveChartPreviewTitles = vi.fn(async () =>
+      new Map([[1, 'MAX 300']]),
+    );
 
     listPublicTournaments.mockResolvedValue({
-      items: [createListItem(1)],
+      items: [
+        {
+          ...createListItem(1),
+          chartPreview: [{ chartId: 1, title: 'music:1', playStyle: 'SP' }],
+        },
+      ],
       nextCursor: null,
     });
 
@@ -241,18 +249,21 @@ describe('PublicCatalogPage', () => {
     );
 
     expect(await screen.findByText('Cup 1')).toBeTruthy();
+    expect(screen.getByText('music:1 / SP')).toBeTruthy();
 
     rerender(
       <PublicCatalogPage
         client={client}
         songMasterReady
-        resolveChartPreviewTitles={async () => new Map()}
+        resolveChartPreviewTitles={resolveChartPreviewTitles}
         onOpenImportConfirm={() => undefined}
       />,
     );
 
+    expect(await screen.findByText('MAX 300 / SP')).toBeTruthy();
     expect(screen.getByText('Cup 1')).toBeTruthy();
     expect(listPublicTournaments).toHaveBeenCalledTimes(1);
+    expect(resolveChartPreviewTitles).toHaveBeenCalledWith([1]);
   });
 
   it('shows an empty state when the list API returns no items', async () => {

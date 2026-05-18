@@ -256,6 +256,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     React.useState<PublicTournamentListItem | null>(null);
   const mountedRef = React.useRef(true);
   const requestTokenRef = React.useRef(0);
+  const itemsRef = React.useRef<PublicTournamentListItem[]>([]);
   const chartPreviewResolverRef = React.useRef<{
     enabled: boolean;
     resolveChartPreviewTitles: ResolveChartPreviewTitles | undefined;
@@ -268,6 +269,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     enabled: props.songMasterReady,
     resolveChartPreviewTitles: props.resolveChartPreviewTitles,
   };
+  itemsRef.current = items;
 
   React.useEffect(() => {
     mountedRef.current = true;
@@ -330,6 +332,34 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
 
     void loadFirstPage(currentQuery);
   }, [loadFirstPage, props.client]);
+
+  React.useEffect(() => {
+    if (!props.songMasterReady || !props.resolveChartPreviewTitles) {
+      return;
+    }
+
+    const currentItems = itemsRef.current;
+    if (
+      currentItems.every((item) => !item.chartPreview || item.chartPreview.length === 0)
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    void resolveItemsWithChartPreviewTitles(currentItems, {
+      enabled: true,
+      resolveChartPreviewTitles: props.resolveChartPreviewTitles,
+    }).then((resolvedItems) => {
+      if (cancelled || !mountedRef.current) {
+        return;
+      }
+      setItems((previous) => (previous === currentItems ? resolvedItems : previous));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [props.resolveChartPreviewTitles, props.songMasterReady]);
 
   const loadMore = React.useCallback(async () => {
     if (!props.client.isAvailable() || !nextCursor || isLoadingMore) {
