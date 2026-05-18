@@ -69,7 +69,12 @@ describe('FetchPublicCatalogClient', () => {
               spChartCount: 7,
               dpChartCount: 5,
               chartPreview: [
-                { chartId: 1, title: 'MAX 300', playStyle: 'SP' },
+                {
+                  chartId: 1,
+                  title: 'MAX 300',
+                  playStyle: 'SP',
+                  difficulty: 'ANOTHER',
+                },
               ],
               createdAt: '2026-04-01T00:00:00.000Z',
             },
@@ -102,7 +107,12 @@ describe('FetchPublicCatalogClient', () => {
     expect(response.items[0]?.spChartCount).toBe(7);
     expect(response.items[0]?.dpChartCount).toBe(5);
     expect(response.items[0]?.chartPreview).toEqual([
-      { chartId: 1, title: 'MAX 300', playStyle: 'SP' },
+      {
+        chartId: 1,
+        title: 'MAX 300',
+        playStyle: 'SP',
+        difficulty: 'ANOTHER',
+      },
     ]);
     expect(response.nextCursor).toBe('cursor-2');
   });

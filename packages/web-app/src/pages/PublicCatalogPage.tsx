@@ -33,6 +33,7 @@ import { PublicCatalogClientError } from '../services/public-catalog-client';
 interface ResolvedChartPreviewDetail {
   title: string;
   playStyle: 'SP' | 'DP' | null;
+  difficulty: string | null;
 }
 
 type ResolveChartPreviewDetails = (
@@ -55,7 +56,14 @@ interface BannerMessage {
 type LoadPhase = 'idle' | 'loading' | 'ready' | 'error';
 
 const SKELETON_CARD_COUNT = 3;
-const CHART_PREVIEW_VISIBLE_COUNT = 3;
+const CHART_PREVIEW_VISIBLE_COUNT = 4;
+const CHART_PREVIEW_DIFFICULTY_SHORT_MAP: Record<string, string> = {
+  BEGINNER: 'B',
+  NORMAL: 'N',
+  HYPER: 'H',
+  ANOTHER: 'A',
+  LEGGENDARIA: 'L',
+};
 
 function formatHashtag(value: string): string {
   const trimmed = value.trim();
@@ -109,6 +117,28 @@ function CatalogMetaRow(props: {
   );
 }
 
+function resolveChartPreviewStyleLabel(
+  item: PublicTournamentChartPreviewItem,
+): string | null {
+  if (!item.playStyle) {
+    return null;
+  }
+
+  const difficultyKey = String(item.difficulty ?? '').trim().toUpperCase();
+  if (difficultyKey.length === 0) {
+    return item.playStyle;
+  }
+
+  return `${item.playStyle}${
+    CHART_PREVIEW_DIFFICULTY_SHORT_MAP[difficultyKey] ?? difficultyKey[0] ?? '?'
+  }`;
+}
+
+function formatChartPreviewLabel(item: PublicTournamentChartPreviewItem): string {
+  const styleLabel = resolveChartPreviewStyleLabel(item);
+  return styleLabel ? `${item.title} / ${styleLabel}` : item.title;
+}
+
 async function resolveItemsWithChartPreviewDetails(
   items: PublicTournamentListItem[],
   options: {
@@ -145,6 +175,8 @@ async function resolveItemsWithChartPreviewDetails(
             ...previewItem,
             title: resolvedDetail?.title ?? previewItem.title,
             playStyle: resolvedDetail?.playStyle ?? previewItem.playStyle,
+            difficulty:
+              resolvedDetail?.difficulty ?? previewItem.difficulty ?? null,
           };
         });
       return {
@@ -185,7 +217,8 @@ function mergeResolvedChartPreviewDetails(
       }
       if (
         previewItem.title === resolvedPreview.title &&
-        previewItem.playStyle === resolvedPreview.playStyle
+        previewItem.playStyle === resolvedPreview.playStyle &&
+        previewItem.difficulty === resolvedPreview.difficulty
       ) {
         return previewItem;
       }
@@ -195,6 +228,7 @@ function mergeResolvedChartPreviewDetails(
         ...previewItem,
         title: resolvedPreview.title,
         playStyle: resolvedPreview.playStyle,
+        difficulty: resolvedPreview.difficulty ?? null,
       };
     });
 
@@ -869,11 +903,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                             {visibleChartPreview.map((previewItem) => (
                               <Chip
                                 key={previewItem.chartId}
-                                label={
-                                  previewItem.playStyle
-                                    ? `${previewItem.title} / ${previewItem.playStyle}`
-                                    : previewItem.title
-                                }
+                                label={formatChartPreviewLabel(previewItem)}
                                 size="small"
                                 variant="outlined"
                                 sx={{ maxWidth: '100%' }}

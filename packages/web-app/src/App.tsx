@@ -1284,6 +1284,11 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
               chart.playStyle === 'SP' || chart.playStyle === 'DP'
                 ? chart.playStyle
                 : null,
+            difficulty:
+              typeof chart.difficulty === 'string' &&
+              chart.difficulty.trim().length > 0
+                ? chart.difficulty
+                : null,
           },
         ] as const),
       );

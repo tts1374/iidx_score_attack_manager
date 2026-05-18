@@ -81,6 +81,7 @@ export interface PublicTournamentChartPreviewItem {
   chartId: number;
   title: string;
   playStyle: 'SP' | 'DP' | null;
+  difficulty?: string | null;
 }
 
 export function resolvePublicTournamentChartPlayStyle(chartId: number): 'SP' | 'DP' | null {

@@ -142,8 +142,8 @@ describe('PublicCatalogPage', () => {
     expect(screen.getByText('譜面数: 12（SP 7 / DP 5）')).toBeTruthy();
     expect(screen.getByText('登録曲')).toBeTruthy();
     expect(screen.getAllByText('music:1')).toHaveLength(2);
-    expect(screen.getByText('music:2')).toBeTruthy();
-    expect(screen.getByText('ほか 1 譜面')).toBeTruthy();
+    expect(screen.getAllByText('music:2')).toHaveLength(2);
+    expect(screen.queryByText('ほか 1 譜面')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Import' }));
 
     await waitFor(() => {
@@ -191,8 +191,14 @@ describe('PublicCatalogPage', () => {
     const { client, listPublicTournaments } = createClientMock();
     const resolveChartPreviewDetails = vi.fn(async () =>
       new Map([
-        [1, { title: 'MAX 300', playStyle: 'SP' as const }],
-        [6, { title: 'MAX 300', playStyle: 'DP' as const }],
+        [
+          1,
+          { title: 'MAX 300', playStyle: 'SP' as const, difficulty: 'ANOTHER' },
+        ],
+        [
+          6,
+          { title: 'MAX 300', playStyle: 'DP' as const, difficulty: 'HYPER' },
+        ],
       ]),
     );
 
@@ -218,15 +224,20 @@ describe('PublicCatalogPage', () => {
       />,
     );
 
-    expect(await screen.findByText('MAX 300 / SP')).toBeTruthy();
-    expect(screen.getByText('MAX 300 / DP')).toBeTruthy();
+    expect(await screen.findByText('MAX 300 / SPA')).toBeTruthy();
+    expect(screen.getByText('MAX 300 / DPH')).toBeTruthy();
     expect(resolveChartPreviewDetails).toHaveBeenCalledWith([1, 6]);
   });
 
   it('keeps the current list when song master readiness changes', async () => {
     const { client, listPublicTournaments } = createClientMock();
     const resolveChartPreviewDetails = vi.fn(async () =>
-      new Map([[1, { title: 'MAX 300', playStyle: 'SP' as const }]]),
+      new Map([
+        [
+          1,
+          { title: 'MAX 300', playStyle: 'SP' as const, difficulty: 'ANOTHER' },
+        ],
+      ]),
     );
 
     listPublicTournaments.mockResolvedValue({
@@ -259,7 +270,7 @@ describe('PublicCatalogPage', () => {
       />,
     );
 
-    expect(await screen.findByText('MAX 300 / SP')).toBeTruthy();
+    expect(await screen.findByText('MAX 300 / SPA')).toBeTruthy();
     expect(screen.getByText('Cup 1')).toBeTruthy();
     expect(listPublicTournaments).toHaveBeenCalledTimes(1);
     expect(resolveChartPreviewDetails).toHaveBeenCalledWith([1]);
@@ -268,7 +279,14 @@ describe('PublicCatalogPage', () => {
   it('keeps resolved preview updates when loading more finishes first', async () => {
     const user = userEvent.setup();
     const titleResolution = createDeferred<
-      ReadonlyMap<number, { title: string; playStyle: 'SP' | 'DP' | null }>
+      ReadonlyMap<
+        number,
+        {
+          title: string;
+          playStyle: 'SP' | 'DP' | null;
+          difficulty: string | null;
+        }
+      >
     >();
     const { client, listPublicTournaments } = createClientMock();
     const resolveChartPreviewDetails = vi.fn(() => titleResolution.promise);
@@ -313,10 +331,12 @@ describe('PublicCatalogPage', () => {
     expect(await screen.findByText('Cup 2')).toBeTruthy();
 
     titleResolution.resolve(
-      new Map([[1, { title: 'MAX 300', playStyle: 'SP' }]]),
+      new Map([
+        [1, { title: 'MAX 300', playStyle: 'SP', difficulty: 'ANOTHER' }],
+      ]),
     );
 
-    expect(await screen.findByText('MAX 300 / SP')).toBeTruthy();
+    expect(await screen.findByText('MAX 300 / SPA')).toBeTruthy();
     expect(screen.getByText('Cup 2')).toBeTruthy();
     expect(listPublicTournaments).toHaveBeenCalledTimes(2);
   });

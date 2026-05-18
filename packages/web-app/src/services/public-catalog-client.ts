@@ -66,7 +66,10 @@ function isPublicTournamentChartPreviewItem(value: unknown): boolean {
     typeof value.title === 'string' &&
     (value.playStyle === 'SP' ||
       value.playStyle === 'DP' ||
-      value.playStyle === null)
+      value.playStyle === null) &&
+    (value.difficulty === undefined ||
+      value.difficulty === null ||
+      typeof value.difficulty === 'string')
   );
 }
 
