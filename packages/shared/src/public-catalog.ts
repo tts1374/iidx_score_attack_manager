@@ -135,7 +135,7 @@ export function buildPublicTournamentChartPreview(
       {
         chartId,
         title: `music:${musicId}`,
-        playStyle: resolvePublicTournamentChartPlayStyle(chartId),
+        playStyle: null,
       },
     ];
   });

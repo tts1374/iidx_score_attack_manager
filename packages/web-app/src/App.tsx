@@ -1272,11 +1272,20 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     });
     return tokens;
   }, [homeTournamentBuckets]);
-  const resolvePublicCatalogChartPreviewTitles = React.useCallback(
+  const resolvePublicCatalogChartPreviewDetails = React.useCallback(
     async (chartIds: readonly number[]) => {
       const chartDetails = await appDb.listSongMasterChartsByIds([...chartIds]);
       return new Map(
-        chartDetails.map((chart) => [chart.chartId, chart.title] as const),
+        chartDetails.map((chart) => [
+          chart.chartId,
+          {
+            title: chart.title,
+            playStyle:
+              chart.playStyle === 'SP' || chart.playStyle === 'DP'
+                ? chart.playStyle
+                : null,
+          },
+        ] as const),
       );
     },
     [appDb],
@@ -3189,7 +3198,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
             client={publicCatalogClient}
             songMasterReady={songMasterReady}
             localDeleteTokensByPublicId={publicCatalogDeleteTokensByPublicId}
-            resolveChartPreviewTitles={resolvePublicCatalogChartPreviewTitles}
+            resolveChartPreviewDetails={resolvePublicCatalogChartPreviewDetails}
             onOpenImportConfirm={openImportConfirm}
           />
         )}

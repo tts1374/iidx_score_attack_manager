@@ -900,9 +900,9 @@ describe('public catalog worker', () => {
     expect(body.items[0]).toMatchObject({
       publicId: 'public-chart-preview',
       chartPreview: [
-        { chartId: 1, title: 'music:1', playStyle: 'SP' },
-        { chartId: 6, title: 'music:1', playStyle: 'DP' },
-        { chartId: 10, title: 'music:2', playStyle: 'SP' },
+        { chartId: 1, title: 'music:1', playStyle: null },
+        { chartId: 6, title: 'music:1', playStyle: null },
+        { chartId: 10, title: 'music:2', playStyle: null },
       ],
     });
   });

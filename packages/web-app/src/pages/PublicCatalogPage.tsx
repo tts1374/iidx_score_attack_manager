@@ -30,15 +30,20 @@ import { useTranslation } from 'react-i18next';
 import type { PublicCatalogClient } from '../services/public-catalog-client';
 import { PublicCatalogClientError } from '../services/public-catalog-client';
 
-type ResolveChartPreviewTitles = (
+interface ResolvedChartPreviewDetail {
+  title: string;
+  playStyle: 'SP' | 'DP' | null;
+}
+
+type ResolveChartPreviewDetails = (
   chartIds: readonly number[],
-) => Promise<ReadonlyMap<number, string>>;
+) => Promise<ReadonlyMap<number, ResolvedChartPreviewDetail>>;
 
 interface PublicCatalogPageProps {
   client: PublicCatalogClient;
   songMasterReady: boolean;
   localDeleteTokensByPublicId?: ReadonlyMap<string, string>;
-  resolveChartPreviewTitles?: ResolveChartPreviewTitles;
+  resolveChartPreviewDetails?: ResolveChartPreviewDetails;
   onOpenImportConfirm: (rawPayloadParam: string) => void;
 }
 
@@ -104,14 +109,14 @@ function CatalogMetaRow(props: {
   );
 }
 
-async function resolveItemsWithChartPreviewTitles(
+async function resolveItemsWithChartPreviewDetails(
   items: PublicTournamentListItem[],
   options: {
     enabled: boolean;
-    resolveChartPreviewTitles: ResolveChartPreviewTitles | undefined;
+    resolveChartPreviewDetails: ResolveChartPreviewDetails | undefined;
   },
 ): Promise<PublicTournamentListItem[]> {
-  if (!options.enabled || !options.resolveChartPreviewTitles) {
+  if (!options.enabled || !options.resolveChartPreviewDetails) {
     return items;
   }
 
@@ -127,17 +132,21 @@ async function resolveItemsWithChartPreviewTitles(
   }
 
   try {
-    const titlesByChartId = await options.resolveChartPreviewTitles(chartIds);
+    const detailsByChartId = await options.resolveChartPreviewDetails(chartIds);
     return items.map((item) => {
       if (!item.chartPreview) {
         return item;
       }
 
       const chartPreview: PublicTournamentChartPreviewItem[] =
-        item.chartPreview.map((previewItem) => ({
-          ...previewItem,
-          title: titlesByChartId.get(previewItem.chartId) ?? previewItem.title,
-        }));
+        item.chartPreview.map((previewItem) => {
+          const resolvedDetail = detailsByChartId.get(previewItem.chartId);
+          return {
+            ...previewItem,
+            title: resolvedDetail?.title ?? previewItem.title,
+            playStyle: resolvedDetail?.playStyle ?? previewItem.playStyle,
+          };
+        });
       return {
         ...item,
         chartPreview,
@@ -259,15 +268,15 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
   const itemsRef = React.useRef<PublicTournamentListItem[]>([]);
   const chartPreviewResolverRef = React.useRef<{
     enabled: boolean;
-    resolveChartPreviewTitles: ResolveChartPreviewTitles | undefined;
+    resolveChartPreviewDetails: ResolveChartPreviewDetails | undefined;
   }>({
     enabled: props.songMasterReady,
-    resolveChartPreviewTitles: props.resolveChartPreviewTitles,
+    resolveChartPreviewDetails: props.resolveChartPreviewDetails,
   });
 
   chartPreviewResolverRef.current = {
     enabled: props.songMasterReady,
-    resolveChartPreviewTitles: props.resolveChartPreviewTitles,
+    resolveChartPreviewDetails: props.resolveChartPreviewDetails,
   };
   itemsRef.current = items;
 
@@ -297,7 +306,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
 
       try {
         const response = await props.client.listPublicTournaments({ query });
-        const resolvedItems = await resolveItemsWithChartPreviewTitles(
+        const resolvedItems = await resolveItemsWithChartPreviewDetails(
           response.items,
           chartPreviewResolverRef.current,
         );
@@ -334,7 +343,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
   }, [loadFirstPage, props.client]);
 
   React.useEffect(() => {
-    if (!props.songMasterReady || !props.resolveChartPreviewTitles) {
+    if (!props.songMasterReady || !props.resolveChartPreviewDetails) {
       return;
     }
 
@@ -346,9 +355,9 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     }
 
     let cancelled = false;
-    void resolveItemsWithChartPreviewTitles(currentItems, {
+    void resolveItemsWithChartPreviewDetails(currentItems, {
       enabled: true,
-      resolveChartPreviewTitles: props.resolveChartPreviewTitles,
+      resolveChartPreviewDetails: props.resolveChartPreviewDetails,
     }).then((resolvedItems) => {
       if (cancelled || !mountedRef.current) {
         return;
@@ -359,7 +368,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [props.resolveChartPreviewTitles, props.songMasterReady]);
+  }, [props.resolveChartPreviewDetails, props.songMasterReady]);
 
   const loadMore = React.useCallback(async () => {
     if (!props.client.isAvailable() || !nextCursor || isLoadingMore) {
@@ -375,7 +384,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         query: currentQuery,
         cursor: nextCursor,
       });
-      const resolvedItems = await resolveItemsWithChartPreviewTitles(
+      const resolvedItems = await resolveItemsWithChartPreviewDetails(
         response.items,
         chartPreviewResolverRef.current,
       );

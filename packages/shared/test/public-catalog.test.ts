@@ -77,9 +77,9 @@ describe('public catalog helpers', () => {
 
   it('builds a stable chart preview from chart ids without changing registry canonicalization', () => {
     expect(buildPublicTournamentChartPreview([1, 6, 10, 0])).toEqual([
-      { chartId: 1, title: 'music:1', playStyle: 'SP' },
-      { chartId: 6, title: 'music:1', playStyle: 'DP' },
-      { chartId: 10, title: 'music:2', playStyle: 'SP' },
+      { chartId: 1, title: 'music:1', playStyle: null },
+      { chartId: 6, title: 'music:1', playStyle: null },
+      { chartId: 10, title: 'music:2', playStyle: null },
     ]);
     expect(resolvePublicTournamentMusicId(10)).toBe(2);
     expect(canonicalPublicTournamentRegistryPayload(basePayload)).not.toHaveProperty(
