@@ -157,6 +157,53 @@ async function resolveItemsWithChartPreviewDetails(
   }
 }
 
+function mergeResolvedChartPreviewDetails(
+  previousItems: PublicTournamentListItem[],
+  resolvedItems: PublicTournamentListItem[],
+): PublicTournamentListItem[] {
+  const resolvedItemsByPublicId = new Map(
+    resolvedItems.map((item) => [item.publicId, item] as const),
+  );
+  let changed = false;
+  const mergedItems = previousItems.map((item) => {
+    const resolvedItem = resolvedItemsByPublicId.get(item.publicId);
+    if (!resolvedItem?.chartPreview || !item.chartPreview) {
+      return item;
+    }
+
+    const resolvedPreviewByChartId = new Map(
+      resolvedItem.chartPreview.map((previewItem) => [
+        previewItem.chartId,
+        previewItem,
+      ] as const),
+    );
+    let itemChanged = false;
+    const chartPreview = item.chartPreview.map((previewItem) => {
+      const resolvedPreview = resolvedPreviewByChartId.get(previewItem.chartId);
+      if (!resolvedPreview) {
+        return previewItem;
+      }
+      if (
+        previewItem.title === resolvedPreview.title &&
+        previewItem.playStyle === resolvedPreview.playStyle
+      ) {
+        return previewItem;
+      }
+      itemChanged = true;
+      changed = true;
+      return {
+        ...previewItem,
+        title: resolvedPreview.title,
+        playStyle: resolvedPreview.playStyle,
+      };
+    });
+
+    return itemChanged ? { ...item, chartPreview } : item;
+  });
+
+  return changed ? mergedItems : previousItems;
+}
+
 function CatalogSkeletonCard(): JSX.Element {
   return (
     <Paper
@@ -362,7 +409,9 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       if (cancelled || !mountedRef.current) {
         return;
       }
-      setItems((previous) => (previous === currentItems ? resolvedItems : previous));
+      setItems((previous) =>
+        mergeResolvedChartPreviewDetails(previous, resolvedItems),
+      );
     });
 
     return () => {
