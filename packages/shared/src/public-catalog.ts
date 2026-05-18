@@ -28,6 +28,7 @@ export interface PublicTournamentListItem {
   chartCount: number;
   spChartCount?: number;
   dpChartCount?: number;
+  chartPreview?: PublicTournamentChartPreviewItem[];
   createdAt: string;
 }
 
@@ -76,7 +77,14 @@ export interface PublicTournamentChartStyleCounts {
   dpChartCount: number;
 }
 
-function resolvePublicTournamentChartPlayStyle(chartId: number): 'SP' | 'DP' | null {
+export interface PublicTournamentChartPreviewItem {
+  chartId: number;
+  title: string;
+  playStyle: 'SP' | 'DP' | null;
+  difficulty?: string | null;
+}
+
+export function resolvePublicTournamentChartPlayStyle(chartId: number): 'SP' | 'DP' | null {
   if (!Number.isInteger(chartId) || chartId <= 0) {
     return null;
   }
@@ -84,6 +92,14 @@ function resolvePublicTournamentChartPlayStyle(chartId: number): 'SP' | 'DP' | n
   // Song master chart ids are allocated as five SP slots then four DP slots per song.
   const chartSlot = (chartId - 1) % 9;
   return chartSlot < 5 ? 'SP' : 'DP';
+}
+
+export function resolvePublicTournamentMusicId(chartId: number): number | null {
+  if (!Number.isInteger(chartId) || chartId <= 0) {
+    return null;
+  }
+
+  return Math.floor((chartId - 1) / 9) + 1;
 }
 
 export function countPublicTournamentChartStyles(
@@ -105,6 +121,25 @@ export function countPublicTournamentChartStyles(
     spChartCount,
     dpChartCount,
   };
+}
+
+export function buildPublicTournamentChartPreview(
+  chartIds: readonly number[],
+): PublicTournamentChartPreviewItem[] {
+  return chartIds.flatMap((chartId) => {
+    const musicId = resolvePublicTournamentMusicId(chartId);
+    if (musicId === null) {
+      return [];
+    }
+
+    return [
+      {
+        chartId,
+        title: `music:${musicId}`,
+        playStyle: null,
+      },
+    ];
+  });
 }
 
 export function canonicalPublicTournamentRegistryPayload(
