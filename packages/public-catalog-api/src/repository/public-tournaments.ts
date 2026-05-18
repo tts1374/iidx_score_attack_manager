@@ -163,7 +163,10 @@ function readChartIdsFromPayloadJson(payloadJson: string): number[] {
     if (!Array.isArray(parsed.charts)) {
       return [];
     }
-    return parsed.charts.map(Number);
+    return parsed.charts.filter(
+      (chartId): chartId is number =>
+        typeof chartId === 'number' && Number.isInteger(chartId) && chartId > 0,
+    );
   } catch {
     return [];
   }

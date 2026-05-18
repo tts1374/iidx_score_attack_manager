@@ -90,7 +90,14 @@ class InMemoryRepository implements PublicTournamentRepository {
       let chartIds: number[] = [];
       try {
         const payload = JSON.parse(record.payloadJson) as { charts?: unknown };
-        chartIds = Array.isArray(payload.charts) ? payload.charts.map(Number) : [];
+        chartIds = Array.isArray(payload.charts)
+          ? payload.charts.filter(
+              (chartId): chartId is number =>
+                typeof chartId === 'number' &&
+                Number.isInteger(chartId) &&
+                chartId > 0,
+            )
+          : [];
       } catch {
         chartIds = [];
       }
@@ -951,6 +958,49 @@ describe('public catalog worker', () => {
       spChartCount: 0,
       dpChartCount: 0,
       createdAt: '2026-04-19T12:00:00.000Z',
+    });
+  });
+
+  it('filters malformed chart ids before deriving list metadata', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+    });
+
+    await repository.create(
+      createRecord('public-malformed-chart-ids', '2026-04-19T12:00:00.000Z', {
+        chartCount: 5,
+        payloadJson: JSON.stringify({
+          ...validPayload,
+          charts: [true, '', null, 1.5, 6],
+        }),
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      items: Array<{
+        publicId: string;
+        spChartCount: number;
+        dpChartCount: number;
+        chartPreview?: Array<{ chartId: number; title: string }>;
+      }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.items[0]).toMatchObject({
+      publicId: 'public-malformed-chart-ids',
+      spChartCount: 0,
+      dpChartCount: 1,
+      chartPreview: [{ chartId: 6, title: 'music:1' }],
     });
   });
 
