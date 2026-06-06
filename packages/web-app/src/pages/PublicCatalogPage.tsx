@@ -43,6 +43,7 @@ type ResolveChartPreviewDetails = (
 interface PublicCatalogPageProps {
   client: PublicCatalogClient;
   songMasterReady: boolean;
+  importedTournamentUuids?: ReadonlySet<string>;
   localDeleteTokensByPublicId?: ReadonlyMap<string, string>;
   resolveChartPreviewDetails?: ResolveChartPreviewDetails;
   onOpenImportConfirm: (rawPayloadParam: string) => void;
@@ -319,6 +320,40 @@ function EmptyCatalogState(props: {
   );
 }
 
+async function loadVisiblePublicTournaments(options: {
+  client: PublicCatalogClient;
+  importedTournamentUuids: ReadonlySet<string> | undefined;
+  query: string;
+  cursor: string | null;
+}): ReturnType<PublicCatalogClient['listPublicTournaments']> {
+  let cursor = options.cursor;
+  const requestedCursors = new Set<string | null>();
+
+  while (!requestedCursors.has(cursor)) {
+    requestedCursors.add(cursor);
+    const response = await options.client.listPublicTournaments({
+      query: options.query,
+      cursor,
+    });
+    const items = response.items.filter(
+      (item) => !options.importedTournamentUuids?.has(item.tournamentUuid),
+    );
+
+    if (items.length > 0 || response.nextCursor === null) {
+      return {
+        items,
+        nextCursor: response.nextCursor,
+      };
+    }
+    cursor = response.nextCursor;
+  }
+
+  return {
+    items: [],
+    nextCursor: null,
+  };
+}
+
 export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
   const { t } = useTranslation();
   const clientAvailable = props.client.isAvailable();
@@ -386,7 +421,12 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       setIsLoadingMore(false);
 
       try {
-        const response = await props.client.listPublicTournaments({ query });
+        const response = await loadVisiblePublicTournaments({
+          client: props.client,
+          importedTournamentUuids: props.importedTournamentUuids,
+          query,
+          cursor: null,
+        });
         const resolvedItems = await resolveItemsWithChartPreviewDetails(
           response.items,
           chartPreviewResolverRef.current,
@@ -407,7 +447,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         setLoadPhase('error');
       }
     },
-    [props.client, t],
+    [props.client, props.importedTournamentUuids, t],
   );
 
   React.useEffect(() => {
@@ -463,7 +503,9 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     setBannerMessage(null);
 
     try {
-      const response = await props.client.listPublicTournaments({
+      const response = await loadVisiblePublicTournaments({
+        client: props.client,
+        importedTournamentUuids: props.importedTournamentUuids,
         query: currentQuery,
         cursor: nextCursor,
       });
@@ -498,6 +540,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     isLoadingMore,
     nextCursor,
     props.client,
+    props.importedTournamentUuids,
     t,
   ]);
 

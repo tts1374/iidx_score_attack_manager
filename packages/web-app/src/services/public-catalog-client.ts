@@ -104,6 +104,8 @@ function isPublicTournamentListItem(
   }
   return (
     typeof value.publicId === 'string' &&
+    typeof value.tournamentUuid === 'string' &&
+    value.tournamentUuid.trim().length > 0 &&
     typeof value.name === 'string' &&
     typeof value.owner === 'string' &&
     typeof value.hashtag === 'string' &&

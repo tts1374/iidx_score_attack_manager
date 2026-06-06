@@ -61,6 +61,7 @@ function createClientMock(): {
 function createListItem(index: number) {
   return {
     publicId: `public-${index}`,
+    tournamentUuid: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
     name: `Cup ${index}`,
     owner: `Owner ${index}`,
     hashtag: 'IIDX',
@@ -77,6 +78,7 @@ describe('PublicCatalogPage', () => {
     const deferred = createDeferred<{
       items: Array<{
         publicId: string;
+        tournamentUuid: string;
         name: string;
         owner: string;
         hashtag: string;
@@ -117,6 +119,7 @@ describe('PublicCatalogPage', () => {
       items: [
         {
           publicId: 'public-1',
+          tournamentUuid: '11111111-1111-4111-8111-111111111111',
           name: 'Alpha Cup',
           owner: 'Alice',
           hashtag: 'IIDX',
@@ -185,6 +188,66 @@ describe('PublicCatalogPage', () => {
       query: '',
       cursor: 'cursor-2',
     });
+  });
+
+  it('skips imported tournaments and continues to the next page', async () => {
+    const { client, listPublicTournaments } = createClientMock();
+    const importedItem = createListItem(1);
+    const visibleItem = createListItem(2);
+
+    listPublicTournaments
+      .mockResolvedValueOnce({
+        items: [importedItem],
+        nextCursor: 'cursor-2',
+      })
+      .mockResolvedValueOnce({
+        items: [visibleItem],
+        nextCursor: null,
+      });
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        importedTournamentUuids={new Set([importedItem.tournamentUuid])}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('Cup 2')).toBeTruthy();
+    expect(screen.queryByText('Cup 1')).toBeNull();
+    expect(screen.getByText('1件表示中')).toBeTruthy();
+    expect(listPublicTournaments).toHaveBeenNthCalledWith(2, {
+      query: '',
+      cursor: 'cursor-2',
+    });
+  });
+
+  it('stops when excluded pages repeat the same cursor', async () => {
+    const { client, listPublicTournaments } = createClientMock();
+    const importedItem = createListItem(1);
+
+    listPublicTournaments
+      .mockResolvedValueOnce({
+        items: [importedItem],
+        nextCursor: 'cursor-2',
+      })
+      .mockResolvedValueOnce({
+        items: [importedItem],
+        nextCursor: 'cursor-2',
+      });
+
+    render(
+      <PublicCatalogPage
+        client={client}
+        songMasterReady
+        importedTournamentUuids={new Set([importedItem.tournamentUuid])}
+        onOpenImportConfirm={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('公開中のスコアタはまだありません。')).toBeTruthy();
+    expect(listPublicTournaments).toHaveBeenCalledTimes(2);
   });
 
   it('uses resolved song master titles for chart preview when provided', async () => {
@@ -451,6 +514,7 @@ describe('PublicCatalogPage', () => {
       items: [
         {
           publicId: 'public-1',
+          tournamentUuid: '11111111-1111-4111-8111-111111111111',
           name: 'Alpha Cup',
           owner: 'Alice',
           hashtag: 'IIDX',
@@ -483,6 +547,7 @@ describe('PublicCatalogPage', () => {
       items: [
         {
           publicId: 'public-2',
+          tournamentUuid: '22222222-2222-4222-8222-222222222222',
           name: 'Beta Cup',
           owner: 'Bob',
           hashtag: 'IIDX',

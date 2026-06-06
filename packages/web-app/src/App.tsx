@@ -1272,6 +1272,19 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     });
     return tokens;
   }, [homeTournamentBuckets]);
+  const importedTournamentUuids = React.useMemo(() => {
+    const tournamentUuids = new Set<string>();
+    [
+      ...homeTournamentBuckets.active,
+      ...homeTournamentBuckets.upcoming,
+      ...homeTournamentBuckets.ended,
+    ].forEach((item) => {
+      if (item.isImported && item.sourceTournamentUuid) {
+        tournamentUuids.add(item.sourceTournamentUuid);
+      }
+    });
+    return tournamentUuids;
+  }, [homeTournamentBuckets]);
   const resolvePublicCatalogChartPreviewDetails = React.useCallback(
     async (chartIds: readonly number[]) => {
       const chartDetails = await appDb.listSongMasterChartsByIds([...chartIds]);
@@ -3202,6 +3215,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           <PublicCatalogPage
             client={publicCatalogClient}
             songMasterReady={songMasterReady}
+            importedTournamentUuids={importedTournamentUuids}
             localDeleteTokensByPublicId={publicCatalogDeleteTokensByPublicId}
             resolveChartPreviewDetails={resolvePublicCatalogChartPreviewDetails}
             onOpenImportConfirm={openImportConfirm}
