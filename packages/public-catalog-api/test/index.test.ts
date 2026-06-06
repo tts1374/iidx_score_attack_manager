@@ -88,8 +88,16 @@ class InMemoryRepository implements PublicTournamentRepository {
 
     const items = paged.slice(0, options.limit + 1).map((record) => {
       let chartIds: number[] = [];
+      let tournamentUuid: string;
       try {
-        const payload = JSON.parse(record.payloadJson) as { charts?: unknown };
+        const payload = JSON.parse(record.payloadJson) as {
+          uuid?: unknown;
+          charts?: unknown;
+        };
+        if (typeof payload.uuid !== 'string' || payload.uuid.trim().length === 0) {
+          throw new Error('stored public tournament payload is missing uuid');
+        }
+        tournamentUuid = payload.uuid;
         chartIds = Array.isArray(payload.charts)
           ? payload.charts.filter(
               (chartId): chartId is number =>
@@ -99,6 +107,7 @@ class InMemoryRepository implements PublicTournamentRepository {
             )
           : [];
       } catch {
+        tournamentUuid = record.publicId;
         chartIds = [];
       }
       const chartStyleCounts = countPublicTournamentChartStyles(chartIds);
@@ -106,6 +115,7 @@ class InMemoryRepository implements PublicTournamentRepository {
 
       return {
         publicId: record.publicId,
+        tournamentUuid,
         name: record.name,
         owner: record.owner,
         hashtag: record.hashtag,
@@ -852,6 +862,7 @@ describe('public catalog worker', () => {
     const body = (await response.json()) as {
       items: Array<{
         publicId: string;
+        tournamentUuid: string;
         chartCount: number;
         spChartCount: number;
         dpChartCount: number;
@@ -861,6 +872,7 @@ describe('public catalog worker', () => {
     expect(response.status).toBe(200);
     expect(body.items[0]).toMatchObject({
       publicId: 'public-style-counts',
+      tournamentUuid: validPayload.uuid,
       chartCount: 4,
       spChartCount: 2,
       dpChartCount: 2,
@@ -939,6 +951,7 @@ describe('public catalog worker', () => {
     const body = (await response.json()) as {
       items: Array<{
         publicId: string;
+        tournamentUuid: string;
         chartCount: number;
         spChartCount: number;
         dpChartCount: number;
@@ -949,6 +962,7 @@ describe('public catalog worker', () => {
     expect(response.status).toBe(200);
     expect(body.items[0]).toEqual({
       publicId: 'public-invalid-json',
+      tournamentUuid: 'public-invalid-json',
       name: 'PUBLIC TOURNAMENT',
       owner: 'owner',
       hashtag: 'iidx',

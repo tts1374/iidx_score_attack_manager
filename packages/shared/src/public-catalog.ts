@@ -20,6 +20,7 @@ export type PublicTournamentListCursor = string;
 
 export interface PublicTournamentListItem {
   publicId: string;
+  tournamentUuid: string;
   name: string;
   owner: string;
   hashtag: string;
