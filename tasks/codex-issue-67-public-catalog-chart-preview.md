@@ -18,7 +18,7 @@ BASE_SHA: a517210e75c05fa3065a0e6e85022e8dabdc5fef
 
 - `@iidx/shared` の公開カタログ一覧 item に optional `chartPreview` を追加する。
 - public catalog API は既存 `payload_json` から chart preview を派生して一覧レスポンスに含める。
-- web-app は chart preview を最大 3 件までカードに表示し、超過分は残数で表示する。
+- web-app は有効な chart preview（最大 4 件）をカードにすべて表示する。
 - web-app は song master が利用可能な場合、preview title をローカル song master の曲名で補完する。
 - 旧 API 応答や壊れた stored payload では既存の譜面数表示へフォールバックする。
 
