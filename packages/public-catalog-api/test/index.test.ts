@@ -1,4 +1,5 @@
 import {
+  buildPublicTournamentChartPreview,
   countPublicTournamentChartStyles,
   encodeTournamentPayload,
   normalizeTournamentPayload,
@@ -86,8 +87,22 @@ class InMemoryRepository implements PublicTournamentRepository {
       : filtered;
 
     const items = paged.slice(0, options.limit + 1).map((record) => {
-      const payload = JSON.parse(record.payloadJson) as { charts: number[] };
-      const chartStyleCounts = countPublicTournamentChartStyles(payload.charts);
+      let chartIds: number[] = [];
+      try {
+        const payload = JSON.parse(record.payloadJson) as { charts?: unknown };
+        chartIds = Array.isArray(payload.charts)
+          ? payload.charts.filter(
+              (chartId): chartId is number =>
+                typeof chartId === 'number' &&
+                Number.isInteger(chartId) &&
+                chartId > 0,
+            )
+          : [];
+      } catch {
+        chartIds = [];
+      }
+      const chartStyleCounts = countPublicTournamentChartStyles(chartIds);
+      const chartPreview = buildPublicTournamentChartPreview(chartIds);
 
       return {
         publicId: record.publicId,
@@ -99,6 +114,7 @@ class InMemoryRepository implements PublicTournamentRepository {
         chartCount: record.chartCount,
         spChartCount: chartStyleCounts.spChartCount,
         dpChartCount: chartStyleCounts.dpChartCount,
+        ...(chartPreview.length > 0 ? { chartPreview } : {}),
         createdAt: record.createdAt,
       };
     });
@@ -848,6 +864,143 @@ describe('public catalog worker', () => {
       chartCount: 4,
       spChartCount: 2,
       dpChartCount: 2,
+    });
+  });
+
+  it('returns chart preview entries in list responses', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+    });
+
+    await repository.create(
+      createRecord('public-chart-preview', '2026-04-19T12:00:00.000Z', {
+        chartCount: 3,
+        payloadJson: JSON.stringify({
+          ...validPayload,
+          charts: [1, 6, 10],
+        }),
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      items: Array<{
+        publicId: string;
+        chartPreview?: Array<{
+          chartId: number;
+          title: string;
+          playStyle: string | null;
+        }>;
+      }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.items[0]).toMatchObject({
+      publicId: 'public-chart-preview',
+      chartPreview: [
+        { chartId: 1, title: 'music:1', playStyle: null },
+        { chartId: 6, title: 'music:1', playStyle: null },
+        { chartId: 10, title: 'music:2', playStyle: null },
+      ],
+    });
+  });
+
+  it('keeps list responses available when stored payload json is invalid', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+    });
+
+    await repository.create(
+      createRecord('public-invalid-json', '2026-04-19T12:00:00.000Z', {
+        payloadJson: '{invalid json',
+        chartCount: 4,
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      items: Array<{
+        publicId: string;
+        chartCount: number;
+        spChartCount: number;
+        dpChartCount: number;
+        chartPreview?: unknown;
+      }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.items[0]).toEqual({
+      publicId: 'public-invalid-json',
+      name: 'PUBLIC TOURNAMENT',
+      owner: 'owner',
+      hashtag: 'iidx',
+      start: '2026-04-19',
+      end: '2026-05-06',
+      chartCount: 4,
+      spChartCount: 0,
+      dpChartCount: 0,
+      createdAt: '2026-04-19T12:00:00.000Z',
+    });
+  });
+
+  it('filters malformed chart ids before deriving list metadata', async () => {
+    const repository = new InMemoryRepository();
+    const worker = createWorkerHandler({
+      createRepository: () => repository,
+      now: () => new Date('2026-04-19T12:00:00.000Z'),
+    });
+
+    await repository.create(
+      createRecord('public-malformed-chart-ids', '2026-04-19T12:00:00.000Z', {
+        chartCount: 5,
+        payloadJson: JSON.stringify({
+          ...validPayload,
+          charts: [true, '', null, 1.5, 6],
+        }),
+      }),
+    );
+
+    const response = await invokeWorker(
+      worker,
+      createRequest({
+        path: LIST_PUBLIC_TOURNAMENTS_PATH,
+        method: 'GET',
+      }),
+      createEnv(),
+    );
+    const body = (await response.json()) as {
+      items: Array<{
+        publicId: string;
+        spChartCount: number;
+        dpChartCount: number;
+        chartPreview?: Array<{ chartId: number; title: string }>;
+      }>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.items[0]).toMatchObject({
+      publicId: 'public-malformed-chart-ids',
+      spChartCount: 0,
+      dpChartCount: 1,
+      chartPreview: [{ chartId: 6, title: 'music:1' }],
     });
   });
 

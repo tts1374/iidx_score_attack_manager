@@ -68,6 +68,14 @@ describe('FetchPublicCatalogClient', () => {
               chartCount: 12,
               spChartCount: 7,
               dpChartCount: 5,
+              chartPreview: [
+                {
+                  chartId: 1,
+                  title: 'MAX 300',
+                  playStyle: 'SP',
+                  difficulty: 'ANOTHER',
+                },
+              ],
               createdAt: '2026-04-01T00:00:00.000Z',
             },
           ],
@@ -98,7 +106,58 @@ describe('FetchPublicCatalogClient', () => {
     expect(response.items[0]?.publicId).toBe('public-1');
     expect(response.items[0]?.spChartCount).toBe(7);
     expect(response.items[0]?.dpChartCount).toBe(5);
+    expect(response.items[0]?.chartPreview).toEqual([
+      {
+        chartId: 1,
+        title: 'MAX 300',
+        playStyle: 'SP',
+        difficulty: 'ANOTHER',
+      },
+    ]);
     expect(response.nextCursor).toBe('cursor-2');
+  });
+
+  it('rejects list responses with invalid chart preview entries', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              publicId: 'public-1',
+              name: 'Alpha Cup',
+              owner: 'Alice',
+              hashtag: 'IIDX',
+              start: '2026-04-01',
+              end: '2026-04-07',
+              chartCount: 12,
+              chartPreview: [{ chartId: 1, title: 'MAX 300', playStyle: 'SPL' }],
+              createdAt: '2026-04-01T00:00:00.000Z',
+            },
+          ],
+          nextCursor: null,
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+    const client = new FetchPublicCatalogClient(
+      {
+        apiBaseUrl: 'https://catalog.example.test/',
+        source: 'env',
+      },
+      fetchImpl,
+    );
+
+    await expect(client.listPublicTournaments()).rejects.toEqual(
+      expect.objectContaining<Partial<PublicCatalogClientError>>({
+        name: 'PublicCatalogClientError',
+        kind: 'invalid_response',
+      }),
+    );
   });
 
   it('deletes public tournaments with the stored delete token', async () => {

@@ -453,7 +453,9 @@
       "hashtag": "Hashtag: {{value}}",
       "period": "Period: {{start}} - {{end}}",
       "chart_count": "Charts: {{count}}",
-      "chart_count_with_styles": "Charts: {{count}} (SP {{spCount}} / DP {{dpCount}})"
+      "chart_count_with_styles": "Charts: {{count}} (SP {{spCount}} / DP {{dpCount}})",
+      "chart_preview_label": "Registered songs",
+      "chart_preview_more": "{{count}} more charts"
     },
     "notice": {
       "published": "Published to the public catalog.",

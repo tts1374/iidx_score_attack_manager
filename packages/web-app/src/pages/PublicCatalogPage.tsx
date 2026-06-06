@@ -21,16 +21,30 @@ import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import SearchIcon from '@mui/icons-material/Search';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import TravelExploreIcon from '@mui/icons-material/TravelExplore';
-import type { PublicTournamentListItem } from '@iidx/shared';
+import type {
+  PublicTournamentChartPreviewItem,
+  PublicTournamentListItem,
+} from '@iidx/shared';
 import { useTranslation } from 'react-i18next';
 
 import type { PublicCatalogClient } from '../services/public-catalog-client';
 import { PublicCatalogClientError } from '../services/public-catalog-client';
 
+interface ResolvedChartPreviewDetail {
+  title: string;
+  playStyle: 'SP' | 'DP' | null;
+  difficulty: string | null;
+}
+
+type ResolveChartPreviewDetails = (
+  chartIds: readonly number[],
+) => Promise<ReadonlyMap<number, ResolvedChartPreviewDetail>>;
+
 interface PublicCatalogPageProps {
   client: PublicCatalogClient;
   songMasterReady: boolean;
   localDeleteTokensByPublicId?: ReadonlyMap<string, string>;
+  resolveChartPreviewDetails?: ResolveChartPreviewDetails;
   onOpenImportConfirm: (rawPayloadParam: string) => void;
 }
 
@@ -42,6 +56,14 @@ interface BannerMessage {
 type LoadPhase = 'idle' | 'loading' | 'ready' | 'error';
 
 const SKELETON_CARD_COUNT = 3;
+const CHART_PREVIEW_VISIBLE_COUNT = 4;
+const CHART_PREVIEW_DIFFICULTY_SHORT_MAP: Record<string, string> = {
+  BEGINNER: 'B',
+  NORMAL: 'N',
+  HYPER: 'H',
+  ANOTHER: 'A',
+  LEGGENDARIA: 'L',
+};
 
 function formatHashtag(value: string): string {
   const trimmed = value.trim();
@@ -93,6 +115,127 @@ function CatalogMetaRow(props: {
       </Typography>
     </Box>
   );
+}
+
+function resolveChartPreviewStyleLabel(
+  item: PublicTournamentChartPreviewItem,
+): string | null {
+  if (!item.playStyle) {
+    return null;
+  }
+
+  const difficultyKey = String(item.difficulty ?? '').trim().toUpperCase();
+  if (difficultyKey.length === 0) {
+    return item.playStyle;
+  }
+
+  return `${item.playStyle}${
+    CHART_PREVIEW_DIFFICULTY_SHORT_MAP[difficultyKey] ?? difficultyKey[0] ?? '?'
+  }`;
+}
+
+function formatChartPreviewLabel(item: PublicTournamentChartPreviewItem): string {
+  const styleLabel = resolveChartPreviewStyleLabel(item);
+  return styleLabel ? `${item.title} / ${styleLabel}` : item.title;
+}
+
+async function resolveItemsWithChartPreviewDetails(
+  items: PublicTournamentListItem[],
+  options: {
+    enabled: boolean;
+    resolveChartPreviewDetails: ResolveChartPreviewDetails | undefined;
+  },
+): Promise<PublicTournamentListItem[]> {
+  if (!options.enabled || !options.resolveChartPreviewDetails) {
+    return items;
+  }
+
+  const chartIds = [
+    ...new Set(
+      items.flatMap((item) =>
+        item.chartPreview?.map((previewItem) => previewItem.chartId) ?? [],
+      ),
+    ),
+  ];
+  if (chartIds.length === 0) {
+    return items;
+  }
+
+  try {
+    const detailsByChartId = await options.resolveChartPreviewDetails(chartIds);
+    return items.map((item) => {
+      if (!item.chartPreview) {
+        return item;
+      }
+
+      const chartPreview: PublicTournamentChartPreviewItem[] =
+        item.chartPreview.map((previewItem) => {
+          const resolvedDetail = detailsByChartId.get(previewItem.chartId);
+          return {
+            ...previewItem,
+            title: resolvedDetail?.title ?? previewItem.title,
+            playStyle: resolvedDetail?.playStyle ?? previewItem.playStyle,
+            difficulty:
+              resolvedDetail?.difficulty ?? previewItem.difficulty ?? null,
+          };
+        });
+      return {
+        ...item,
+        chartPreview,
+      };
+    });
+  } catch {
+    return items;
+  }
+}
+
+function mergeResolvedChartPreviewDetails(
+  previousItems: PublicTournamentListItem[],
+  resolvedItems: PublicTournamentListItem[],
+): PublicTournamentListItem[] {
+  const resolvedItemsByPublicId = new Map(
+    resolvedItems.map((item) => [item.publicId, item] as const),
+  );
+  let changed = false;
+  const mergedItems = previousItems.map((item) => {
+    const resolvedItem = resolvedItemsByPublicId.get(item.publicId);
+    if (!resolvedItem?.chartPreview || !item.chartPreview) {
+      return item;
+    }
+
+    const resolvedPreviewByChartId = new Map(
+      resolvedItem.chartPreview.map((previewItem) => [
+        previewItem.chartId,
+        previewItem,
+      ] as const),
+    );
+    let itemChanged = false;
+    const chartPreview = item.chartPreview.map((previewItem) => {
+      const resolvedPreview = resolvedPreviewByChartId.get(previewItem.chartId);
+      if (!resolvedPreview) {
+        return previewItem;
+      }
+      if (
+        previewItem.title === resolvedPreview.title &&
+        previewItem.playStyle === resolvedPreview.playStyle &&
+        previewItem.difficulty === resolvedPreview.difficulty
+      ) {
+        return previewItem;
+      }
+      itemChanged = true;
+      changed = true;
+      return {
+        ...previewItem,
+        title: resolvedPreview.title,
+        playStyle: resolvedPreview.playStyle,
+        difficulty: resolvedPreview.difficulty ?? null,
+      };
+    });
+
+    return itemChanged ? { ...item, chartPreview } : item;
+  });
+
+  return changed ? mergedItems : previousItems;
 }
 
 function CatalogSkeletonCard(): JSX.Element {
@@ -203,6 +346,20 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     React.useState<PublicTournamentListItem | null>(null);
   const mountedRef = React.useRef(true);
   const requestTokenRef = React.useRef(0);
+  const itemsRef = React.useRef<PublicTournamentListItem[]>([]);
+  const chartPreviewResolverRef = React.useRef<{
+    enabled: boolean;
+    resolveChartPreviewDetails: ResolveChartPreviewDetails | undefined;
+  }>({
+    enabled: props.songMasterReady,
+    resolveChartPreviewDetails: props.resolveChartPreviewDetails,
+  });
+
+  chartPreviewResolverRef.current = {
+    enabled: props.songMasterReady,
+    resolveChartPreviewDetails: props.resolveChartPreviewDetails,
+  };
+  itemsRef.current = items;
 
   React.useEffect(() => {
     mountedRef.current = true;
@@ -230,10 +387,14 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
 
       try {
         const response = await props.client.listPublicTournaments({ query });
+        const resolvedItems = await resolveItemsWithChartPreviewDetails(
+          response.items,
+          chartPreviewResolverRef.current,
+        );
         if (!mountedRef.current || requestToken !== requestTokenRef.current) {
           return;
         }
-        setItems(response.items);
+        setItems(resolvedItems);
         setNextCursor(response.nextCursor);
         setLoadPhase('ready');
       } catch (error) {
@@ -262,6 +423,36 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     void loadFirstPage(currentQuery);
   }, [loadFirstPage, props.client]);
 
+  React.useEffect(() => {
+    if (!props.songMasterReady || !props.resolveChartPreviewDetails) {
+      return;
+    }
+
+    const currentItems = itemsRef.current;
+    if (
+      currentItems.every((item) => !item.chartPreview || item.chartPreview.length === 0)
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    void resolveItemsWithChartPreviewDetails(currentItems, {
+      enabled: true,
+      resolveChartPreviewDetails: props.resolveChartPreviewDetails,
+    }).then((resolvedItems) => {
+      if (cancelled || !mountedRef.current) {
+        return;
+      }
+      setItems((previous) =>
+        mergeResolvedChartPreviewDetails(previous, resolvedItems),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [props.resolveChartPreviewDetails, props.songMasterReady]);
+
   const loadMore = React.useCallback(async () => {
     if (!props.client.isAvailable() || !nextCursor || isLoadingMore) {
       return;
@@ -276,10 +467,14 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         query: currentQuery,
         cursor: nextCursor,
       });
+      const resolvedItems = await resolveItemsWithChartPreviewDetails(
+        response.items,
+        chartPreviewResolverRef.current,
+      );
       if (!mountedRef.current || requestToken !== requestTokenRef.current) {
         return;
       }
-      setItems((previous) => [...previous, ...response.items]);
+      setItems((previous) => [...previous, ...resolvedItems]);
       setNextCursor(response.nextCursor);
     } catch (error) {
       if (!mountedRef.current || requestToken !== requestTokenRef.current) {
@@ -298,7 +493,13 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         setIsLoadingMore(false);
       }
     }
-  }, [currentQuery, isLoadingMore, nextCursor, props.client, t]);
+  }, [
+    currentQuery,
+    isLoadingMore,
+    nextCursor,
+    props.client,
+    t,
+  ]);
 
   const handleSearchSubmit = React.useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -625,6 +826,12 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                   : t('public_catalog.card.chart_count', {
                       count: item.chartCount,
                     });
+              const visibleChartPreview =
+                item.chartPreview?.slice(0, CHART_PREVIEW_VISIBLE_COUNT) ?? [];
+              const hiddenChartPreviewCount = Math.max(
+                0,
+                (item.chartPreview?.length ?? 0) - visibleChartPreview.length,
+              );
               return (
                 <Paper
                   key={item.publicId}
@@ -677,6 +884,43 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                           text={chartCountText}
                         />
                       </Stack>
+
+                      {visibleChartPreview.length > 0 ? (
+                        <Stack spacing={0.75}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontWeight: 700 }}
+                          >
+                            {t('public_catalog.card.chart_preview_label')}
+                          </Typography>
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            useFlexGap
+                            flexWrap="wrap"
+                          >
+                            {visibleChartPreview.map((previewItem) => (
+                              <Chip
+                                key={previewItem.chartId}
+                                label={formatChartPreviewLabel(previewItem)}
+                                size="small"
+                                variant="outlined"
+                                sx={{ maxWidth: '100%' }}
+                              />
+                            ))}
+                            {hiddenChartPreviewCount > 0 ? (
+                              <Chip
+                                label={t('public_catalog.card.chart_preview_more', {
+                                  count: hiddenChartPreviewCount,
+                                })}
+                                size="small"
+                                variant="filled"
+                              />
+                            ) : null}
+                          </Stack>
+                        </Stack>
+                      ) : null}
                     </Stack>
 
                     <Box
