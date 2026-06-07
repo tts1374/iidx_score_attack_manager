@@ -1066,13 +1066,13 @@
   },
   "whats_new": {
     "modal": {
-      "title": "Update Notice (v1.1.1)",
+      "title": "Update Notice (v1.2.0)",
       "description": "What's changed"
     },
     "items": [
-      "Kept the public catalog API configured in production deploy flows.",
-      "Public catalog now keeps active score attacks visible after their start date.",
-      "Prevented stale public catalog list caches from affecting the initial view."
+      "Added song and difficulty previews to the public score attack list.",
+      "Score attacks already imported on this device are now hidden from the public list.",
+      "You can now remove score attacks you published from the public list."
     ]
   }
 }
