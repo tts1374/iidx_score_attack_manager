@@ -134,12 +134,14 @@ function mapPublicTournamentRow(row: PublicTournamentRow): PublicTournamentRecor
 }
 
 function mapPublicTournamentListRow(row: PublicTournamentListRow): PublicTournamentListItem {
-  const chartIds = readChartIdsFromPayloadJson(row.payload_json);
+  const payload = readListMetadataFromPayloadJson(row.payload_json, row.public_id);
+  const chartIds = payload.chartIds;
   const chartStyleCounts = countPublicTournamentChartStyles(chartIds);
   const chartPreview = buildPublicTournamentChartPreview(chartIds);
 
   return {
     publicId: row.public_id,
+    tournamentUuid: payload.tournamentUuid,
     name: row.name,
     owner: row.owner,
     hashtag: row.hashtag,
@@ -157,18 +159,31 @@ function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
 }
 
-function readChartIdsFromPayloadJson(payloadJson: string): number[] {
+function readListMetadataFromPayloadJson(payloadJson: string, fallbackUuid: string): {
+  tournamentUuid: string;
+  chartIds: number[];
+} {
   try {
-    const parsed = JSON.parse(payloadJson) as { charts?: unknown };
-    if (!Array.isArray(parsed.charts)) {
-      return [];
+    const parsed = JSON.parse(payloadJson) as { uuid?: unknown; charts?: unknown };
+    if (typeof parsed.uuid !== 'string' || parsed.uuid.trim().length === 0) {
+      throw new Error('stored public tournament payload is missing uuid');
     }
-    return parsed.charts.filter(
-      (chartId): chartId is number =>
-        typeof chartId === 'number' && Number.isInteger(chartId) && chartId > 0,
-    );
+    return {
+      tournamentUuid: parsed.uuid,
+      chartIds: Array.isArray(parsed.charts)
+        ? parsed.charts.filter(
+            (chartId): chartId is number =>
+              typeof chartId === 'number' &&
+              Number.isInteger(chartId) &&
+              chartId > 0,
+          )
+        : [],
+    };
   } catch {
-    return [];
+    return {
+      tournamentUuid: fallbackUuid,
+      chartIds: [],
+    };
   }
 }
 

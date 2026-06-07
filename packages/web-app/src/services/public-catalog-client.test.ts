@@ -60,6 +60,7 @@ describe('FetchPublicCatalogClient', () => {
           items: [
             {
               publicId: 'public-1',
+              tournamentUuid: '11111111-1111-4111-8111-111111111111',
               name: 'Alpha Cup',
               owner: 'Alice',
               hashtag: 'IIDX',
@@ -104,6 +105,9 @@ describe('FetchPublicCatalogClient', () => {
 
     expect(response.items).toHaveLength(1);
     expect(response.items[0]?.publicId).toBe('public-1');
+    expect(response.items[0]?.tournamentUuid).toBe(
+      '11111111-1111-4111-8111-111111111111',
+    );
     expect(response.items[0]?.spChartCount).toBe(7);
     expect(response.items[0]?.dpChartCount).toBe(5);
     expect(response.items[0]?.chartPreview).toEqual([
@@ -124,6 +128,7 @@ describe('FetchPublicCatalogClient', () => {
           items: [
             {
               publicId: 'public-1',
+              tournamentUuid: '11111111-1111-4111-8111-111111111111',
               name: 'Alpha Cup',
               owner: 'Alice',
               hashtag: 'IIDX',
@@ -221,13 +226,14 @@ describe('FetchPublicCatalogClient', () => {
     });
   });
 
-  it('accepts legacy list items without style chart counts', async () => {
+  it('accepts list items without style chart counts', async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(
         JSON.stringify({
           items: [
             {
               publicId: 'public-legacy',
+              tournamentUuid: '11111111-1111-4111-8111-111111111111',
               name: 'Legacy Cup',
               owner: 'Alice',
               hashtag: 'IIDX',
@@ -259,6 +265,7 @@ describe('FetchPublicCatalogClient', () => {
       items: [
         {
           publicId: 'public-legacy',
+          tournamentUuid: '11111111-1111-4111-8111-111111111111',
           name: 'Legacy Cup',
           owner: 'Alice',
           hashtag: 'IIDX',
@@ -270,6 +277,48 @@ describe('FetchPublicCatalogClient', () => {
       ],
       nextCursor: null,
     });
+  });
+
+  it('rejects list responses without a tournament uuid', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              publicId: 'public-1',
+              name: 'Alpha Cup',
+              owner: 'Alice',
+              hashtag: 'IIDX',
+              start: '2026-04-01',
+              end: '2026-04-07',
+              chartCount: 12,
+              createdAt: '2026-04-01T00:00:00.000Z',
+            },
+          ],
+          nextCursor: null,
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+    const client = new FetchPublicCatalogClient(
+      {
+        apiBaseUrl: 'https://catalog.example.test/',
+        source: 'env',
+      },
+      fetchImpl,
+    );
+
+    await expect(client.listPublicTournaments()).rejects.toEqual(
+      expect.objectContaining<Partial<PublicCatalogClientError>>({
+        name: 'PublicCatalogClientError',
+        kind: 'invalid_response',
+      }),
+    );
   });
 
   it('throws a typed error when the payload endpoint returns an API error', async () => {
