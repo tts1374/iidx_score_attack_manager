@@ -1066,13 +1066,11 @@
   },
   "whats_new": {
     "modal": {
-      "title": "Update Notice (v1.2.0)",
+      "title": "Update Notice (v1.2.1)",
       "description": "What's changed"
     },
     "items": [
-      "Added song and difficulty previews to the public score attack list.",
-      "Score attacks already imported on this device are now hidden from the public list.",
-      "You can now remove score attacks you published from the public list."
+      "Song search now finds titles regardless of Japanese dakuten or handakuten marks."
     ]
   }
 }
