@@ -92,4 +92,23 @@ describe('misc utilities', () => {
     expect(normalizeSearchText('フ\u309A')).toBe('フ');
     expect(normalizeSearchText('☆\uFE0F')).toBe('☆\uFE0F');
   });
+
+  it('matches representative song master dakuten and handakuten keys', () => {
+    const songMasterCases = [
+      {
+        musicId: 856,
+        title: 'カゴノトリ ～弐式～',
+        titleSearchKey: 'カコノトリ ～弐式～',
+      },
+      {
+        musicId: 740,
+        title: 'ピアノ協奏曲第１番"蠍火"',
+        titleSearchKey: 'ヒアノ協奏曲第１番"蠍火"',
+      },
+    ] as const;
+
+    for (const song of songMasterCases) {
+      expect(normalizeSearchText(song.title), `song master music_id=${song.musicId}`).toBe(song.titleSearchKey);
+    }
+  });
 });
