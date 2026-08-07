@@ -192,7 +192,8 @@ export function normalizeSearchText(value: string): string {
     .trim()
     .replace(/[äöüßæœøåçñáàâãéèêëíìîïóòôõúùûýÿ]/g, (char) => replacementMap[char] ?? char)
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    // Include Japanese dakuten/handakuten without removing other Unicode marks.
+    .replace(/[\u0300-\u036f\u3099\u309a]/g, '')
     .replace(/\s+/g, ' ');
 
   return normalized;
