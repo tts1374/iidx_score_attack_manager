@@ -90,5 +90,6 @@ describe('misc utilities', () => {
     expect(normalizeSearchText('ラフキラ☆スフラッシュ')).toBe('ラフキラ☆スフラッシュ');
     expect(normalizeSearchText('フ\u3099')).toBe('フ');
     expect(normalizeSearchText('フ\u309A')).toBe('フ');
+    expect(normalizeSearchText('☆\uFE0F')).toBe('☆\uFE0F');
   });
 });
