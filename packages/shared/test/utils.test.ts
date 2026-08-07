@@ -84,4 +84,11 @@ describe('misc utilities', () => {
     expect(normalizeSearchText('straße')).toBe('strasse');
     expect(normalizeSearchText('  Café   au   lait  ')).toBe('cafe au lait');
   });
+
+  it('normalizes Japanese dakuten and handakuten like the song master', () => {
+    expect(normalizeSearchText('ラブキラ☆スプラッシュ')).toBe('ラフキラ☆スフラッシュ');
+    expect(normalizeSearchText('ラフキラ☆スフラッシュ')).toBe('ラフキラ☆スフラッシュ');
+    expect(normalizeSearchText('フ\u3099')).toBe('フ');
+    expect(normalizeSearchText('フ\u309A')).toBe('フ');
+  });
 });

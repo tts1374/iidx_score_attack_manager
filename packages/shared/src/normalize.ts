@@ -192,7 +192,7 @@ export function normalizeSearchText(value: string): string {
     .trim()
     .replace(/[äöüßæœøåçñáàâãéèêëíìîïóòôõúùûýÿ]/g, (char) => replacementMap[char] ?? char)
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\p{M}/gu, '')
     .replace(/\s+/g, ' ');
 
   return normalized;
