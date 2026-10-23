@@ -1072,11 +1072,13 @@
   },
   "whats_new": {
     "modal": {
-      "title": "Update Notice (v1.2.1)",
+      "title": "Update Notice (v1.3.0)",
       "description": "What's changed"
     },
     "items": [
-      "Song search now finds titles regardless of Japanese dakuten or handakuten marks."
+      "Song data is now downloaded and updated automatically on startup and when returning to the home screen or app.",
+      "Updates wait until you finish interacting. If a download fails, you can continue using previously downloaded data.",
+      "Fixed toast notifications blocking the + button and app update controls."
     ]
   }
 }
