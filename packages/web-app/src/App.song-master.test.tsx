@@ -109,6 +109,22 @@ describe('App song master automation', () => {
     expect(screen.getByText('楽曲データを更新しました。')).toBeTruthy();
   });
 
+  it('coalesces repeated Settings requests during an update into one Back step', async () => {
+    const fixture = setup();
+    const pending = deferred<SongMasterUpdateResult>();
+    fixture.updateIfNeeded.mockReturnValueOnce(pending.promise);
+    fixture.mount();
+    await waitFor(() => expect(fixture.updateIfNeeded).toHaveBeenCalledTimes(1));
+    await openSettings();
+    await openSettings();
+    expect(screen.queryByText('manual update')).toBeNull();
+    await act(async () => pending.resolve({ ok: true, source: 'up_to_date' }));
+    expect(await screen.findByText('manual update')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'back' }));
+    expect(await screen.findByRole('button', { name: 'global-settings-menu' })).toBeTruthy();
+    expect(screen.queryByText('manual update')).toBeNull();
+  });
+
   it('keeps current checks quiet and allows a manual check and forced refetch within the interval', async () => {
     const fixture = setup();
     fixture.mount();

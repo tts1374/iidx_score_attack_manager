@@ -1181,11 +1181,21 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const createDraftSaveTimerRef = React.useRef<number | null>(null);
   const songMasterUpdateInFlightRef = React.useRef<Promise<SongMasterActionResult> | null>(null);
   const songMasterLastCheckedAtRef = React.useRef<number | null>(null);
+  const pendingNavigationRef = React.useRef<(() => void) | null>(null);
   const runAfterSongMasterUpdate = React.useCallback((action: () => void) => {
     const pending = songMasterUpdateInFlightRef.current;
     if (pending) {
-      void pending.then(action);
+      if (!pendingNavigationRef.current) {
+        void pending.then(() => {
+          const navigate = pendingNavigationRef.current;
+          pendingNavigationRef.current = null;
+          navigate?.();
+        });
+      }
+      // Keep the user's latest intent without replaying every click into the route stack.
+      pendingNavigationRef.current = action;
     } else {
+      pendingNavigationRef.current = null;
       action();
     }
   }, []);
