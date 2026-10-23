@@ -34,7 +34,7 @@ description: IIDX Score Attack Managerの確定済みIssueを番号・URL指定�
 
 WORKFLOW.md section 1.2の指定Issue実行既定範囲と、現在のユーザー制限に従う。ローカルのみならcommit・push・PRへ進まない。
 
-- 今回差分だけをstageし、目的・staged diff・remote headを確認してcommit・通常pushする。PR作成前に認証actorが`tts1374-bot`であることを確認する。
+- 今回差分だけをstageし、目的・staged diff・remote headを確認してcommit・通常pushする。PR作成前にWORKFLOW.md section 6.1の作成アカウントと認証actorを照合する。
 - [PRテンプレート](../../../.github/pull_request_template.md)へ実装差分・影響・検証結果・未実施項目を記載し、Issueを参照する。closeが許可されていなければ`Refs`を使う。
 - 作成したPRをchatへattachし、PR本文・head等をread-backする。結果報告・再レビュー依頼も現在の許可範囲で行い、投稿結果を再取得する。
 - 最新headへのレビュー依頼がなければ許可範囲で依頼する。レビュー修正には[iidx-github-review-fix](../iidx-github-review-fix/SKILL.md)を使い、WORKFLOW.md section 11.2で最新headのレビュー・必須CIを確認する。旧headの成功や待機中を完了扱いにしない。

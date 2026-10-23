@@ -180,9 +180,9 @@ Local Execution Mode で開始しても、以下のいずれかが出た時点�
 
 ### 6.1 PR作成アカウント
 
-- user が明示的に別指示しない限り、PR は GitHub アカウント `tts1374-bot` で作成する
-- `gh pr create` 前に active account を確認し、`tts1374-bot` でなければ切り替える
-- 既存PRの作成者が approval フローを妨げる場合は、title/body/scope を維持したまま `tts1374-bot` で開き直してから approval / merge に進む
+- user が明示的に別指示しない限り、PR は GitHub アカウント `tts1374` で作成する
+- `gh pr create` または同等操作の前に、作成に使う認証actorが`tts1374`であることを確認する
+- 品質確認はCodexレビューと該当CIで行い、マージはユーザーが判断する。実行には従来どおり明示的なmerge依頼を必要とする
 
 ---
 
