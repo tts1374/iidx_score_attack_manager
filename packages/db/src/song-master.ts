@@ -47,6 +47,7 @@ const SONG_MASTER_DIR = 'song_master';
 const SONG_MASTER_META_FILE = `${SONG_MASTER_DIR}/latest_meta.json`;
 const SQLITE_FILE_NAME_RE = /\.sqlite$/i;
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
+const SONG_MASTER_REQUEST_TIMEOUT_MS = 30_000;
 
 function normalizeUnknownError(error: unknown): string {
   if (error instanceof Error) {
@@ -94,12 +95,12 @@ export class SongMasterService {
     this.fetchImpl = rawFetch.bind(globalThis) as typeof fetch;
   }
 
-  async updateIfNeeded(force = false): Promise<SongMasterUpdateResult> {
+  async updateIfNeeded(force = false, onDownloadStart?: () => void): Promise<SongMasterUpdateResult> {
     if (this.updateInFlight) {
       return this.updateInFlight;
     }
 
-    const task = this.runUpdateIfNeeded(force).finally(() => {
+    const task = this.runUpdateIfNeeded(force, onDownloadStart).finally(() => {
       if (this.updateInFlight === task) {
         this.updateInFlight = null;
       }
@@ -108,7 +109,7 @@ export class SongMasterService {
     return task;
   }
 
-  private async runUpdateIfNeeded(force = false): Promise<SongMasterUpdateResult> {
+  private async runUpdateIfNeeded(force = false, onDownloadStart?: () => void): Promise<SongMasterUpdateResult> {
     const hasCache = await this.appDb.hasSongMaster();
     let latest: SongMasterLatest;
 
@@ -171,6 +172,7 @@ export class SongMasterService {
     }
 
     try {
+      onDownloadStart?.();
       const sqliteUrl = this.buildSqliteDownloadUrl(latest.file_name);
       const bytes = await this.downloadAndVerify(sqliteUrl, latest);
 
@@ -215,8 +217,7 @@ export class SongMasterService {
   }
 
   private async fetchLatest(): Promise<SongMasterLatest> {
-    const response = await this.fetchNoStore(this.options.latestJsonUrl, 'latest.json');
-    const rawText = await response.text();
+    const rawText = await this.fetchNoStore(this.options.latestJsonUrl, 'latest.json', (response) => response.text());
     let body: unknown;
 
     try {
@@ -258,8 +259,8 @@ export class SongMasterService {
   }
 
   private async downloadAndVerify(downloadUrl: string, latest: SongMasterLatest): Promise<Uint8Array> {
-    const response = await this.fetchNoStore(downloadUrl, latest.file_name);
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const buffer = await this.fetchNoStore(downloadUrl, latest.file_name, (response) => response.arrayBuffer());
+    const bytes = new Uint8Array(buffer);
     if (bytes.byteLength !== latest.byte_size) {
       throw new SongMasterUpdateError(
         'integrity_mismatch',
@@ -278,19 +279,35 @@ export class SongMasterService {
     return bytes;
   }
 
-  private async fetchNoStore(url: string, label: string): Promise<Response> {
-    let response: Response;
+  private async fetchNoStore<T>(url: string, label: string, readBody: (response: Response) => Promise<T>): Promise<T> {
+    const controller = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new SongMasterUpdateError('network', `${label} fetch timed out after ${SONG_MASTER_REQUEST_TIMEOUT_MS}ms`));
+        controller.abort();
+      }, SONG_MASTER_REQUEST_TIMEOUT_MS);
+    });
     try {
-      response = await this.fetchImpl(url, { cache: 'no-store' });
+      // Include body consumption in the deadline. A late response cannot proceed to validation or storage.
+      return await Promise.race([
+        (async () => {
+          const response = await this.fetchImpl(url, { cache: 'no-store', signal: controller.signal });
+          if (!response.ok) {
+            throw new SongMasterUpdateError('network', `${label} fetch failed: ${response.status}`);
+          }
+          return readBody(response);
+        })(),
+        deadline,
+      ]);
     } catch (error) {
+      if (error instanceof SongMasterUpdateError) {
+        throw error;
+      }
       throw new SongMasterUpdateError('network', `${label} fetch failed: ${normalizeUnknownError(error)}`);
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    if (!response.ok) {
-      throw new SongMasterUpdateError('network', `${label} fetch failed: ${response.status}`);
-    }
-
-    return response;
   }
 
   private buildSqliteDownloadUrl(fileName: string): string {

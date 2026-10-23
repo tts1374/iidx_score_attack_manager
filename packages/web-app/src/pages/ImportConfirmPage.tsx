@@ -119,6 +119,10 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
   );
 
   React.useEffect(() => {
+    if (props.busy) {
+      setValidationState({ status: 'loading' });
+      return;
+    }
     let cancelled = false;
 
     const fail = (error: ImportConfirmError, preview?: ImportPreview): void => {
@@ -246,7 +250,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [appDb, locationPayload, props.todayDate, resolveLocationImportErrorMessage, t]);
+  }, [appDb, locationPayload, props.busy, props.todayDate, resolveLocationImportErrorMessage, t]);
 
   const showOpenSettingsAction =
     validationState.status === 'error' &&

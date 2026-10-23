@@ -138,7 +138,7 @@
       "update_failed": "Failed to update song master.",
       "update_check_failed": "Failed to check updates.",
       "refetch_failed": "Refetch (discard cache) failed.",
-      "updated": "Song master updated.",
+      "updated": "Song data updated.",
       "post_update_check_failed": "Post-update verification failed.",
       "up_to_date": "Song master is up to date.",
       "refetch_exception": "Exception occurred during refetch (discard cache).",
@@ -151,7 +151,13 @@
       "refetched": "Song data was refetched.",
       "update_check_executed": "Song data update check executed.",
       "home_update_banner": "New song data is available. Please update.",
-      "home_update_action": "Update"
+      "home_update_action": "Update",
+      "auto_updating": "New song data was found. Updating now.",
+      "auto_initial": "Downloading song data.",
+      "retry_cached": "Song data could not be updated. Using saved data.",
+      "retry_initial": "Song data could not be downloaded. Check your connection and retry.",
+      "schema_mismatch": "This song data is incompatible with the current app. Check for an app update.",
+      "retry_action": "Retry"
     },
     "runtime": {
       "unhandled_exception": "An unhandled exception occurred.",

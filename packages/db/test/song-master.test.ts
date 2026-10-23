@@ -1,5 +1,5 @@
 import { sha256Hex } from '@iidx/shared';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppDatabase } from '../src/app-db.js';
 import { OpfsStorage } from '../src/opfs.js';
@@ -281,5 +281,171 @@ describe('SongMasterService', () => {
     expect(result.source).toBe('local_cache');
     expect(result.message).toContain('integrity_mismatch');
     expect(opfs.writeFileAtomic).not.toHaveBeenCalled();
+  });
+});
+
+function createUpdateFixture(hasCache = true) {
+  const bytes = createSqliteBytes();
+  const latest = {
+    file_name: 'song_master_new.sqlite',
+    schema_version: 33,
+    generated_at: '2026-10-22T00:00:00Z',
+    sha256: sha256Hex(bytes),
+    byte_size: bytes.byteLength,
+  };
+  const appDb = new MockAppDatabase(hasCache, hasCache ? {
+    song_master_file_name: 'song_master_old.sqlite',
+    last_song_master_generated_at: '2026-10-01T00:00:00Z',
+  } : {});
+  const client = new MockSqliteWorkerClient();
+  const opfs = new MockOpfsStorage();
+  const fetchImpl = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit): Promise<Response> =>
+    String(input).endsWith('latest.json')
+      ? new Response(JSON.stringify(latest))
+      : new Response(Uint8Array.from(bytes).buffer),
+  );
+  const service = new SongMasterService(
+    appDb as unknown as AppDatabase,
+    client as unknown as SqliteWorkerClient,
+    opfs as unknown as OpfsStorage,
+    { latestJsonUrl: 'https://example.com/latest.json', sqliteBaseUrl: 'https://example.com/', requiredSchemaVersion: 33, fetchImpl },
+  );
+  return { latest, appDb, client, opfs, fetchImpl, service };
+}
+
+describe('automatic/manual update safety and progress', () => {
+  it('notifies only after a compatible newer version is found and before downloading sqlite', async () => {
+    const { service, fetchImpl, appDb } = createUpdateFixture();
+    const onDownloadStart = vi.fn(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    const result = await service.updateIfNeeded(false, onDownloadStart);
+    expect(onDownloadStart).toHaveBeenCalledTimes(1);
+    expect(result.source).toBe('github_download');
+    expect(appDb.getSettingNow('song_master_file_name')).toBe('song_master_new.sqlite');
+  });
+
+  it('does not notify or download sqlite when current, but permits force refetch', async () => {
+    const { service, latest, fetchImpl, appDb } = createUpdateFixture();
+    await appDb.setSetting('last_song_master_generated_at', latest.generated_at);
+    const onDownloadStart = vi.fn();
+    expect((await service.updateIfNeeded(false, onDownloadStart)).source).toBe('up_to_date');
+    expect(onDownloadStart).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect((await service.updateIfNeeded(true, onDownloadStart)).source).toBe('github_download');
+    expect(onDownloadStart).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('coalesces concurrent automatic and manual calls into one download and notification', async () => {
+    const { service, fetchImpl } = createUpdateFixture(false);
+    const onDownloadStart = vi.fn();
+    const results = await Promise.all([
+      service.updateIfNeeded(false, onDownloadStart),
+      service.updateIfNeeded(true, onDownloadStart),
+    ]);
+    expect(results[0]).toEqual(results[1]);
+    expect(results[0].source).toBe('initial_download');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(onDownloadStart).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([true, false])('handles network failure with cache=%s and allows retry', async (hasCache) => {
+    const { service, fetchImpl, appDb, opfs } = createUpdateFixture(hasCache);
+    fetchImpl.mockRejectedValueOnce(new Error('offline'));
+    const result = await service.updateIfNeeded();
+    expect(result.ok).toBe(hasCache);
+    expect(result.source).toBe(hasCache ? 'local_cache' : 'initial_download');
+    expect(result.message).toContain('network_error');
+    expect(opfs.writeFileAtomic).not.toHaveBeenCalled();
+    expect(appDb.getSettingNow('song_master_file_name')).toBe(hasCache ? 'song_master_old.sqlite' : undefined);
+    expect((await service.updateIfNeeded()).ok).toBe(true);
+  });
+
+  it.each(['invalid JSON', 'empty JSON', 'schema mismatch', 'hash mismatch', 'size mismatch', 'sqlite invalid'])('%s does not replace cached metadata', async (failure) => {
+    const { service, fetchImpl, latest, appDb, opfs, client } = createUpdateFixture();
+    if (failure === 'invalid JSON') fetchImpl.mockResolvedValueOnce(new Response('{broken'));
+    if (failure === 'empty JSON') fetchImpl.mockResolvedValueOnce(new Response('{}'));
+    if (failure === 'schema mismatch') latest.schema_version = 999;
+    if (failure === 'hash mismatch') latest.sha256 = '0'.repeat(64);
+    if (failure === 'size mismatch') latest.byte_size += 1;
+    if (failure === 'sqlite invalid') client.open.mockRejectedValueOnce(new Error('invalid sqlite'));
+    const onDownloadStart = vi.fn();
+    const result = await service.updateIfNeeded(false, onDownloadStart);
+    expect(result.source).toBe(failure === 'schema mismatch' ? 'github_download' : 'local_cache');
+    expect(result.message).toBeTruthy();
+    expect(appDb.getSettingNow('song_master_file_name')).toBe('song_master_old.sqlite');
+    expect(appDb.getSettingNow('last_song_master_generated_at')).toBe('2026-10-01T00:00:00Z');
+    if (['invalid JSON', 'empty JSON', 'schema mismatch'].includes(failure)) {
+      expect(onDownloadStart).not.toHaveBeenCalled();
+    }
+    if (failure !== 'sqlite invalid') expect(opfs.writeFileAtomic).not.toHaveBeenCalled();
+  });
+});
+
+describe('song master request deadlines', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ['latest.json', 'headers', true],
+    ['latest.json', 'body', true],
+    ['sqlite', 'headers', true],
+    ['sqlite', 'body', true],
+    ['latest.json', 'headers', false],
+    ['latest.json', 'body', false],
+    ['sqlite', 'headers', false],
+    ['sqlite', 'body', false],
+  ] as const)('bounds stalled %s %s with cache=%s, discards late data, and permits retry', async (target, stage, hasCache) => {
+    vi.useFakeTimers();
+    const { service, fetchImpl, latest, appDb, opfs } = createUpdateFixture(hasCache);
+    const normalFetch = fetchImpl.getMockImplementation()!;
+    let signal: AbortSignal | null | undefined;
+    let release!: () => void;
+    let shouldStall = true;
+    fetchImpl.mockImplementation(async (input, init) => {
+      const isLatest = String(input).endsWith('latest.json');
+      if (!shouldStall || isLatest !== (target === 'latest.json')) {
+        return normalFetch(input, init);
+      }
+      shouldStall = false;
+      signal = init?.signal;
+      const bytes = isLatest ? new TextEncoder().encode(JSON.stringify(latest)) : createSqliteBytes();
+      // Deliberately ignore AbortSignal, so a late response must also be harmless.
+      if (stage === 'headers') {
+        return new Promise<Response>((resolve) => {
+          release = () => resolve(new Response(Uint8Array.from(bytes).buffer));
+        });
+      }
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          release = () => { controller.enqueue(bytes); controller.close(); };
+        },
+      });
+      return new Response(body);
+    });
+    let settled = false;
+    const task = service.updateIfNeeded().then((result) => { settled = true; return result; });
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(settled).toBe(false);
+    expect(signal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(settled).toBe(true);
+    expect(signal?.aborted).toBe(true);
+    const result = await task;
+    expect(result.ok).toBe(hasCache);
+    expect(result.source).toBe(hasCache ? 'local_cache' : 'initial_download');
+    expect(result.message).toContain('network_error');
+    expect(result.message).toContain('timed out');
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(opfs.writeFileAtomic).not.toHaveBeenCalled();
+    expect(appDb.getSettingNow('song_master_file_name')).toBe(hasCache ? 'song_master_old.sqlite' : undefined);
+    expect((await service.updateIfNeeded()).source).toBe(hasCache ? 'github_download' : 'initial_download');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('clears request deadlines after a successful update', async () => {
+    vi.useFakeTimers();
+    const { service } = createUpdateFixture();
+    expect((await service.updateIfNeeded()).source).toBe('github_download');
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

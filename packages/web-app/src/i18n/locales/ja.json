@@ -138,7 +138,7 @@
       "update_failed": "曲マスタ更新に失敗しました。",
       "update_check_failed": "更新確認に失敗しました。",
       "refetch_failed": "再取得（キャッシュ破棄）に失敗しました。",
-      "updated": "曲マスタを更新しました。",
+      "updated": "楽曲データを更新しました。",
       "post_update_check_failed": "曲マスタ更新後の確認に失敗しました。",
       "up_to_date": "曲マスタは最新です。",
       "refetch_exception": "再取得（キャッシュ破棄）で例外が発生しました。",
@@ -151,7 +151,13 @@
       "refetched": "曲データを再取得しました。",
       "update_check_executed": "曲データの更新確認を実行しました。",
       "home_update_banner": "新しい曲データがあります。更新してください",
-      "home_update_action": "更新する"
+      "home_update_action": "更新する",
+      "auto_updating": "新しい楽曲データが見つかったため更新中です。",
+      "auto_initial": "楽曲データを取得中です。",
+      "retry_cached": "楽曲データを更新できませんでした。保存済みのデータを使用しています。",
+      "retry_initial": "楽曲データを取得できませんでした。通信状況を確認して再試行してください。",
+      "schema_mismatch": "この楽曲データは現在のアプリに対応していません。アプリの更新を確認してください。",
+      "retry_action": "再試行"
     },
     "runtime": {
       "unhandled_exception": "未処理の例外が発生しました。",

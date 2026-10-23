@@ -65,7 +65,7 @@ import {
 import { resolvePublicCatalogErrorI18n, type PublicCatalogClient } from './services/public-catalog-client';
 import { useAppServices } from './services/context';
 import { buildPublicTournamentPayload, publishTournamentDefinition } from './services/public-catalog-publish';
-import { resolveSongMasterRuntimeConfig } from './services/song-master-config';
+import { useAutomaticSongMasterUpdate } from './hooks/useAutomaticSongMasterUpdate';
 import { extractQrTextFromImage } from './utils/image';
 import {
   IMPORT_DELEGATION_CHANNEL,
@@ -311,33 +311,6 @@ const SW_VERSION_REQUEST_TIMEOUT_MS = 1500;
 const DEBUG_MODE_STORAGE_KEY = 'iidx:debug:mode';
 const HOME_RESULT_COUNT_MARKER = 908172635;
 const HOME_RESULT_COUNT_ANIMATION_DURATION_MS = 200;
-const HOME_SONG_DATA_RECHECK_SUPPRESS_MS = 5000;
-const runtimeConfig = resolveSongMasterRuntimeConfig(import.meta.env);
-
-function pickTrimmedText(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
-}
-
-function parseGeneratedAtMs(value: string | null): number | null {
-  if (!value) {
-    return null;
-  }
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function parseLatestGeneratedAt(input: unknown): string | null {
-  if (!input || typeof input !== 'object') {
-    return null;
-  }
-  const payload = input as Record<string, unknown>;
-  return pickTrimmedText(payload.generated_at);
-}
-
 type CreateDraftDialogState =
   | { kind: 'none' }
   | { kind: 'resume' }
@@ -1147,8 +1120,10 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [detail, setDetail] = React.useState<TournamentDetailItem | null>(null);
   const [detailReturnSignal, setDetailReturnSignal] = React.useState<TournamentDetailReturnSignal | null>(null);
   const [busy, setBusy] = React.useState(false);
-  const [homeSongDataLatestGeneratedAtMs, setHomeSongDataLatestGeneratedAtMs] = React.useState<number | null>(null);
-  const [homeSongDataDismissedGeneratedAtMs, setHomeSongDataDismissedGeneratedAtMs] = React.useState<number | null>(null);
+  const [homeDetailLoading, setHomeDetailLoading] = React.useState(false);
+  const [songMasterDownloading, setSongMasterDownloading] = React.useState(false);
+  const [songMasterUpdateError, setSongMasterUpdateError] = React.useState<string | null>(null);
+  const [songMasterErrorDismissed, setSongMasterErrorDismissed] = React.useState(false);
   const [songMasterReady, setSongMasterReady] = React.useState(false);
   const [songMasterMeta, setSongMasterMeta] = React.useState<Record<string, string | null>>(INITIAL_SONG_MASTER_META);
   const [autoDeleteEnabled, setAutoDeleteEnabled] = React.useState(false);
@@ -1177,7 +1152,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const [lastCleanupResult, setLastCleanupResult] = React.useState<Awaited<ReturnType<typeof appDb.purgeExpiredEvidence>> | null>(
     null,
   );
-  const [fatalError, setFatalError] = React.useState<string | null>(null);
   const [homeMenuAnchorEl, setHomeMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [homeSortMenuAnchorEl, setHomeSortMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [detailMenuAnchorEl, setDetailMenuAnchorEl] = React.useState<HTMLElement | null>(null);
@@ -1205,31 +1179,39 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const homeTypeSectionRef = React.useRef<HTMLDivElement | null>(null);
   const homeAttrsSectionRef = React.useRef<HTMLDivElement | null>(null);
   const createDraftSaveTimerRef = React.useRef<number | null>(null);
-  const homeSongDataCheckInFlightRef = React.useRef<Promise<void> | null>(null);
-  const homeSongDataLastCheckedAtRef = React.useRef(0);
+  const songMasterUpdateInFlightRef = React.useRef<Promise<SongMasterActionResult> | null>(null);
+  const songMasterLastCheckedAtRef = React.useRef<number | null>(null);
+  const pendingNavigationRef = React.useRef<(() => void) | null>(null);
+  const runAfterSongMasterUpdate = React.useCallback((action: () => void, waitForUpdate = true) => {
+    const pending = waitForUpdate ? songMasterUpdateInFlightRef.current : null;
+    if (pending) {
+      if (!pendingNavigationRef.current) {
+        void pending.then(() => {
+          const navigate = pendingNavigationRef.current;
+          pendingNavigationRef.current = null;
+          navigate?.();
+        });
+      }
+      // Keep the user's latest intent without replaying every click into the route stack.
+      pendingNavigationRef.current = action;
+    } else {
+      pendingNavigationRef.current = null;
+      action();
+    }
+  }, []);
 
   const route = routeStack[routeStack.length - 1] ?? { name: 'home' };
   const isHomeRoute = route.name === 'home';
-  const localSongMasterGeneratedAtMs = React.useMemo(
-    () =>
-      parseGeneratedAtMs(
-        songMasterMeta.last_song_master_generated_at ??
-          songMasterMeta.song_master_generated_at ??
-          songMasterMeta.song_master_updated_at ??
-          null,
-      ),
-    [
-      songMasterMeta.last_song_master_generated_at,
-      songMasterMeta.song_master_generated_at,
-      songMasterMeta.song_master_updated_at,
-    ],
+  const songMasterBannerVisible = isHomeRoute && homeQueryReady && (
+    songMasterDownloading || !songMasterReady || (songMasterUpdateError && !songMasterErrorDismissed)
   );
-  const homeSongDataUpdateAvailable =
-    homeSongDataLatestGeneratedAtMs !== null &&
-    localSongMasterGeneratedAtMs !== null &&
-    homeSongDataLatestGeneratedAtMs > localSongMasterGeneratedAtMs;
-  const homeSongDataBannerVisible =
-    homeSongDataUpdateAvailable && homeSongDataLatestGeneratedAtMs !== homeSongDataDismissedGeneratedAtMs;
+  const songMasterBannerMessageKey = songMasterDownloading
+    ? songMasterReady ? 'common.song_data.auto_updating' : 'common.song_data.auto_initial'
+    : busy
+      ? songMasterReady ? 'common.loading' : 'common.song_data.auto_initial'
+      : songMasterUpdateError?.includes('schema_mismatch')
+        ? 'common.song_data.schema_mismatch'
+        : songMasterReady ? 'common.song_data.retry_cached' : 'common.song_data.retry_initial';
   const isDetailRoute = route.name === 'detail';
   const isSettingsRoute = route.name === 'settings';
   const todayDate = todayJst();
@@ -1670,26 +1652,26 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [appDb, homeQuery, homeQueryReady]);
 
   const pushRoute = React.useCallback((next: RouteState) => {
-    setRouteStack((previous) => [...previous, next]);
-  }, []);
+    runAfterSongMasterUpdate(() => setRouteStack((previous) => [...previous, next]), next.name !== 'import-confirm');
+  }, [runAfterSongMasterUpdate]);
 
   const replaceRoute = React.useCallback((next: RouteState) => {
-    setRouteStack((previous) => {
+    runAfterSongMasterUpdate(() => setRouteStack((previous) => {
       if (previous.length === 0) {
         return [next];
       }
       return [...previous.slice(0, -1), next];
-    });
-  }, []);
+    }), next.name !== 'import-confirm');
+  }, [runAfterSongMasterUpdate]);
 
   const popRoute = React.useCallback(() => {
-    setRouteStack((previous) => {
+    runAfterSongMasterUpdate(() => setRouteStack((previous) => {
       if (previous.length <= 1) {
         return previous;
       }
       return previous.slice(0, -1);
-    });
-  }, []);
+    }));
+  }, [runAfterSongMasterUpdate]);
 
   const publishDetailReturnSignal = React.useCallback((next: Omit<TournamentDetailReturnSignal, 'token'>) => {
     setDetailReturnSignal({
@@ -1714,8 +1696,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [popRoute, publishDetailReturnSignal, route]);
 
   const resetRoute = React.useCallback((next: RouteState) => {
-    setRouteStack([next]);
-  }, []);
+    runAfterSongMasterUpdate(() => setRouteStack([next]));
+  }, [runAfterSongMasterUpdate]);
 
   const openImportConfirm = React.useCallback(
     (rawPayloadParam: string | null) => {
@@ -1886,44 +1868,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     };
   }, [appDb]);
 
-  const checkHomeSongDataUpdateAvailability = React.useCallback(async (force = false): Promise<void> => {
-    if (homeSongDataCheckInFlightRef.current) {
-      await homeSongDataCheckInFlightRef.current;
-      return;
-    }
-
-    const now = Date.now();
-    if (!force && now - homeSongDataLastCheckedAtRef.current < HOME_SONG_DATA_RECHECK_SUPPRESS_MS) {
-      return;
-    }
-
-    const task = (async () => {
-      homeSongDataLastCheckedAtRef.current = now;
-      try {
-        const res = await fetch(runtimeConfig.latestJsonUrl, { cache: 'no-store' });
-        if (!res.ok) {
-          return;
-        }
-        const generatedAt = parseLatestGeneratedAt(await res.json());
-        const generatedAtMs = parseGeneratedAtMs(generatedAt);
-        if (generatedAtMs === null) {
-          return;
-        }
-        setHomeSongDataLatestGeneratedAtMs(generatedAtMs);
-      } catch {
-        // Keep current banner state when latest check fails.
-      }
-    })();
-
-    homeSongDataCheckInFlightRef.current = task;
-    task.finally(() => {
-      if (homeSongDataCheckInFlightRef.current === task) {
-        homeSongDataCheckInFlightRef.current = null;
-      }
-    });
-    await task;
-  }, []);
-
   const collectAppInfoDetails = React.useCallback(async (): Promise<AppInfoDetailState> => {
     const [appDbUserVersion, appDbSizeBytes, appDbIntegrityCheck, opfsStatus, swVersion, swRegistration, storageEstimate] =
       await Promise.all([
@@ -1956,104 +1900,116 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [appDb, hasSwController, t, webLockAcquired]);
 
   const updateSongMaster = React.useCallback(
-    async (force: boolean): Promise<SongMasterActionResult> => {
-      const checkedAt = new Date().toISOString();
-      setBusy(true);
-      try {
-        const result = await songMasterService.updateIfNeeded(force);
-        const snapshot = await refreshSettingsSnapshot();
-        const actionResult: SongMasterActionResult = {
-          ok: result.ok,
-          source: result.source,
-          message: result.message ?? null,
-          latestSha256: result.latest?.sha256 ?? null,
-          localSha256: snapshot.songMeta.song_master_sha256 ?? null,
-          checkedAt,
-        };
-        if (!result.ok) {
-          const message = result.message ?? t('common.song_master.update_failed');
-          if (result.source !== 'local_cache') {
-            setFatalError(message);
+    (force: boolean, automatic = false): Promise<SongMasterActionResult> => {
+      if (songMasterUpdateInFlightRef.current) {
+        return songMasterUpdateInFlightRef.current;
+      }
+      songMasterLastCheckedAtRef.current = Date.now();
+      const run = async (): Promise<SongMasterActionResult> => {
+        const checkedAt = new Date().toISOString();
+        setBusy(true);
+        try {
+          const result = await songMasterService.updateIfNeeded(force, () => setSongMasterDownloading(true));
+          const snapshot = await refreshSettingsSnapshot();
+          const actionResult: SongMasterActionResult = {
+            ok: result.ok,
+            source: result.source,
+            message: result.message ?? null,
+            latestSha256: result.latest?.sha256 ?? null,
+            localSha256: snapshot.songMeta.song_master_sha256 ?? null,
+            checkedAt,
+          };
+          setSongMasterUpdateError(
+            result.ok && result.source !== 'local_cache' ? null : result.message ?? t('common.song_master.update_failed'),
+          );
+          setSongMasterErrorDismissed(false);
+          if (!result.ok) {
+            const message = result.message ?? t('common.song_master.update_failed');
+            if (!automatic) {
+              pushToast(message);
+            }
+            appendRuntimeLog({
+              level: result.source === 'local_cache' ? 'warn' : 'error',
+              category: 'song-master',
+              message: force ? t('common.song_master.refetch_failed') : t('common.song_master.update_check_failed'),
+              detail: message,
+              timestamp: checkedAt,
+            });
+            return actionResult;
           }
-          pushToast(message);
+
+          if (result.source === 'github_download' || result.source === 'initial_download') {
+            if (snapshot.songReady && snapshot.songMeta.song_master_file_name) {
+              pushToast(t('common.song_master.updated'));
+            } else {
+              pushToast(t('common.song_master.post_update_check_failed'));
+            }
+          }
+          if (!automatic && result.source === 'up_to_date') {
+            pushToast(t('common.song_master.up_to_date'));
+          }
+          if (!automatic && result.message) {
+            pushToast(result.message);
+          }
           appendRuntimeLog({
-            level: result.source === 'local_cache' ? 'warn' : 'error',
+            level: result.source === 'local_cache' ? 'warn' : 'info',
             category: 'song-master',
-            message: force ? t('common.song_master.refetch_failed') : t('common.song_master.update_check_failed'),
-            detail: message,
+            message:
+              result.source === 'up_to_date'
+                ? t('common.song_data.up_to_date')
+                : force
+                  ? t('common.song_data.refetched')
+                  : t('common.song_data.update_check_executed'),
+            ...(result.message ? { detail: result.message } : {}),
             timestamp: checkedAt,
           });
           return actionResult;
-        }
-
-        if (result.source === 'github_download' || result.source === 'initial_download') {
-          if (snapshot.songReady && snapshot.songMeta.song_master_file_name) {
-            pushToast(t('common.song_master.updated'));
-          } else {
-            pushToast(t('common.song_master.post_update_check_failed'));
+        } catch (error) {
+          const message = resolveErrorMessage(t, error, 'error.description.generic');
+          setSongMasterUpdateError(message);
+          setSongMasterErrorDismissed(false);
+          if (!automatic) {
+            pushToast(message);
           }
+          appendRuntimeLog({
+            level: 'error',
+            category: 'song-master',
+            message: force ? t('common.song_master.refetch_exception') : t('common.song_master.update_check_exception'),
+            detail: message,
+            timestamp: checkedAt,
+          });
+          return {
+            ok: false,
+            source: 'error',
+            message,
+            latestSha256: null,
+            localSha256: null,
+            checkedAt,
+          };
+        } finally {
+          songMasterLastCheckedAtRef.current = Date.now();
+          setSongMasterDownloading(false);
+          setBusy(false);
         }
-        if (result.source === 'up_to_date') {
-          pushToast(t('common.song_master.up_to_date'));
-        }
-        if (result.message) {
-          pushToast(result.message);
-        }
-        appendRuntimeLog({
-          level: result.source === 'local_cache' ? 'warn' : 'info',
-          category: 'song-master',
-          message:
-            result.source === 'up_to_date'
-              ? t('common.song_data.up_to_date')
-              : force
-                ? t('common.song_data.refetched')
-                : t('common.song_data.update_check_executed'),
-          ...(result.message ? { detail: result.message } : {}),
-          timestamp: checkedAt,
-        });
-        return actionResult;
-      } catch (error) {
-        const message = resolveErrorMessage(t, error, 'error.description.generic');
-        if (!(await appDb.hasSongMaster())) {
-          setFatalError(message);
-        }
-        pushToast(message);
-        appendRuntimeLog({
-          level: 'error',
-          category: 'song-master',
-          message: force ? t('common.song_master.refetch_exception') : t('common.song_master.update_check_exception'),
-          detail: message,
-          timestamp: checkedAt,
-        });
-        return {
-          ok: false,
-          source: 'error',
-          message,
-          latestSha256: null,
-          localSha256: null,
-          checkedAt,
-        };
-      } finally {
-        setBusy(false);
-      }
+      };
+      const task = run().finally(() => {
+        songMasterUpdateInFlightRef.current = null;
+      });
+      songMasterUpdateInFlightRef.current = task;
+      return task;
     },
-    [appDb, appendRuntimeLog, pushToast, refreshSettingsSnapshot, songMasterService, t],
+    [appendRuntimeLog, pushToast, refreshSettingsSnapshot, songMasterService, t],
   );
 
-  const dismissHomeSongDataUpdateBanner = React.useCallback(() => {
-    if (homeSongDataLatestGeneratedAtMs === null) {
-      return;
-    }
-    setHomeSongDataDismissedGeneratedAtMs(homeSongDataLatestGeneratedAtMs);
-  }, [homeSongDataLatestGeneratedAtMs]);
-
-  const runHomeSongDataUpdate = React.useCallback(async () => {
-    if (busy || !homeSongDataBannerVisible) {
-      return;
-    }
-    await updateSongMaster(false);
-    await checkHomeSongDataUpdateAvailability(true);
-  }, [busy, checkHomeSongDataUpdateAvailability, homeSongDataBannerVisible, updateSongMaster]);
+  const autoUpdateSongMaster = React.useCallback(() => updateSongMaster(false, true), [updateSongMaster]);
+  useAutomaticSongMasterUpdate(
+    homeQueryReady && isHomeRoute,
+    !busy && !homeDetailLoading && !createSaving && !qrImportDialogOpen &&
+      !speedDialOpen && !homeMenuAnchorEl && !deleteTournamentDialogOpen &&
+      !whatsNewDialogOpen && !homeFilterSheetOpen && !homeSortMenuAnchorEl,
+    autoUpdateSongMaster,
+    songMasterLastCheckedAtRef,
+  );
 
   React.useEffect(() => {
     if (!('serviceWorker' in navigator)) {
@@ -2185,13 +2141,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [appDb, appendRuntimeLog, loadHomeQueryState, pushToast, refreshSettingsSnapshot, refreshTournamentList, t]);
 
   React.useEffect(() => {
-    if (route.name !== 'home') {
-      return;
-    }
-    void checkHomeSongDataUpdateAvailability(false);
-  }, [checkHomeSongDataUpdateAvailability, localSongMasterGeneratedAtMs, route.name]);
-
-  React.useEffect(() => {
     if (route.name !== 'settings') {
       return;
     }
@@ -2252,6 +2201,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
 
   const reloadDetail = React.useCallback(
     async (tournamentUuid: string) => {
+      await songMasterUpdateInFlightRef.current;
       const next = await appDb.getTournamentDetail(tournamentUuid);
       setDetail(next);
       setDetailDebugLastError(null);
@@ -2889,10 +2839,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
     });
   }, [appDb, debugModeEnabled, opfs, refreshTournamentList, todayDate]);
 
-  if (fatalError) {
-    return <UnsupportedScreen title={t('common.song_master.startup_error_title')} reasons={[fatalError]} />;
-  }
-
   return (
     <>
       <AppBar position="sticky" color="inherit" elevation={1} sx={{ backgroundColor: 'var(--header-bg)', color: 'var(--text)' }}>
@@ -3060,27 +3006,28 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
           </div>
         ) : null}
 
-        {route.name === 'home' && homeSongDataBannerVisible ? (
+        {songMasterBannerVisible ? (
           <div className="updateBanner homeSongDataUpdateBanner" role="status" aria-live="polite">
-            <span>{t('common.song_data.home_update_banner')}</span>
+            <span>{t(songMasterBannerMessageKey)}</span>
             <div className="homeSongDataUpdateBannerActions">
               <Button
                 variant="contained"
                 size="small"
                 disableElevation
                 disabled={busy}
-                onClick={() => void runHomeSongDataUpdate()}
+                onClick={() => void updateSongMaster(false)}
               >
-                {busy ? t('common.loading') : t('common.song_data.home_update_action')}
+                {busy ? t('common.loading') : t('common.song_data.retry_action')}
               </Button>
-              <IconButton
-                size="small"
-                aria-label={t('common.close')}
-                disabled={busy}
-                onClick={dismissHomeSongDataUpdateBanner}
-              >
-                <CloseIcon fontSize="small" />
-              </IconButton>
+              {songMasterReady && !busy ? (
+                <IconButton
+                  size="small"
+                  aria-label={t('common.close')}
+                  onClick={() => setSongMasterErrorDismissed(true)}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -3190,12 +3137,20 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
                   : undefined
               }
               onOpenDetail={async (tournamentUuid) => {
-                const loaded = await reloadDetail(tournamentUuid);
-                if (!loaded) {
+                if (homeDetailLoading) {
                   return;
                 }
-                setDetailReturnSignal(null);
-                pushRoute({ name: 'detail', tournamentUuid });
+                setHomeDetailLoading(true);
+                try {
+                  const loaded = await reloadDetail(tournamentUuid);
+                  if (!loaded) {
+                    return;
+                  }
+                  setDetailReturnSignal(null);
+                  pushRoute({ name: 'detail', tournamentUuid });
+                } finally {
+                  setHomeDetailLoading(false);
+                }
               }}
             />
           </>

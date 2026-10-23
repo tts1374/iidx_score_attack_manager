@@ -138,7 +138,7 @@
       "update_failed": "곡 마스터 업데이트에 실패했습니다.",
       "update_check_failed": "업데이트 확인에 실패했습니다.",
       "refetch_failed": "다시 가져오기(캐시 폐기)에 실패했습니다.",
-      "updated": "곡 마스터를 업데이트했습니다.",
+      "updated": "곡 데이터를 업데이트했습니다.",
       "post_update_check_failed": "곡 마스터 업데이트 후 확인에 실패했습니다.",
       "up_to_date": "곡 마스터는 최신입니다.",
       "refetch_exception": "다시 가져오기(캐시 폐기) 중 예외가 발생했습니다.",
@@ -151,7 +151,13 @@
       "refetched": "곡 데이터를 다시 가져왔습니다.",
       "update_check_executed": "곡 데이터 업데이트 확인을 실행했습니다.",
       "home_update_banner": "새로운 곡 데이터가 있습니다. 업데이트해 주세요.",
-      "home_update_action": "업데이트"
+      "home_update_action": "업데이트",
+      "auto_updating": "새로운 곡 데이터를 찾아 업데이트 중입니다.",
+      "auto_initial": "곡 데이터를 다운로드 중입니다.",
+      "retry_cached": "곡 데이터를 업데이트하지 못했습니다. 저장된 데이터를 사용합니다.",
+      "retry_initial": "곡 데이터를 다운로드하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.",
+      "schema_mismatch": "이 곡 데이터는 현재 앱과 호환되지 않습니다. 앱 업데이트를 확인해 주세요.",
+      "retry_action": "다시 시도"
     },
     "runtime": {
       "unhandled_exception": "처리되지 않은 예외가 발생했습니다.",
