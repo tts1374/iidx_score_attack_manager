@@ -1182,8 +1182,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   const songMasterUpdateInFlightRef = React.useRef<Promise<SongMasterActionResult> | null>(null);
   const songMasterLastCheckedAtRef = React.useRef<number | null>(null);
   const pendingNavigationRef = React.useRef<(() => void) | null>(null);
-  const runAfterSongMasterUpdate = React.useCallback((action: () => void) => {
-    const pending = songMasterUpdateInFlightRef.current;
+  const runAfterSongMasterUpdate = React.useCallback((action: () => void, waitForUpdate = true) => {
+    const pending = waitForUpdate ? songMasterUpdateInFlightRef.current : null;
     if (pending) {
       if (!pendingNavigationRef.current) {
         void pending.then(() => {
@@ -1652,7 +1652,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   }, [appDb, homeQuery, homeQueryReady]);
 
   const pushRoute = React.useCallback((next: RouteState) => {
-    runAfterSongMasterUpdate(() => setRouteStack((previous) => [...previous, next]));
+    runAfterSongMasterUpdate(() => setRouteStack((previous) => [...previous, next]), next.name !== 'import-confirm');
   }, [runAfterSongMasterUpdate]);
 
   const replaceRoute = React.useCallback((next: RouteState) => {
@@ -1661,7 +1661,7 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
         return [next];
       }
       return [...previous.slice(0, -1), next];
-    }));
+    }), next.name !== 'import-confirm');
   }, [runAfterSongMasterUpdate]);
 
   const popRoute = React.useCallback(() => {
@@ -2005,7 +2005,8 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   useAutomaticSongMasterUpdate(
     homeQueryReady && isHomeRoute,
     !busy && !homeDetailLoading && !createSaving && !qrImportDialogOpen &&
-      !speedDialOpen && !homeMenuAnchorEl && !deleteTournamentDialogOpen,
+      !speedDialOpen && !homeMenuAnchorEl && !deleteTournamentDialogOpen &&
+      !whatsNewDialogOpen && !homeFilterSheetOpen && !homeSortMenuAnchorEl,
     autoUpdateSongMaster,
     songMasterLastCheckedAtRef,
   );

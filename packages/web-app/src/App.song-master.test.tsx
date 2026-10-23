@@ -2,6 +2,8 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SongMasterUpdateResult } from '@iidx/db';
+import { encodeTournamentPayload } from '@iidx/shared';
+import { buildImportRequestMessage, IMPORT_DELEGATION_STORAGE_REQUEST_KEY, IMPORT_DELEGATION_STORAGE_ACK_KEY } from './utils/import-delegation';
 
 import { App } from './App';
 import { AppServicesProvider } from './services/context';
@@ -42,12 +44,14 @@ function setup(hasCache = true) {
     reconcileEvidenceFiles: vi.fn(async () => undefined),
     reconcileInterruptedTournamentPublications: vi.fn(async () => undefined),
     purgeExpiredEvidenceIfNeeded: vi.fn(async () => 0),
+    listSongMasterChartsByIds: vi.fn(async () => [{ chartId: 1001, title: 'Delegated song', playStyle: 'SP', difficulty: 'ANOTHER', level: '12' }]),
+    findImportTargetTournament: vi.fn(async () => null),
     getAppDbUserVersion: vi.fn(async () => 1),
     getAppDbFileSize: vi.fn(async () => 1),
     getAppDbIntegrityCheck: vi.fn(async () => 'ok'),
   };
   const services = { appDb, songMasterService: { updateIfNeeded }, publicCatalogClient: { isAvailable: () => false }, opfs: {} } as unknown as AppServices;
-  const mount = () => render(<AppServicesProvider services={services}><App /></AppServicesProvider>);
+  const mount = (webLockAcquired = false) => render(<AppServicesProvider services={services}><App webLockAcquired={webLockAcquired} /></AppServicesProvider>);
   return { updateIfNeeded, appDb, mount, setReady: (value: boolean) => { ready = value; } };
 }
 
@@ -123,6 +127,58 @@ describe('App song master automation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'back' }));
     expect(await screen.findByRole('button', { name: 'global-settings-menu' })).toBeTruthy();
     expect(screen.queryByText('manual update')).toBeNull();
+  });
+
+  it('opens a delegated import immediately while postponing master reads until the update ends', async () => {
+    const fixture = setup();
+    const pending = deferred<SongMasterUpdateResult>();
+    fixture.updateIfNeeded.mockReturnValueOnce(pending.promise);
+    fixture.mount(true);
+    await waitFor(() => expect(fixture.updateIfNeeded).toHaveBeenCalledTimes(1));
+    await openSettings();
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
+    const rawPayloadParam = encodeTournamentPayload({
+      v: 1, uuid: crypto.randomUUID(), name: 'Delegated tournament', owner: 'QA', hashtag: 'qa', start: today, end: today, charts: [1001],
+    });
+    const request = buildImportRequestMessage({ requestId: 'review-delegation', senderTabId: 'sender-tab', rawPayloadParam });
+    fireEvent(window, new StorageEvent('storage', {
+      key: IMPORT_DELEGATION_STORAGE_REQUEST_KEY, newValue: JSON.stringify(request), storageArea: localStorage,
+    }));
+    expect(screen.getByRole('heading', { name: '取り込み確認' })).toBeTruthy();
+    expect(window.location.pathname).toBe(IMPORT_CONFIRM_PATH);
+    expect(JSON.parse(localStorage.getItem(IMPORT_DELEGATION_STORAGE_ACK_KEY)!)).toMatchObject({ type: 'IMPORT_ACK', requestId: request.requestId });
+    expect(fixture.appDb.listSongMasterChartsByIds).not.toHaveBeenCalled();
+    await act(async () => pending.resolve({ ok: true, source: 'up_to_date' }));
+    expect(await screen.findByText('Delegated song')).toBeTruthy();
+    expect(fixture.appDb.listSongMasterChartsByIds).toHaveBeenCalledWith([1001]);
+    expect(screen.queryByText('manual update')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }));
+    expect(await screen.findByRole('button', { name: 'global-settings-menu' })).toBeTruthy();
+  });
+
+  it('defers the first check until the What is New dialog closes', async () => {
+    localStorage.removeItem('seen_version');
+    const fixture = setup();
+    fixture.mount();
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(fixture.appDb.hasSongMaster).toHaveBeenCalledTimes(1));
+    expect(fixture.updateIfNeeded).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '閉じる' }));
+    await waitFor(() => expect(fixture.updateIfNeeded).toHaveBeenCalledTimes(1));
+  });
+
+  it.each(['filter', 'sort'] as const)('defers a resume check until the home %s overlay closes', async (overlay) => {
+    const fixture = setup();
+    fixture.mount();
+    await waitFor(() => expect(fixture.appDb.hasSongMaster).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: overlay === 'filter' ? 'home-filter' : '並び替えを変更' }));
+    const panel = await screen.findByRole(overlay === 'filter' ? 'dialog' : 'menu');
+    const now = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(now + 6 * 60 * 1000);
+    fireEvent.focus(window);
+    expect(fixture.updateIfNeeded).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(panel, { key: 'Escape' });
+    await waitFor(() => expect(fixture.updateIfNeeded).toHaveBeenCalledTimes(2));
   });
 
   it('keeps current checks quiet and allows a manual check and forced refetch within the interval', async () => {
