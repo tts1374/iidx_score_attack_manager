@@ -65,6 +65,11 @@ For questions or implementation guidance about OpenAI APIs, Codex, ChatGPT Apps 
 - consult the OpenAI developer documentation MCP/server or official OpenAI docs before giving version-sensitive guidance
 - prefer official documentation over memory when model, tool, or API behavior may have changed
 
+### 1.6 Implementation Proportionality
+- Choose implementation and validation proportional to actual users, stored data, and failure impact.
+- When several approaches meet the acceptance criteria, prefer existing patterns with the fewest new files, types, states, settings, and dependencies.
+- Checklists and parent documents are constraints and verification aids, not an additional implementation backlog. Preserve existing safety mechanisms.
+
 ---
 
 ## 2. Planning Gate
@@ -93,6 +98,11 @@ Do not produce long planning text for local tasks.
 - If human input is required, return the literal token `WAITING_FOR_HUMAN_DECISION` together with 2-3 concrete options.
 - Include one recommended option and the consequence of each option.
 - Do not stop with an abstract blocker when a bounded decision can unblock the task.
+
+### 2.4 Issue Contract And Execution Authorization
+- For a specified Issue, treat its Scope, Non-scope, Acceptance criteria, and Required tests as the implementation contract. Include parent Issue requirements only when the child explicitly adopts them.
+- A request to execute a specified Issue includes the delivery and review follow-up defined in WORKFLOW.md section 1.2, unless the user narrows the scope. Do not ask again for already authorized steps.
+- Drafting an Issue or a start prompt remains artifact-update-only. Review feedback does not authorize requirements outside the Issue contract.
 
 ---
 
@@ -199,13 +209,13 @@ Required behavior:
 
 - no direct push to protected mainline branch
 - 1 branch = 1 purpose
-- unless the user explicitly instructs otherwise, create/reopen PRs from GitHub account `tts1374-bot`
+- unless the user explicitly instructs otherwise, create PRs from GitHub account `tts1374`
 - do not edit CI-generated outputs manually
 - do not mix machine-generated diffs with manual logic edits in the same commit unless explicitly intended and isolated
 
 ### 7.1 PR Author Account
-- Before `gh pr create` or equivalent PR creation, confirm the active GitHub account is `tts1374-bot`.
-- If a PR was created from another account and that author choice would block the intended approval flow, close/reopen it from `tts1374-bot` before proceeding to approval or merge.
+- Before `gh pr create` or equivalent PR creation, confirm the authenticated GitHub actor is `tts1374`.
+- Use Codex review and applicable CI as quality evidence; the user decides whether to merge.
 
 ### 7.2 Write-back Requires Read-back
 - Issue comments, PR updates, merge, Issue close, branch cleanup, and similar external state changes are not complete until read-back confirms the resulting state.
@@ -270,3 +280,17 @@ Project characteristics:
 Implication:
 - UI-only tasks should stay UI-local.
 - Do not open DB/PWA/shared layers unless the change clearly requires them.
+
+---
+
+## 11. Task Skills
+
+Use the repository skill for the requested phase; read supporting material only when relevant.
+
+| Task | Skill |
+| --- | --- |
+| Fix observed requirements into an Issue | [iidx-issue-authoring](.agents/skills/iidx-issue-authoring/SKILL.md) |
+| Write a start prompt for another chat | [iidx-issue-start-prompt](.agents/skills/iidx-issue-start-prompt/SKILL.md) |
+| Execute a specified Issue | [iidx-implement-github-issue](.agents/skills/iidx-implement-github-issue/SKILL.md) |
+| Fix review feedback on an existing PR | [iidx-github-review-fix](.agents/skills/iidx-github-review-fix/SKILL.md) |
+| Revise finished text after a rejected or corrected proposal | [iidx-pink-elephant-guard](.agents/skills/iidx-pink-elephant-guard/SKILL.md) |
