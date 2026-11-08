@@ -376,7 +376,7 @@ describe('TournamentDetailPage', () => {
     const actionButtons = screen.getAllByTestId('tournament-detail-chart-submit-button') as HTMLButtonElement[];
     expect(actionButtons).toHaveLength(3);
 
-    expect(actionButtons[0]?.textContent).toContain('登録する');
+    expect(actionButtons[0]?.textContent).toContain('画像を登録');
     expect(actionButtons[0]?.getAttribute('data-chart-action-tone')).toBe('primary');
     expect(actionButtons[0]?.className).toContain('chartSubmitButton-primary');
 
@@ -502,12 +502,12 @@ describe('TournamentDetailPage', () => {
     renderPage();
 
     const footerShareButton = screen.getByTestId('tournament-detail-submit-open-button');
-    expect(footerShareButton.textContent).toContain('提出する');
+    expect(footerShareButton.textContent).toContain('スコアを提出');
 
     await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
     const dialog = screen.getByTestId('tournament-detail-submit-dialog');
     expect(dialog).toBeTruthy();
-    expect(screen.getByTestId('tournament-detail-submit-confirm-text').textContent).toContain('保存済みの未提出譜面を提出します');
+    expect(screen.getByTestId('tournament-detail-submit-confirm-text').textContent).toBe('未共有のスコア画像を1件共有します。');
     const dialogScope = within(dialog);
     expect(dialogScope.getByRole('button', { name: 'キャンセル' })).toBeTruthy();
     expect(dialogScope.getByTestId('tournament-detail-submit-share-button')).toBeTruthy();
@@ -515,7 +515,7 @@ describe('TournamentDetailPage', () => {
     expect(screen.queryByTestId('tournament-detail-mark-send-completed-button')).toBeNull();
   });
 
-  it('shows overwrite notice in resubmit mode', async () => {
+  it('explains the complete resubmit target and unchanged local images and status', async () => {
     renderPage({
       charts: detail.charts.map((chart) => ({
         ...chart,
@@ -527,8 +527,25 @@ describe('TournamentDetailPage', () => {
     expect(footerShareButton.textContent).toContain('再提出');
 
     await userEvent.click(footerShareButton);
-    expect(screen.getByTestId('tournament-detail-submit-confirm-text').textContent).toContain('再提出します');
-    expect(screen.getByTestId('tournament-detail-submit-resubmit-note').textContent).toContain('上書き');
+    expect(screen.getByTestId('tournament-detail-submit-confirm-text').textContent).toBe('保存済みのスコア画像を2件すべて共有し直します。');
+    expect(screen.getByTestId('tournament-detail-submit-resubmit-note').textContent).toBe('端末内の画像と共有済の状態は変わりません。');
+  });
+
+  it('keeps submission explanations in optional help and closes it without closing confirmation', async () => {
+    renderPage();
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    expect(screen.queryByText(/共有操作後は/)).toBeNull();
+    expect(screen.queryByText(/共有できない場合は/)).toBeNull();
+    const help = screen.getByRole('button', { name: 'スコア提出の説明' });
+    await userEvent.click(help);
+    const dialog = screen.getByRole('dialog', { name: 'スコア提出の説明' });
+    expect(within(dialog).getByText(/投稿・受領は共有先で確認/)).toBeTruthy();
+    expect(within(dialog).getByText(/画像の保存とメッセージのコピー/)).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'スコア提出の説明' })).toBeNull());
+    expect(screen.getByTestId('tournament-detail-submit-share-button')).toBeTruthy();
+    expect(document.activeElement).toBe(help);
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
   });
 
   it('marks as shared only on success and allows undo for the latest operation', async () => {
@@ -547,12 +564,14 @@ describe('TournamentDetailPage', () => {
     });
 
     const undoButton = await screen.findByTestId('tournament-detail-submit-undo-button');
+    expect((await screen.findByRole('alert')).textContent).toContain('共有操作が完了し、アプリ内で1件を共有済にしました。');
     await userEvent.click(undoButton);
 
     await waitFor(() => {
       expect(serviceMocks.appDb.markEvidenceSendPending).toHaveBeenCalledWith(detail.tournamentUuid, [101]);
     });
     expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
+    expect(screen.getByRole('alert').textContent).toContain('共有先の画像や投稿は取り消されません');
   });
 
   it('does not mark as shared when fallback copy fails', async () => {
@@ -567,10 +586,116 @@ describe('TournamentDetailPage', () => {
     await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
     await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
 
-    await waitFor(() => {
-      expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
-    });
+    expect((await screen.findByRole('alert')).textContent).toContain('メッセージをコピーできませんでした');
+    expect(screen.getByRole('alert').textContent).toContain('#SCOREATTACK');
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
     expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
+  });
+
+  it.each(['unsupported', 'failed'] as const)('describes download and copy fallback when sharing is %s', async (mode) => {
+    if (mode === 'failed') {
+      mockWebShareAvailable().share.mockRejectedValue(new Error('share failed'));
+    }
+    renderPage();
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
+
+    const notice = await screen.findByRole('alert');
+    expect(notice.textContent).toContain('画像の保存を開始し、メッセージをコピーしました');
+    expect(notice.textContent).toContain('アプリ内で1件を共有済にしました');
+    expect(notice.textContent).toContain('提出先へ送ってください');
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(1);
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('#SCOREATTACK ');
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).toHaveBeenCalledWith(detail.tournamentUuid, [101]);
+    expect(screen.getByTestId('tournament-detail-submit-undo-button')).toBeTruthy();
+  });
+
+  it('explains undo failure while retaining diagnostic detail for debugging', async () => {
+    const onReportDebugError = vi.fn();
+    mockWebShareAvailable();
+    serviceMocks.appDb.markEvidenceSendPending.mockRejectedValueOnce(new Error('DB internal detail'));
+    renderPage({}, '2026-02-10', { onReportDebugError });
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
+    await userEvent.click(await screen.findByTestId('tournament-detail-submit-undo-button'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('未共有に戻せませんでした。大会詳細で状態を確認してください。'));
+    expect(onReportDebugError).toHaveBeenCalledWith('DB internal detail');
+    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('0');
+  });
+
+  it('keeps the unshared state on share cancellation without downloading', async () => {
+    mockWebShareAvailable().share.mockRejectedValue(new DOMException('canceled', 'AbortError'));
+    renderPage();
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
+
+    expect((await screen.findByRole('alert')).textContent).toBe('共有をキャンセルしました。状態は変更していません。');
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('tournament-detail-submit-undo-button')).toBeNull();
+    expect(screen.getByTestId('tournament-detail-submit-summary-text').getAttribute('data-send-pending-count')).toBe('1');
+  });
+
+  it.each(['read-error', 'missing'] as const)('explains image recovery for %s without marking shared', async (failure) => {
+    if (failure === 'read-error') serviceMocks.opfs.readFile.mockRejectedValueOnce(new Error('OPFS internal detail'));
+    else serviceMocks.appDb.getEvidenceRecord.mockResolvedValueOnce(null);
+    renderPage();
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('画像を登録し直して再度提出してください');
+    expect(screen.getByRole('alert').textContent).not.toContain('OPFS');
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
+  it('resubmits all saved images without offering undo', async () => {
+    const { share } = mockWebShareAvailable();
+    renderPage({ charts: detail.charts.map(chart => ({ ...chart, needsSend: false })) });
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
+    expect((await screen.findByRole('alert')).textContent).toContain('アプリ内で2件を共有済にしました');
+    expect(share.mock.calls[0]?.[0].files).toHaveLength(2);
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).toHaveBeenCalledWith(detail.tournamentUuid, [101, 102]);
+    expect(screen.queryByTestId('tournament-detail-submit-undo-button')).toBeNull();
+  });
+
+  it.each(['2026-01-31', '2026-02-13'])('does not recommend unavailable image registration on %s', async (today) => {
+    serviceMocks.opfs.readFile.mockRejectedValueOnce(new Error('image missing'));
+    renderPage({}, today);
+    expect(screen.queryByTestId('tournament-detail-chart-submit-button')).toBeNull();
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
+    expect((await screen.findByRole('alert')).textContent).toBe('画像を読み込めませんでした。開催期間外は再登録できません。元の画像があれば提出先へ直接送ってください。');
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
+  it('keeps submission unavailable while image collection is in progress', async () => {
+    let finishRead!: (value: Uint8Array) => void;
+    serviceMocks.opfs.readFile.mockReturnValueOnce(new Promise<Uint8Array>(resolve => { finishRead = resolve; }));
+    mockWebShareAvailable();
+    renderPage();
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    expect((screen.getByTestId('tournament-detail-submit-share-button') as HTMLButtonElement).disabled).toBe(true);
+    finishRead(new Uint8Array([1]));
+    await screen.findByRole('alert');
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['2026-01-31', '2026-02-13'])('keeps registration hidden outside the active period on %s', (today) => {
+    renderPage({}, today);
+    expect(screen.queryByTestId('tournament-detail-chart-submit-button')).toBeNull();
+    expect((screen.getByTestId('tournament-detail-submit-open-button') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('treats deleted images as unregistered and excludes them from submission', async () => {
+    renderPage({ charts: detail.charts.map(chart => ({ ...chart, fileDeleted: true })) });
+    expect(screen.getAllByTestId('tournament-detail-chart-status-label').map(node => node.getAttribute('data-chart-state')))
+      .toEqual(['unregistered', 'unregistered', 'unregistered']);
+    expect(screen.queryByTestId('tournament-detail-submit-open-button')).toBeNull();
   });
 
   it('retries publication from detail when local tournament is retryable', async () => {

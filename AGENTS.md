@@ -286,6 +286,7 @@ Implication:
 ## 11. UI Text And Information
 
 - Show the information needed to act, judge the current state, and understand the result. Prefer clear labels and placement before adding explanations; avoid repeating what the controls already communicate.
+- Before adding a recurring explanation, check whether it is needed for each use. Put occasional guidance behind an accessible help control such as “?”; keep information needed for the current decision visible.
 - Use user-facing language and preserve established IIDX terms such as SP/DP and difficulty names. Keep implementation terms and internal identifiers in details/help/technical information when needed for diagnosis.
 - Show errors and remedies when relevant. Preserve important information about local storage, external sharing, import effects, irreversible deletion, and unregistered/unshared/shared progress at the decision point.
 - Keep ja/en/ko meanings and accessible labels aligned. Follow the existing glossary; do not promise behavior the application does not provide.

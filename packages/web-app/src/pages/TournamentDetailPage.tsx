@@ -31,6 +31,7 @@ import { useAppServices } from '../services/context';
 import { resolvePublicCatalogErrorI18n } from '../services/public-catalog-client';
 import { buildPublicTournamentPayloadFromDetail, publishTournamentDefinition } from '../services/public-catalog-publish';
 import { ChartCard } from '../components/ChartCard';
+import { ContextHelp } from '../components/ContextHelp';
 import { toSafeArrayBuffer } from '../utils/image';
 import { buildImportUrl } from '../utils/payload-url';
 import { difficultyColorHex } from '../utils/iidx';
@@ -1183,7 +1184,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
   }, []);
 
   const markChartsAsShared = React.useCallback(
-    async (chartIds: number[], options?: { allowUndo?: boolean; changedCount?: number }) => {
+    async (chartIds: number[], options?: { allowUndo?: boolean; changedCount?: number; fallback?: boolean }) => {
       await appDb.markEvidenceSendCompleted(props.detail.tournamentUuid, chartIds);
       setNeedsSendOverrides((current) => {
         const next = { ...current };
@@ -1195,7 +1196,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       await Promise.resolve(props.onUpdated());
       showSubmitToast({
         severity: 'success',
-        text: t('tournament_detail.submit_dialog.notice.marked_shared'),
+        text: t(options?.fallback
+          ? 'tournament_detail.submit_dialog.notice.fallback_completed'
+          : 'tournament_detail.submit_dialog.notice.marked_shared', { count: chartIds.length }),
         ...(options?.allowUndo === false ? {} : { undoChartIds: [...chartIds] }),
       });
       const changedCount = Math.max(0, options?.changedCount ?? chartIds.length);
@@ -1231,7 +1234,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       props.onReportDebugError(null);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.undo_failed');
-      showSubmitToast({ severity: 'error', text: message });
+      showSubmitToast({ severity: 'error', text: t('tournament_detail.submit_dialog.notice.undo_failed') });
       props.onReportDebugError(message);
     } finally {
       setSubmitUndoBusy(false);
@@ -1253,8 +1256,12 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     const targetChartIds = targetCharts.map((chart) => chart.chartId);
     const changedCount = targetCharts.reduce((count, chart) => (resolveNeedsSend(chart) ? count + 1 : count), 0);
     const allowUndo = submitMode === 'submit';
+    let failureNoticeKey = isActivePeriod
+      ? 'tournament_detail.submit_dialog.notice.image_load_failed'
+      : 'tournament_detail.submit_dialog.notice.image_load_failed_outside_period';
     try {
       const files = await collectSubmissionFiles(targetCharts);
+      failureNoticeKey = 'tournament_detail.submit_dialog.notice.share_images_failed';
       const webShareSupported =
         typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files });
 
@@ -1269,7 +1276,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           return;
         } catch (error: unknown) {
           if (error instanceof DOMException && error.name === 'AbortError') {
-            showSubmitToast({ severity: 'info', text: t('tournament_detail.notice.share_canceled') });
+            showSubmitToast({ severity: 'info', text: t('tournament_detail.submit_dialog.notice.canceled') });
             return;
           }
         }
@@ -1278,15 +1285,15 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
       downloadFiles(files);
       const copied = await copyTextToClipboard(submitMessageText);
       if (!copied) {
-        const message = t('tournament_detail.submit_dialog.notice.fallback_copy_failed');
+        const message = t('tournament_detail.submit_dialog.notice.fallback_copy_failed', { message: submitMessageText.trim() });
         showSubmitToast({ severity: 'warning', text: message });
         props.onReportDebugError(message);
         return;
       }
-      await markChartsAsShared(targetChartIds, { allowUndo, changedCount });
+      await markChartsAsShared(targetChartIds, { allowUndo, changedCount, fallback: true });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : t('tournament_detail.submit_dialog.notice.share_images_failed');
-      showSubmitToast({ severity: 'error', text: message });
+      showSubmitToast({ severity: 'error', text: t(failureNoticeKey) });
       props.onReportDebugError(message);
     } finally {
       setSubmitBusy(false);
@@ -1304,6 +1311,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     submitTargetCharts,
     submitMessageText,
     resolveNeedsSend,
+    isActivePeriod,
     t,
   ]);
 
@@ -1700,10 +1708,19 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         maxWidth="sm"
         data-testid="tournament-detail-submit-dialog"
       >
-        <DialogTitle>{t('tournament_detail.submit_dialog.title')}</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {t(submitMode === 'resubmit' ? 'tournament_detail.submit_dialog.resubmit_title' : 'tournament_detail.submit_dialog.title')}
+          <ContextHelp title={t('tournament_detail.submit_dialog.help.title')} disabled={submitBusy}>
+            <Typography variant="body2">{t('tournament_detail.submit_dialog.help.status')}</Typography>
+            <Typography variant="body2">{t('tournament_detail.submit_dialog.help.fallback')}</Typography>
+          </ContextHelp>
+        </DialogTitle>
         <DialogContent dividers>
           <Typography variant="body1" data-testid="tournament-detail-submit-confirm-text">
             {submitDialogConfirmText}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1.5 }}>
+            {t('tournament_detail.submit_dialog.images_description')}
           </Typography>
           {submitMode === 'resubmit' ? (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }} data-testid="tournament-detail-submit-resubmit-note">
@@ -1728,7 +1745,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
 
       <Snackbar
         open={submitToastOpen}
-        autoHideDuration={4500}
+        autoHideDuration={10000}
         onClose={closeSubmitToast}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
