@@ -709,24 +709,29 @@
       }
     },
     "health": {
-      "summary": "ヘルスサマリ: {{level}}",
+      "summary": "状態",
       "level": {
         "normal": "正常",
         "caution": "注意",
         "abnormal": "異常"
       },
       "action": {
-        "restart": "別タブを閉じて再起動",
-        "fetch_song": "曲データを取得",
+        "restart": "再読み込み",
+        "fetch_song": "曲データの更新を確認",
         "cleanup": "容量を整理",
         "default": "対応を実行"
       },
       "reason": {
-        "web_locks_failed": "Web Locks: 取得失敗",
-        "song_unavailable": "曲データ: 利用不可",
-        "opfs_error": "OPFS: アクセス失敗",
-        "db_integrity_error": "DB整合性: エラー",
-        "capacity_critical": "容量: 不足リスク"
+        "web_locks_failed": "このアプリを操作するための準備ができていません。",
+        "song_unavailable": "利用できる曲データがありません。",
+        "opfs_error": "この端末の保存領域にアクセスできません。",
+        "db_integrity_error": "保存したデータに不整合が見つかりました。",
+        "capacity_critical": "保存領域の空きが少なくなっています。"
+      },
+      "hint": {
+        "restart": "ほかのタブでこのアプリを開いている場合は閉じてから、再読み込みを試してください。",
+        "fetch_song": "曲データの更新を確認してください。",
+        "cleanup": "古い画像を削除して空き容量を増やせます。"
       }
     },
     "song_data": {
@@ -822,32 +827,43 @@
       },
       "auto_delete": {
         "enable": "画像自動削除を有効にする",
-        "days_label": "終了後N日で画像削除",
-        "helper": "スコアタデータは残り、画像のみ削除（復元不可）"
+        "days_label": "画像を削除するまでの経過日数"
       },
       "detail": {
         "last_run_at": "直近実行日時",
         "deleted_image_count": "削除画像枚数",
         "deleted_image_count_value": "{{value}} 枚",
-        "released": "解放容量"
+        "released": "解放容量",
+        "last_result": "前回の容量整理: {{date}}、画像{{value}}枚を削除しました。",
+        "unknown_sizes": "容量不明の画像: {{value}} 枚（解放容量に含まれません）"
       },
       "cleanup_dialog": {
-        "title": "容量を整理",
+        "title": "画像の削除見積り",
         "loading": "見積りを取得中...",
-        "target_tournament_count": "削除対象スコアタ数: {{value}} 件",
+        "target_tournament_count": "画像を削除するスコアタ数: {{value}} 件",
         "target_image_count": "削除対象画像枚数: {{value}} 枚",
         "estimated_release": "解放見込み容量（概算）: {{size}}",
         "not_restorable": "復元不可",
         "action": {
-          "proceed": "削除実行へ進む"
-        }
+          "proceed": "削除の確認へ",
+          "retry": "見積りを再取得"
+        },
+        "threshold": "{{date}}以前に終了したスコアタの画像が対象です。",
+        "empty": "削除対象の画像はありません。",
+        "unknown_sizes": "容量不明の画像: {{value}} 枚（見込み容量に含まれません）"
       },
       "cleanup_confirm": {
-        "title": "最終確認",
-        "description": "画像を削除します。復元できません。実行してよいですか？",
+        "title": "画像の削除",
+        "description": "対象の画像を削除します。スコアタデータと曲データは残ります。削除した画像は復元できません。",
         "action": {
-          "execute": "最終確認して実行"
-        }
+          "execute": "画像を削除"
+        },
+        "running": "画像を削除中…"
+      },
+      "cleanup_scope": "画像のみ削除します。スコアタデータと曲データは残ります。削除した画像は復元できません。",
+      "help": {
+        "title": "画像削除について",
+        "description": "容量整理と自動削除は、スコアタの終了から設定した日数（1〜3650日）が経過した画像が対象です。自動削除が無効でも、容量整理には設定した日数を使います。"
       }
     },
     "app": {
@@ -916,31 +932,32 @@
       }
     },
     "danger": {
-      "title": "危険操作",
-      "description": "ローカル初期化を実行すると以下を削除します。",
+      "title": "端末内データの初期化",
+      "description": "この端末のスコアタデータ・画像・曲データをすべて削除します。復元できません。",
       "items": {
         "tournament": "スコアタデータ",
-        "images": "提出画像",
+        "images": "登録画像",
         "song_data": "曲データ"
       },
       "not_restorable": "復元できません。",
       "action": {
-        "reset_local": "ローカル初期化",
+        "reset_local": "初期化の確認へ",
         "execute_reset": "初期化を実行"
       },
       "guide": {
-        "title": "ローカル初期化を実行しますか？",
-        "description": "以下を削除します（復元不可）。",
-        "next_hint": "次へ進むと確認文字列の入力が必要です。"
+        "title": "削除対象",
+        "description": "この端末の次のデータをすべて削除します。",
+        "next_hint": "次の画面で確認文字列を入力してから実行します。"
       },
       "final": {
-        "title": "最終確認",
-        "description": "実行するには確認文字列を入力してください。実行後は初期状態に戻ります。"
+        "title": "初期化の最終確認",
+        "description": "この端末のスコアタデータ・画像・曲データをすべて削除し、初期状態に戻します。"
       },
       "confirm_label": "確認文字列",
       "confirm_placeholder": "削除",
       "confirm_helper": "「{{token}}」と入力すると実行できます。",
-      "reset_confirm_token": "削除"
+      "reset_confirm_token": "削除",
+      "running": "初期化中…"
     },
     "logs": {
       "copied": "ログをコピーしました。",
