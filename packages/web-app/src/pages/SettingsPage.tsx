@@ -30,6 +30,7 @@ import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useTranslation } from 'react-i18next';
 
 import type { AppLanguage } from '../i18n';
+import { ContextHelp } from '../components/ContextHelp';
 import { resolveSongMasterRuntimeConfig } from '../services/song-master-config';
 import { resolveErrorMessage } from '../utils/error-i18n';
 
@@ -794,8 +795,9 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             <Stack direction="row" spacing={1} alignItems="center">
               {hStyle.icon}
               <Typography variant="h6" component="h2" fontWeight={700}>
-                {t('settings.health.summary', { level: t(healthLabelKey(health.level)) })}
+                {t('settings.health.summary')}
               </Typography>
+              <Chip size="small" color={hStyle.color} label={t(healthLabelKey(health.level))} />
             </Stack>
             <Button
               variant="contained"
@@ -813,6 +815,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
               </Typography>
             ))}
           </Stack>
+          <Typography variant="body2">{t(`settings.health.hint.${health.action}`)}</Typography>
         </Card>
       ) : null}
 
@@ -954,9 +957,14 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
       </Card>
 
       <Card variant="outlined" sx={cardSx}>
-        <Typography variant="h6" component="h2" fontWeight={700}>
-          {t('settings.storage.title')}
-        </Typography>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6" component="h2" fontWeight={700}>
+            {t('settings.storage.title')}
+          </Typography>
+          <ContextHelp title={t('settings.storage.help.title')} disabled={cleanupLoading || cleanupRunning || savingAutoDelete}>
+            <Typography variant="body2">{t('settings.storage.help.description')}</Typography>
+          </ContextHelp>
+        </Stack>
         <List dense disablePadding>
           {row(
             t('settings.storage.usage'),
@@ -969,6 +977,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           )}
           {row(t('settings.storage.risk'), t(riskKey(capacityRisk)))}
         </List>
+        <Typography variant="body2">{t('settings.storage.cleanup_scope')}</Typography>
         <Button variant="contained" onClick={openCleanupDialog} disabled={cleanupLoading || cleanupRunning}>
           {t('settings.storage.action.cleanup')}
         </Button>
@@ -998,9 +1007,16 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             setDays(next);
             void saveAutoDelete(enabled, next);
           }}
-          helperText={t('settings.storage.auto_delete.helper')}
         />
         {autoDeleteError ? <Alert severity="warning">{autoDeleteError}</Alert> : null}
+        {props.lastCleanupResult ? (
+          <Alert severity="success" role="status">
+            {t('settings.storage.detail.last_result', {
+              value: props.lastCleanupResult.deletedImageCount,
+              date: fmtDate(props.lastCleanupResult.executedAt, dateLocale, noneText),
+            })}
+          </Alert>
+        ) : null}
         <Accordion disableGutters elevation={0} sx={accordionSx}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="body2" fontWeight={700}>
@@ -1018,9 +1034,16 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
               )}
               {row(
                 t('settings.storage.detail.released'),
-                props.lastCleanupResult ? fmtBytes(props.lastCleanupResult.releasedBytes, unknownText) : noneText,
+                props.lastCleanupResult
+                  ? props.lastCleanupResult.releasedBytes === null ? unknownText : fmtBytes(props.lastCleanupResult.releasedBytes, unknownText)
+                  : noneText,
               )}
             </List>
+            {props.lastCleanupResult && props.lastCleanupResult.unknownSizeCount > 0 ? (
+              <Typography variant="body2">
+                {t('settings.storage.detail.unknown_sizes', { value: props.lastCleanupResult.unknownSizeCount })}
+              </Typography>
+            ) : null}
           </AccordionDetails>
         </Accordion>
       </Card>
@@ -1152,18 +1175,6 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         </Typography>
         <Stack spacing={0.5}>
           <Typography variant="body2">{t('settings.danger.description')}</Typography>
-          <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
-            {t('settings.danger.items.tournament')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
-            {t('settings.danger.items.images')}
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'var(--text-subtle)' }}>
-            {t('settings.danger.items.song_data')}
-          </Typography>
-          <Typography variant="body2" color="error.main">
-            {t('settings.danger.not_restorable')}
-          </Typography>
         </Stack>
         <Button
           color="error"
@@ -1183,6 +1194,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
           <Typography variant="body2">{t('settings.danger.items.tournament')}</Typography>
           <Typography variant="body2">{t('settings.danger.items.images')}</Typography>
           <Typography variant="body2">{t('settings.danger.items.song_data')}</Typography>
+          <Typography variant="body2" color="error.main">{t('settings.danger.not_restorable')}</Typography>
           <Typography variant="caption" sx={{ color: 'var(--text-subtle)' }}>
             {t('settings.danger.guide.next_hint')}
           </Typography>
@@ -1207,6 +1219,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         <DialogTitle>{t('settings.danger.final.title')}</DialogTitle>
         <DialogContent sx={{ display: 'grid', gap: 1.25 }}>
           <DialogContentText>{t('settings.danger.final.description')}</DialogContentText>
+          <Typography variant="body2" color="error.main">{t('settings.danger.not_restorable')}</Typography>
           <TextField
             label={t('settings.danger.confirm_label')}
             size="small"
@@ -1218,10 +1231,9 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             inputProps={{ 'data-testid': 'settings-reset-confirm-input' }}
           />
           {resetError ? (
-            <Typography variant="caption" color="error.main">
-              {resetError}
-            </Typography>
+            <Alert severity="error">{resetError}</Alert>
           ) : null}
+          {resetRunning ? <Typography role="status">{t('settings.danger.running')}</Typography> : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={closeResetFinalDialog} disabled={resetRunning}>
@@ -1234,7 +1246,7 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             disabled={!canRunReset || resetRunning || props.busy}
             data-testid="settings-reset-execute-button"
           >
-            {t('settings.danger.action.execute_reset')}
+            {t(resetRunning ? 'settings.danger.running' : 'settings.danger.action.execute_reset')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1274,41 +1286,49 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={cleanupDialogOpen} onClose={() => setCleanupDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={cleanupDialogOpen} onClose={() => { if (!cleanupRunning) setCleanupDialogOpen(false); }} maxWidth="sm" fullWidth>
         <DialogTitle>{t('settings.storage.cleanup_dialog.title')}</DialogTitle>
         <DialogContent sx={{ display: 'grid', gap: 1.2 }}>
           {cleanupLoading ? (
-            <Typography variant="body2">{t('settings.storage.cleanup_dialog.loading')}</Typography>
-          ) : (
+            <Typography variant="body2" role="status">{t('settings.storage.cleanup_dialog.loading')}</Typography>
+          ) : cleanupEstimate ? (
             <>
               <Typography variant="body2">
+                {t('settings.storage.cleanup_dialog.threshold', { date: cleanupEstimate.thresholdDate })}
+              </Typography>
+              <Typography variant="body2">
                 {t('settings.storage.cleanup_dialog.target_tournament_count', {
-                  value: cleanupEstimate ? cleanupEstimate.targetTournamentCount : noneText,
+                  value: cleanupEstimate.targetTournamentCount,
                 })}
               </Typography>
               <Typography variant="body2">
                 {t('settings.storage.cleanup_dialog.target_image_count', {
-                  value: cleanupEstimate ? cleanupEstimate.targetImageCount : noneText,
+                  value: cleanupEstimate.targetImageCount,
                 })}
               </Typography>
               <Typography variant="body2">
                 {t('settings.storage.cleanup_dialog.estimated_release', {
-                  size: cleanupEstimate ? fmtBytes(cleanupEstimate.estimatedReleaseBytes, unknownText) : noneText,
+                  size: cleanupEstimate.estimatedReleaseBytes === null ? unknownText : fmtBytes(cleanupEstimate.estimatedReleaseBytes, unknownText),
                 })}
               </Typography>
-              <Typography variant="body2">{t('settings.storage.cleanup_dialog.not_restorable')}</Typography>
+              {cleanupEstimate.unknownSizeCount > 0 ? (
+                <Typography variant="body2">
+                  {t('settings.storage.cleanup_dialog.unknown_sizes', { value: cleanupEstimate.unknownSizeCount })}
+                </Typography>
+              ) : null}
+              {!cleanupCanProceed ? <Typography role="status">{t('settings.storage.cleanup_dialog.empty')}</Typography> : null}
+              <Typography variant="body2">{t('settings.storage.cleanup_scope')}</Typography>
             </>
-          )}
-          {cleanupError ? (
-            <Typography variant="caption" color="error.main">
-              {cleanupError}
-            </Typography>
           ) : null}
+          {cleanupError && !cleanupConfirmOpen ? <Alert severity="error">{cleanupError}</Alert> : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCleanupDialogOpen(false)} disabled={cleanupRunning}>
             {t('common.close')}
           </Button>
+          {cleanupError && !cleanupEstimate ? (
+            <Button onClick={openCleanupDialog} disabled={cleanupLoading}>{t('settings.storage.cleanup_dialog.action.retry')}</Button>
+          ) : null}
           <Button
             color="error"
             variant="contained"
@@ -1320,17 +1340,22 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={cleanupConfirmOpen} onClose={() => setCleanupConfirmOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={cleanupConfirmOpen} onClose={() => { if (!cleanupRunning) setCleanupConfirmOpen(false); }} maxWidth="xs" fullWidth>
         <DialogTitle>{t('settings.storage.cleanup_confirm.title')}</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ display: 'grid', gap: 1.25 }}>
           <DialogContentText>{t('settings.storage.cleanup_confirm.description')}</DialogContentText>
+          <Typography variant="body2">
+            {t('settings.storage.cleanup_dialog.target_image_count', { value: cleanupEstimate?.targetImageCount ?? 0 })}
+          </Typography>
+          {cleanupRunning ? <Typography role="status">{t('settings.storage.cleanup_confirm.running')}</Typography> : null}
+          {cleanupError ? <Alert severity="error">{cleanupError}</Alert> : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCleanupConfirmOpen(false)} disabled={cleanupRunning}>
             {t('common.cancel')}
           </Button>
           <Button color="error" variant="contained" onClick={() => void runCleanup()} disabled={cleanupRunning}>
-            {t('settings.storage.cleanup_confirm.action.execute')}
+            {t(cleanupRunning ? 'settings.storage.cleanup_confirm.running' : 'settings.storage.cleanup_confirm.action.execute')}
           </Button>
         </DialogActions>
       </Dialog>

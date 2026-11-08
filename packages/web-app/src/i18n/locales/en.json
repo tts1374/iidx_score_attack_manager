@@ -711,24 +711,29 @@
       }
     },
     "health": {
-      "summary": "Health summary: {{level}}",
+      "summary": "Status",
       "level": {
         "normal": "Normal",
         "caution": "Caution",
         "abnormal": "Abnormal"
       },
       "action": {
-        "restart": "Close other tabs and restart",
-        "fetch_song": "Fetch song data",
+        "restart": "Reload",
+        "fetch_song": "Check song data updates",
         "cleanup": "Clean up storage",
         "default": "Run action"
       },
       "reason": {
-        "web_locks_failed": "Web Locks: acquisition failed",
-        "song_unavailable": "Song data: unavailable",
-        "opfs_error": "OPFS: access failed",
-        "db_integrity_error": "DB integrity: error",
-        "capacity_critical": "Storage: critical risk"
+        "web_locks_failed": "The app is not ready for use.",
+        "song_unavailable": "No usable song data is available.",
+        "opfs_error": "Storage on this device cannot be accessed.",
+        "db_integrity_error": "An inconsistency was found in saved data.",
+        "capacity_critical": "Storage space is running low."
+      },
+      "hint": {
+        "restart": "If this app is open in other tabs, close them, then try reloading.",
+        "fetch_song": "Check for song data updates.",
+        "cleanup": "You can free up space by deleting old images."
       }
     },
     "song_data": {
@@ -824,32 +829,43 @@
       },
       "auto_delete": {
         "enable": "Enable automatic image deletion",
-        "days_label": "Delete images N days after end",
-        "helper": "Score Attack data remains; only images are deleted (not restorable)."
+        "days_label": "Days after end before image deletion"
       },
       "detail": {
         "last_run_at": "Last run",
         "deleted_image_count": "Deleted images",
         "deleted_image_count_value": "{{value}} images",
-        "released": "Released size"
+        "released": "Released size",
+        "last_result": "Last cleanup: {{date}}, {{value}} images deleted.",
+        "unknown_sizes": "Images of unknown size: {{value}} (excluded from the released size)"
       },
       "cleanup_dialog": {
-        "title": "Clean up storage",
+        "title": "Image deletion estimate",
         "loading": "Loading estimate...",
-        "target_tournament_count": "Target Score Attacks to delete: {{value}}",
+        "target_tournament_count": "Score Attacks with images to delete: {{value}}",
         "target_image_count": "Target images to delete: {{value}}",
         "estimated_release": "Estimated release size: {{size}}",
         "not_restorable": "Not restorable",
         "action": {
-          "proceed": "Proceed to deletion"
-        }
+          "proceed": "Review deletion",
+          "retry": "Retry estimate"
+        },
+        "threshold": "Images from Score Attacks ending on or before {{date}} are eligible.",
+        "empty": "There are no images to delete.",
+        "unknown_sizes": "Images of unknown size: {{value}} (excluded from the size estimate)"
       },
       "cleanup_confirm": {
-        "title": "Final confirmation",
-        "description": "Images will be deleted and cannot be restored. Continue?",
+        "title": "Delete images",
+        "description": "Eligible images will be deleted. Score Attack and song data remain. Deleted images cannot be restored.",
         "action": {
-          "execute": "Confirm and run"
-        }
+          "execute": "Delete images"
+        },
+        "running": "Deleting images…"
+      },
+      "cleanup_scope": "Only images are deleted. Score Attack and song data remain. Deleted images cannot be restored.",
+      "help": {
+        "title": "About image deletion",
+        "description": "Storage cleanup and automatic deletion target images from Score Attacks that ended the configured number of days ago (1–3650 days). Storage cleanup uses this value even when automatic deletion is off."
       }
     },
     "app": {
@@ -918,31 +934,32 @@
       }
     },
     "danger": {
-      "title": "Danger zone",
-      "description": "Running local reset deletes the following items.",
+      "title": "Reset device data",
+      "description": "Delete all Score Attack data, images, and song data on this device. Deleted data cannot be restored.",
       "items": {
         "tournament": "Score Attack data",
-        "images": "Submitted images",
+        "images": "Registered images",
         "song_data": "Song data"
       },
       "not_restorable": "Cannot be restored.",
       "action": {
-        "reset_local": "Local reset",
+        "reset_local": "Review reset",
         "execute_reset": "Run reset"
       },
       "guide": {
-        "title": "Run local reset?",
-        "description": "The following items will be deleted (not restorable).",
-        "next_hint": "Proceeding requires entering a confirmation token."
+        "title": "Data to delete",
+        "description": "All of the following data on this device will be deleted.",
+        "next_hint": "Enter the confirmation token on the next screen before running the reset."
       },
       "final": {
-        "title": "Final confirmation",
-        "description": "Enter the confirmation token to run. After running, the app returns to initial state."
+        "title": "Confirm reset",
+        "description": "All Score Attack data, images, and song data on this device will be deleted, returning the app to its initial state."
       },
       "confirm_label": "Confirmation token",
       "confirm_placeholder": "DELETE",
       "confirm_helper": "Enter \"{{token}}\" to enable execution.",
-      "reset_confirm_token": "DELETE"
+      "reset_confirm_token": "DELETE",
+      "running": "Resetting…"
     },
     "logs": {
       "copied": "Logs copied.",

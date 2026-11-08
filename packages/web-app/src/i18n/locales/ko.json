@@ -709,24 +709,29 @@
       }
     },
     "health": {
-      "summary": "상태 요약: {{level}}",
+      "summary": "상태",
       "level": {
         "normal": "정상",
         "caution": "주의",
         "abnormal": "이상"
       },
       "action": {
-        "restart": "다른 탭을 닫고 다시 시작합니다",
-        "fetch_song": "곡 데이터를 가져옵니다",
+        "restart": "새로고침",
+        "fetch_song": "곡 데이터 업데이트 확인",
         "cleanup": "저장 공간을 정리합니다",
         "default": "조치를 실행합니다"
       },
       "reason": {
-        "web_locks_failed": "Web Locks: 획득 실패",
-        "song_unavailable": "곡 데이터: 사용 불가",
-        "opfs_error": "OPFS: 접근 실패",
-        "db_integrity_error": "DB 무결성: 오류",
-        "capacity_critical": "저장 공간: 부족 위험"
+        "web_locks_failed": "앱을 사용할 준비가 되지 않았습니다.",
+        "song_unavailable": "사용할 수 있는 곡 데이터가 없습니다.",
+        "opfs_error": "이 기기의 저장 공간에 접근할 수 없습니다.",
+        "db_integrity_error": "저장된 데이터에서 불일치가 발견되었습니다.",
+        "capacity_critical": "저장 공간이 부족해지고 있습니다."
+      },
+      "hint": {
+        "restart": "다른 탭에서 이 앱을 열어 두었다면 닫은 후 새로고침을 시도해 주세요.",
+        "fetch_song": "곡 데이터 업데이트를 확인해 주세요.",
+        "cleanup": "오래된 이미지를 삭제하여 여유 공간을 확보할 수 있습니다."
       }
     },
     "song_data": {
@@ -822,32 +827,43 @@
       },
       "auto_delete": {
         "enable": "이미지 자동 삭제를 활성화합니다",
-        "days_label": "종료 후 N일 뒤 이미지 삭제",
-        "helper": "스코어 어택 데이터는 유지되고 이미지만 삭제됩니다(복원 불가)."
+        "days_label": "종료 후 이미지 삭제까지의 일수"
       },
       "detail": {
         "last_run_at": "최근 실행 시각",
         "deleted_image_count": "삭제된 이미지 수",
         "deleted_image_count_value": "{{value}}장",
-        "released": "해제 용량"
+        "released": "해제 용량",
+        "last_result": "지난 정리: {{date}}, 이미지 {{value}}장을 삭제했습니다.",
+        "unknown_sizes": "용량을 알 수 없는 이미지: {{value}}장(해제 용량에 포함되지 않음)"
       },
       "cleanup_dialog": {
-        "title": "저장 공간 정리",
+        "title": "이미지 삭제 예상치",
         "loading": "예상치를 가져오는 중...",
-        "target_tournament_count": "삭제 대상 스코어 어택 수: {{value}}",
+        "target_tournament_count": "이미지를 삭제할 스코어 어택 수: {{value}}",
         "target_image_count": "삭제 대상 이미지 수: {{value}}",
         "estimated_release": "예상 해제 용량: {{size}}",
         "not_restorable": "복원할 수 없습니다",
         "action": {
-          "proceed": "삭제 실행으로 진행합니다"
-        }
+          "proceed": "삭제 확인으로",
+          "retry": "예상치 다시 가져오기"
+        },
+        "threshold": "{{date}} 이전 또는 당일에 종료한 스코어 어택의 이미지가 대상입니다.",
+        "empty": "삭제할 이미지가 없습니다.",
+        "unknown_sizes": "용량을 알 수 없는 이미지: {{value}}장(예상 용량에 포함되지 않음)"
       },
       "cleanup_confirm": {
-        "title": "최종 확인",
-        "description": "이미지를 삭제합니다. 복원할 수 없습니다. 실행할까요?",
+        "title": "이미지 삭제",
+        "description": "대상 이미지를 삭제합니다. 스코어 어택 데이터와 곡 데이터는 유지됩니다. 삭제한 이미지는 복원할 수 없습니다.",
         "action": {
-          "execute": "최종 확인 후 실행합니다"
-        }
+          "execute": "이미지 삭제"
+        },
+        "running": "이미지 삭제 중…"
+      },
+      "cleanup_scope": "이미지만 삭제합니다. 스코어 어택 데이터와 곡 데이터는 유지됩니다. 삭제한 이미지는 복원할 수 없습니다.",
+      "help": {
+        "title": "이미지 삭제 안내",
+        "description": "저장 공간 정리와 자동 삭제는 스코어 어택 종료 후 설정한 일수(1~3650일)가 지난 이미지를 대상으로 합니다. 자동 삭제가 꺼져 있어도 저장 공간 정리에는 설정한 일수를 사용합니다."
       }
     },
     "app": {
@@ -916,31 +932,32 @@
       }
     },
     "danger": {
-      "title": "위험 작업",
-      "description": "로컬 초기화를 실행하면 아래 항목을 삭제합니다.",
+      "title": "기기 내 데이터 초기화",
+      "description": "이 기기의 스코어 어택 데이터·이미지·곡 데이터를 모두 삭제합니다. 복원할 수 없습니다.",
       "items": {
         "tournament": "스코어 어택 데이터",
-        "images": "제출 이미지",
+        "images": "등록 이미지",
         "song_data": "곡 데이터"
       },
       "not_restorable": "복원할 수 없습니다.",
       "action": {
-        "reset_local": "로컬 초기화",
+        "reset_local": "초기화 확인으로",
         "execute_reset": "초기화를 실행합니다"
       },
       "guide": {
-        "title": "로컬 초기화를 실행할까요?",
-        "description": "아래 항목을 삭제합니다(복원 불가).",
-        "next_hint": "다음 단계로 진행하려면 확인 문자열 입력이 필요합니다."
+        "title": "삭제 대상",
+        "description": "이 기기의 다음 데이터를 모두 삭제합니다.",
+        "next_hint": "다음 화면에서 확인 문자열을 입력한 후 실행합니다."
       },
       "final": {
-        "title": "최종 확인",
-        "description": "실행하려면 확인 문자열을 입력합니다. 실행 후 초기 상태로 돌아갑니다."
+        "title": "초기화 최종 확인",
+        "description": "이 기기의 스코어 어택 데이터·이미지·곡 데이터를 모두 삭제하고 초기 상태로 되돌립니다."
       },
       "confirm_label": "확인 문자열",
       "confirm_placeholder": "삭제",
       "confirm_helper": "\"{{token}}\"을 입력하면 실행할 수 있습니다.",
-      "reset_confirm_token": "삭제"
+      "reset_confirm_token": "삭제",
+      "running": "초기화 중…"
     },
     "logs": {
       "copied": "로그를 복사했습니다.",
