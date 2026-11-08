@@ -31,6 +31,7 @@ import { useAppServices } from '../services/context';
 import { resolvePublicCatalogErrorI18n } from '../services/public-catalog-client';
 import { buildPublicTournamentPayloadFromDetail, publishTournamentDefinition } from '../services/public-catalog-publish';
 import { ChartCard } from '../components/ChartCard';
+import { ContextHelp } from '../components/ContextHelp';
 import { toSafeArrayBuffer } from '../utils/image';
 import { buildImportUrl } from '../utils/payload-url';
 import { difficultyColorHex } from '../utils/iidx';
@@ -1707,16 +1708,19 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
         maxWidth="sm"
         data-testid="tournament-detail-submit-dialog"
       >
-        <DialogTitle>{t(submitMode === 'resubmit' ? 'tournament_detail.submit_dialog.resubmit_title' : 'tournament_detail.submit_dialog.title')}</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {t(submitMode === 'resubmit' ? 'tournament_detail.submit_dialog.resubmit_title' : 'tournament_detail.submit_dialog.title')}
+          <ContextHelp title={t('tournament_detail.submit_dialog.help.title')} disabled={submitBusy}>
+            <Typography variant="body2">{t('tournament_detail.submit_dialog.help.status')}</Typography>
+            <Typography variant="body2">{t('tournament_detail.submit_dialog.help.fallback')}</Typography>
+          </ContextHelp>
+        </DialogTitle>
         <DialogContent dividers>
           <Typography variant="body1" data-testid="tournament-detail-submit-confirm-text">
             {submitDialogConfirmText}
           </Typography>
           <Typography variant="body2" sx={{ mt: 1.5 }}>
             {t('tournament_detail.submit_dialog.images_description')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {t('tournament_detail.submit_dialog.delivery_note')}
           </Typography>
           {submitMode === 'resubmit' ? (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }} data-testid="tournament-detail-submit-resubmit-note">

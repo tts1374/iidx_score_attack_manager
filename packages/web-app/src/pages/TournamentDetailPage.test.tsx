@@ -531,6 +531,23 @@ describe('TournamentDetailPage', () => {
     expect(screen.getByTestId('tournament-detail-submit-resubmit-note').textContent).toBe('端末内の画像と共有済の状態は変わりません。');
   });
 
+  it('keeps submission explanations in optional help and closes it without closing confirmation', async () => {
+    renderPage();
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    expect(screen.queryByText(/共有操作後は/)).toBeNull();
+    expect(screen.queryByText(/共有できない場合は/)).toBeNull();
+    const help = screen.getByRole('button', { name: 'スコア提出の説明' });
+    await userEvent.click(help);
+    const dialog = screen.getByRole('dialog', { name: 'スコア提出の説明' });
+    expect(within(dialog).getByText(/投稿・受領は共有先で確認/)).toBeTruthy();
+    expect(within(dialog).getByText(/画像の保存とメッセージのコピー/)).toBeTruthy();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'スコア提出の説明' })).toBeNull());
+    expect(screen.getByTestId('tournament-detail-submit-share-button')).toBeTruthy();
+    expect(document.activeElement).toBe(help);
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
+  });
+
   it('marks as shared only on success and allows undo for the latest operation', async () => {
     const { share } = mockWebShareAvailable();
     renderPage();

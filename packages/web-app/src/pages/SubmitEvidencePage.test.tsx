@@ -1,6 +1,7 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
 
 import { SubmitEvidencePage } from './SubmitEvidencePage';
@@ -65,7 +66,7 @@ describe('SubmitEvidencePage', () => {
     const badge = screen.queryByTestId('submit-evidence-header-state-badge');
     if (state === 'shared') expect(badge).toBeNull();
     else expect(badge?.getAttribute('data-chart-state')).toBe(state);
-    expect(screen.getByText('端末内に保存します。提出は大会詳細から。')).toBeTruthy();
+    expect(screen.getByText('この端末に保存')).toBeTruthy();
     expect(screen.getByRole('button', { name: '画像を選んで保存' })).toBeTruthy();
     if (overrides.updateSeq && !overrides.fileDeleted) expect(screen.getByText(/保存済みの画像を置き換え/)).toBeTruthy();
     else expect(screen.queryByText(/保存済みの画像を置き換え/)).toBeNull();
@@ -80,6 +81,19 @@ describe('SubmitEvidencePage', () => {
     expect(screen.getByAltText('端末に登録したスコア画像')).toBeTruthy();
     expect(screen.getByTestId('submit-evidence-header-state-badge').getAttribute('data-chart-state')).toBe('unshared');
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('opens optional submission guidance from the help icon and returns focus on close', async () => {
+    renderPage();
+    expect(screen.queryByText(/登録した画像は/)).toBeNull();
+    const help = screen.getByRole('button', { name: '画像登録の説明' });
+    await userEvent.click(help);
+    const dialog = screen.getByRole('dialog', { name: '画像登録の説明' });
+    expect(within(dialog).getByText('登録した画像は、大会詳細の「スコアを提出」から共有します。')).toBeTruthy();
+    await userEvent.click(within(dialog).getByRole('button', { name: '閉じる' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(help);
+    expect(mocks.reencode).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -102,7 +116,8 @@ describe('SubmitEvidencePage', () => {
     const onSaved = renderPage();
     selectImage();
     await screen.findByRole('status');
-    expect((screen.getByRole('button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '保存中' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '画像登録の説明' }) as HTMLButtonElement).disabled).toBe(true);
     document.querySelectorAll<HTMLInputElement>('input[type="file"]').forEach(input => expect(input.disabled).toBe(true));
     selectImage();
     expect(mocks.reencode).toHaveBeenCalledTimes(1);

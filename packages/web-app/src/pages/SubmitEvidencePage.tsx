@@ -2,8 +2,10 @@ import React from 'react';
 import { sha256Hex } from '@iidx/shared';
 import type { TournamentDetailChart, TournamentDetailItem } from '@iidx/db';
 import { useTranslation } from 'react-i18next';
+import { Box, Typography } from '@mui/material';
 
 import { ChartCard } from '../components/ChartCard';
+import { ContextHelp } from '../components/ContextHelp';
 import { useAppServices } from '../services/context';
 import { reencodeImageToJpeg, toSafeArrayBuffer } from '../utils/image';
 
@@ -264,7 +266,12 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
       </section>
 
       <section className="detailCard submitPickerCard">
-        <p className="submitLocalStorageNote">{t('submit_evidence.note.local_only_inline')}</p>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p className="submitLocalStorageNote">{t('submit_evidence.note.local_only_inline')}</p>
+          <ContextHelp title={t('submit_evidence.help.title')} disabled={isProcessing}>
+            <Typography variant="body2">{t('submit_evidence.help.submission')}</Typography>
+          </ContextHelp>
+        </Box>
         {localSaved ? <p className="submitLocalStorageNote">{t('submit_evidence.note.replace_effect')}</p> : null}
         <div className="submitPickerButtonStack">
           {showCameraAction ? (

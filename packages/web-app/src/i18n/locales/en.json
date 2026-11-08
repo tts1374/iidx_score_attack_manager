@@ -662,7 +662,7 @@
     },
     "note": {
       "local_only": "Images are saved only on this device.",
-      "local_only_inline": "Saved on this device. Submit from the tournament details.",
+      "local_only_inline": "Saved on this device",
       "not_sent": "Images are not sent to other people.",
       "replace_effect": "This replaces the saved image and resets its status to Unshared."
     },
@@ -691,7 +691,8 @@
       "title": "Delete submitted image?",
       "description": "This action cannot be undone.",
       "confirm": "Delete"
-    }
+    },
+    "help": {"title": "About image registration", "submission": "Share registered images using “Submit scores” in the tournament details."}
   },
   "settings": {
     "title": "Settings",
@@ -1088,7 +1089,7 @@
         "no_sendable_images": "There are no unshared images available for sharing."
       },
       "resubmit_title": "Score resubmission",
-      "delivery_note": "Check posting and receipt at the destination."
+      "help": {"title": "About score submission", "status": "Sharing marks images as Shared in this app. Check posting and receipt at the destination.", "fallback": "If sharing is unavailable or fails, image downloads and message copying are used instead."}
     }
   },
   "whats_new": {
