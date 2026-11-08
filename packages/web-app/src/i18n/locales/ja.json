@@ -310,25 +310,27 @@
       "import_file": "ファイル取込",
       "open_settings": "設定を開く",
       "import": "取り込む",
-      "importing": "取り込み中..."
+      "importing": "取り込み中...",
+      "ok": "OK"
     },
     "state": {
-      "loading": "取り込みデータを検証しています..."
+      "loading": "取り込みデータを検証しています...",
+      "wait": "確認が終わるまでお待ちください。"
     },
     "error": {
-      "none": "URLインポートリンクを認識できませんでした。",
-      "invalid_param": "URLパラメータが不正です。",
-      "decode_error": "ペイロードのデコードに失敗しました。",
-      "decompress_error": "ペイロードのgzip展開に失敗しました。",
-      "json_error": "ペイロードJSONの解析に失敗しました。",
-      "schema_error": "取り込みデータの必須項目または型が不正です。",
-      "too_large": "取り込みデータサイズが上限を超えています。",
-      "expired": "終了済みのスコアタは取り込みできません。",
-      "master_missing": "曲マスタが未取得のため検証できません。",
-      "chart_not_found": "曲マスタに存在しない譜面があります: {{chartIds}}",
-      "unsupported_version": "対応していないデータバージョンです。",
-      "period_conflict": "UUID一致の既存スコアタと開催期間が矛盾するため取り込みできません。",
-      "unexpected": "予期しないエラー: {{message}}"
+      "none": "取込リンクを確認できません。",
+      "invalid_param": "取込リンクが正しくありません。",
+      "decode_error": "リンクの大会情報を読み取れません。",
+      "decompress_error": "リンクの大会情報を読み取れません。",
+      "json_error": "リンクの大会情報を読み取れません。",
+      "schema_error": "大会情報が不足しているか、形式が正しくありません。",
+      "too_large": "大会情報が大きすぎるため取り込めません。",
+      "expired": "終了済みのスコアタは取り込めません。",
+      "master_missing": "曲データがないため、譜面を確認できません。",
+      "chart_not_found": "この端末の曲データで確認できない譜面があります。",
+      "unsupported_version": "この大会情報は現在のアプリに対応していません。",
+      "period_conflict": "保存済みの同じスコアタと開催期間が異なるため取り込めません。",
+      "unexpected": "大会情報の確認に失敗しました。"
     },
     "confirm": {
       "section": {
@@ -346,21 +348,31 @@
         "chart_id": "chart:{{chartId}}",
         "chart_detail": "{{playStyle}} {{difficulty}} {{level}}"
       },
-      "chart_missing": "曲マスタ不一致 (chart:{{chartId}})",
+      "chart_missing": "曲データで確認できません",
       "summary": {
-        "create_new": "新規大会を作成します",
-        "update_existing": "既存大会を更新します（画像は保持）"
+        "create_new": "新しいスコアタをこの端末に追加します",
+        "update_existing": "不足している譜面を{{count}}件追加します",
+        "unchanged": "追加する譜面はありません。保存済みの内容は変わりません",
+        "target": "取込先：{{name}}",
+        "title": "取込内容"
       },
       "merge": {
         "mode": "適用方式: マージ（譜面のみ）",
         "added_charts": "追加される譜面数: {{count}}",
         "same_charts": "既存と同一の譜面数: {{count}}",
-        "note": "スコアタ名/開催者/期間/ハッシュタグは更新されません。"
+        "note": "保存済みの名前・開催者・期間・ハッシュタグと登録画像はそのまま残ります。"
       },
       "caution": {
         "keep_images": "・登録済みの画像は保持されます",
         "update_existing": "・同一大会は更新されます"
-      }
+      },
+      "chart_unknown": "不明な譜面",
+      "technical_details": "技術情報",
+      "error_title": "取り込めません"
+    },
+    "remedy": {
+      "song_data": "「設定を開く」から曲データを取得・更新し、元の取込リンクをもう一度開いてください。",
+      "open_link": "共有元の最新の取込リンクを開いてください。"
     }
   },
   "error": {

@@ -2,6 +2,7 @@ import React from 'react';
 import type { TournamentPayload } from '@iidx/shared';
 import type { ImportTargetTournament, SongMasterChartDetail } from '@iidx/db';
 import { useTranslation } from 'react-i18next';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 
 import { ChartCard } from '../components/ChartCard';
 import { TournamentSummaryCard } from '../components/TournamentSummaryCard';
@@ -46,7 +47,7 @@ function buildPreviewCharts(
   chartIds: number[],
   detailMap: Map<number, SongMasterChartDetail>,
   options: {
-    fallbackTitle: (chartId: number) => string;
+    fallbackTitle: () => string;
     notAvailableLabel: string;
   },
 ): PreviewChart[] {
@@ -55,7 +56,7 @@ function buildPreviewCharts(
     if (!found) {
       return {
         chartId,
-        title: options.fallbackTitle(chartId),
+        title: options.fallbackTitle(),
         playStyle: options.notAvailableLabel,
         difficulty: options.notAvailableLabel,
         level: options.notAvailableLabel,
@@ -78,6 +79,9 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
   const { t } = useTranslation();
   const [validationState, setValidationState] = React.useState<ImportConfirmState>({ status: 'loading' });
   const [applying, setApplying] = React.useState(false);
+  const [diagnosticMessage, setDiagnosticMessage] = React.useState<string | null>(null);
+  const errorTitleId = React.useId();
+  const errorDescriptionId = React.useId();
 
   const [locationPayload] = React.useState<ImportLocationPayloadResult>(() =>
     resolveImportPayloadFromLocation({
@@ -161,7 +165,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       const emptyPreview: ImportPreview = {
         payload,
         charts: buildPreviewCharts(payload.charts, new Map(), {
-          fallbackTitle: (chartId) => t('import.confirm.value.chart_id', { chartId }),
+          fallbackTitle: () => t('import.confirm.chart_unknown'),
           notAvailableLabel,
         }),
         existing: null,
@@ -197,7 +201,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       const previewWithMaster: ImportPreview = {
         ...emptyPreview,
         charts: buildPreviewCharts(payload.charts, chartDetailMap, {
-          fallbackTitle: (chartId) => t('import.confirm.value.chart_id', { chartId }),
+          fallbackTitle: () => t('import.confirm.chart_unknown'),
           notAvailableLabel,
         }),
       };
@@ -206,7 +210,7 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
         fail(
           {
             code: 'CHART_NOT_FOUND',
-            message: t('import.error.chart_not_found', { chartIds: missingChartIds.join(', ') }),
+            message: t('import.error.chart_not_found'),
           },
           previewWithMaster,
         );
@@ -240,10 +244,15 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
     };
 
     setValidationState({ status: 'loading' });
+    setDiagnosticMessage(null);
     void validate().catch((error) => {
+      if (cancelled) {
+        return;
+      }
+      setDiagnosticMessage(error instanceof Error ? error.message : String(error));
       fail({
         code: 'SCHEMA_ERROR',
-        message: t('import.error.unexpected', { message: error instanceof Error ? error.message : String(error) }),
+        message: t('import.error.unexpected'),
       });
     });
 
@@ -276,29 +285,61 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       : validationState.status === 'error'
         ? validationState.preview
         : undefined;
-  const isExistingTournament = Boolean(preview?.existing);
-  const importDiffSummaryText = isExistingTournament
-    ? t('import.confirm.summary.update_existing')
+  const existingChartIds = new Set(preview?.existing?.chartIds ?? []);
+  const addedChartCount = preview?.payload.charts.filter((chartId) => !existingChartIds.has(chartId)).length ?? 0;
+  const importDiffSummaryText = preview?.existing
+    ? addedChartCount > 0
+      ? t('import.confirm.summary.update_existing', { count: addedChartCount })
+      : t('import.confirm.summary.unchanged')
     : t('import.confirm.summary.create_new');
 
   return (
     <div className="page importConfirmPage">
       {validationState.status === 'loading' ? (
-        <section className="detailCard">
+        <section className="detailCard" role="status">
           <h2>{t('import.state.loading')}</h2>
+          <p className="hintText">{t('import.state.wait')}</p>
         </section>
       ) : null}
 
       {validationState.status === 'error' ? (
-        <section className="warningBox importConfirmErrorCard">
-          <p className="importConfirmErrorCode">{validationState.error.code}</p>
-          <p>{validationState.error.message}</p>
-          {showOpenSettingsAction ? (
-            <button onClick={props.onOpenSettings} disabled={props.busy}>
-              {t('import.action.open_settings')}
-            </button>
-          ) : null}
-        </section>
+        <Dialog
+          open
+          maxWidth="xs"
+          fullWidth
+          aria-labelledby={errorTitleId}
+          aria-describedby={errorDescriptionId}
+          slotProps={{ paper: { role: 'alertdialog' } }}
+          onClose={() => {
+            if (!props.busy) props.onBack();
+          }}
+        >
+          <DialogTitle id={errorTitleId}>{t('import.confirm.error_title')}</DialogTitle>
+          <DialogContent>
+            <div id={errorDescriptionId}>
+              <p>{validationState.error.message}</p>
+              <p>{t(showOpenSettingsAction ? 'import.remedy.song_data' : 'import.remedy.open_link')}</p>
+            </div>
+            <details>
+              <summary>{t('import.confirm.technical_details')}</summary>
+              <p className="importConfirmErrorCode">{validationState.error.code}</p>
+              {diagnosticMessage ? <p>{diagnosticMessage}</p> : null}
+              {preview?.charts.some((chart) => chart.missing) && validationState.error.code === 'CHART_NOT_FOUND' ? (
+                <p>{preview.charts.filter((chart) => chart.missing).map((chart) => `chart:${chart.chartId}`).join(', ')}</p>
+              ) : null}
+            </details>
+          </DialogContent>
+          <DialogActions>
+            {showOpenSettingsAction ? (
+              <Button onClick={props.onOpenSettings} disabled={props.busy}>
+                {t('import.action.open_settings')}
+              </Button>
+            ) : null}
+            <Button onClick={props.onBack} disabled={props.busy} autoFocus>
+              {t('import.action.ok')}
+            </Button>
+          </DialogActions>
+        </Dialog>
       ) : null}
 
       {preview ? (
@@ -312,7 +353,18 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
             periodText={t('import.confirm.value.period', { from: preview.payload.start, to: preview.payload.end })}
             cardClassName="importConfirmSummaryCard"
           />
-          <p className="hintText importConfirmDiffSummary">{importDiffSummaryText}</p>
+          {validationState.status === 'ready' ? (
+            <section className="detailCard">
+              <h3>{t('import.confirm.summary.title')}</h3>
+              <p>{importDiffSummaryText}</p>
+              {preview.existing ? (
+                <>
+                  <p>{t('import.confirm.summary.target', { name: preview.existing.tournamentName })}</p>
+                  <p className="hintText">{t('import.confirm.merge.note')}</p>
+                </>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="detailCard importConfirmChartsCard">
             <h3>{t('import.confirm.section.charts_with_count', { count: preview.charts.length })}</h3>
@@ -327,19 +379,13 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
                     titleClassName={chart.missing ? 'errorText importChartTitle' : 'importChartTitle'}
                     playStyleClassName={chart.missing ? 'errorText' : undefined}
                     difficultyLevelClassName={chart.missing ? 'errorText' : undefined}
-                    note={chart.missing ? t('import.confirm.chart_missing', { chartId: chart.chartId }) : null}
+                    note={chart.missing ? t('import.confirm.chart_missing') : null}
                     noteClassName="errorText"
                     variant="preview"
                   />
                 </li>
               ))}
             </ul>
-          </section>
-
-          <section className="detailCard">
-            <h3>{t('import.confirm.section.caution')}</h3>
-            <p className="hintText">{t('import.confirm.caution.keep_images')}</p>
-            <p className="hintText">{t('import.confirm.caution.update_existing')}</p>
           </section>
         </>
       ) : null}
