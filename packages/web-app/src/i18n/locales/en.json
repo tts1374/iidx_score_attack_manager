@@ -313,22 +313,23 @@
       "importing": "Importing..."
     },
     "state": {
-      "loading": "Validating import data..."
+      "loading": "Validating import data...",
+      "wait": "Please wait for the check to finish."
     },
     "error": {
-      "none": "Could not recognize the URL import link.",
-      "invalid_param": "The URL parameter is invalid.",
-      "decode_error": "Failed to decode the payload.",
-      "decompress_error": "Failed to decompress the payload (gzip).",
-      "json_error": "Failed to parse the payload JSON.",
-      "schema_error": "Required fields or types in import data are invalid.",
-      "too_large": "Import data size exceeds the limit.",
+      "none": "Could not recognize the import link.",
+      "invalid_param": "The import link is invalid.",
+      "decode_error": "Could not read the Score Attack information in this link.",
+      "decompress_error": "Could not read the Score Attack information in this link.",
+      "json_error": "Could not read the Score Attack information in this link.",
+      "schema_error": "The Score Attack information is incomplete or invalid.",
+      "too_large": "The Score Attack information is too large to import.",
       "expired": "Ended Score Attacks cannot be imported.",
-      "master_missing": "Cannot validate because song master data is missing.",
-      "chart_not_found": "Charts not found in song master data: {{chartIds}}",
-      "unsupported_version": "This data version is not supported.",
-      "period_conflict": "Import failed because the existing Score Attack with the same UUID has a conflicting period.",
-      "unexpected": "Unexpected error: {{message}}"
+      "master_missing": "Song data is needed to check the charts.",
+      "chart_not_found": "Some charts could not be found in the song data on this device.",
+      "unsupported_version": "This Score Attack information is not supported by the current app.",
+      "period_conflict": "The dates differ from the same Score Attack saved on this device, so it cannot be imported.",
+      "unexpected": "Could not check the Score Attack information."
     },
     "confirm": {
       "section": {
@@ -346,21 +347,31 @@
         "chart_id": "chart:{{chartId}}",
         "chart_detail": "{{playStyle}} {{difficulty}} {{level}}"
       },
-      "chart_missing": "Song master mismatch (chart:{{chartId}})",
+      "chart_missing": "Not found in song data",
       "summary": {
-        "create_new": "A new tournament will be created",
-        "update_existing": "The existing tournament will be updated (images are kept)"
+        "create_new": "Add a new Score Attack to this device",
+        "update_existing": "Add {{count}} missing charts to the saved Score Attack",
+        "unchanged": "No charts to add. The saved content will stay the same",
+        "target": "Import into: {{name}}",
+        "update_existing_one": "Add {{count}} missing chart to the saved Score Attack",
+        "update_existing_other": "Add {{count}} missing charts to the saved Score Attack"
       },
       "merge": {
         "mode": "Apply mode: Merge (charts only)",
         "added_charts": "Charts to add: {{count}}",
         "same_charts": "Charts already existing: {{count}}",
-        "note": "Score Attack name/owner/period/hashtag will not be updated."
+        "note": "The saved name, organizer, dates, hashtag, and registered images will be kept."
       },
       "caution": {
         "keep_images": "• Registered images are kept",
         "update_existing": "• Matching tournament IDs are updated"
-      }
+      },
+      "chart_unknown": "Unknown chart",
+      "technical_details": "Technical details"
+    },
+    "remedy": {
+      "song_data": "Use “Open settings” to download or update song data, then open the original import link again.",
+      "open_link": "Go back with Cancel and open the latest import link from the sender."
     }
   },
   "error": {
