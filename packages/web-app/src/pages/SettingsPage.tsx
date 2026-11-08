@@ -1293,31 +1293,37 @@ export function SettingsPage(props: SettingsPageProps): JSX.Element {
             <Typography variant="body2" role="status">{t('settings.storage.cleanup_dialog.loading')}</Typography>
           ) : cleanupEstimate ? (
             <>
-              <Typography variant="body2">
-                {t('settings.storage.cleanup_dialog.threshold', { date: cleanupEstimate.thresholdDate })}
-              </Typography>
-              <Typography variant="body2">
-                {t('settings.storage.cleanup_dialog.target_tournament_count', {
-                  value: cleanupEstimate.targetTournamentCount,
-                })}
-              </Typography>
-              <Typography variant="body2">
-                {t('settings.storage.cleanup_dialog.target_image_count', {
-                  value: cleanupEstimate.targetImageCount,
-                })}
-              </Typography>
-              <Typography variant="body2">
-                {t('settings.storage.cleanup_dialog.estimated_release', {
-                  size: cleanupEstimate.estimatedReleaseBytes === null ? unknownText : fmtBytes(cleanupEstimate.estimatedReleaseBytes, unknownText),
-                })}
-              </Typography>
-              {cleanupEstimate.unknownSizeCount > 0 ? (
-                <Typography variant="body2">
-                  {t('settings.storage.cleanup_dialog.unknown_sizes', { value: cleanupEstimate.unknownSizeCount })}
+              <Stack spacing={0.5}>
+                <Typography variant="h6" component="p" fontWeight={700}>
+                  {t('settings.storage.cleanup_dialog.target_image_count', {
+                    value: cleanupEstimate.targetImageCount,
+                  })}
                 </Typography>
-              ) : null}
+                <Typography variant="body2">
+                  {t('settings.storage.cleanup_dialog.estimated_release', {
+                    size: cleanupEstimate.estimatedReleaseBytes === null ? unknownText : fmtBytes(cleanupEstimate.estimatedReleaseBytes, unknownText),
+                  })}
+                </Typography>
+              </Stack>
+              <Stack spacing={0.5} sx={{ color: 'var(--text-subtle)' }}>
+                <Typography variant="caption">
+                  {t('settings.storage.cleanup_dialog.target_tournament_count', {
+                    value: cleanupEstimate.targetTournamentCount,
+                  })}
+                </Typography>
+                <Typography variant="caption">
+                  {t('settings.storage.cleanup_dialog.threshold', { date: cleanupEstimate.thresholdDate })}
+                </Typography>
+                {cleanupEstimate.unknownSizeCount > 0 ? (
+                  <Typography variant="caption">
+                    {t('settings.storage.cleanup_dialog.unknown_sizes', { value: cleanupEstimate.unknownSizeCount })}
+                  </Typography>
+                ) : null}
+              </Stack>
               {!cleanupCanProceed ? <Typography role="status">{t('settings.storage.cleanup_dialog.empty')}</Typography> : null}
-              <Typography variant="body2">{t('settings.storage.cleanup_scope')}</Typography>
+              <Typography variant="body2" sx={{ borderTop: '1px solid var(--border)', pt: 1.5 }}>
+                {t('settings.storage.cleanup_scope')}
+              </Typography>
             </>
           ) : null}
           {cleanupError && !cleanupConfirmOpen ? <Alert severity="error">{cleanupError}</Alert> : null}
