@@ -283,7 +283,18 @@ Implication:
 
 ---
 
-## 11. Task Skills
+## 11. UI Text And Information
+
+- Show the information needed to act, judge the current state, and understand the result. Prefer clear labels and placement before adding explanations; avoid repeating what the controls already communicate.
+- Use user-facing language and preserve established IIDX terms such as SP/DP and difficulty names. Keep implementation terms and internal identifiers in details/help/technical information when needed for diagnosis.
+- Show errors and remedies when relevant. Preserve important information about local storage, external sharing, import effects, irreversible deletion, and unregistered/unshared/shared progress at the decision point.
+- Keep ja/en/ko meanings and accessible labels aligned. Follow the existing glossary; do not promise behavior the application does not provide.
+- For screen improvement Issues, present actual before/after screenshots, or explicitly identify an unavailable capture and a reproducible alternative preview. Human approval of explanation volume, wording, operation, and retained important information is required before treating the screen as complete.
+- Apply shared findings to earlier approved screens when warranted: prioritize serious omissions/misunderstandings; collect minor candidates on the parent Issue and track needed changes separately. See [UI text design](docs/web-app-spec.md#ui-text-design) for the initial assessment and proposed sequence.
+
+---
+
+## 12. Task Skills
 
 Use the repository skill for the requested phase; read supporting material only when relevant.
 
