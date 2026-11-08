@@ -1255,7 +1255,9 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     const targetChartIds = targetCharts.map((chart) => chart.chartId);
     const changedCount = targetCharts.reduce((count, chart) => (resolveNeedsSend(chart) ? count + 1 : count), 0);
     const allowUndo = submitMode === 'submit';
-    let failureNoticeKey = 'tournament_detail.submit_dialog.notice.image_load_failed';
+    let failureNoticeKey = isActivePeriod
+      ? 'tournament_detail.submit_dialog.notice.image_load_failed'
+      : 'tournament_detail.submit_dialog.notice.image_load_failed_outside_period';
     try {
       const files = await collectSubmissionFiles(targetCharts);
       failureNoticeKey = 'tournament_detail.submit_dialog.notice.share_images_failed';
@@ -1308,6 +1310,7 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
     submitTargetCharts,
     submitMessageText,
     resolveNeedsSend,
+    isActivePeriod,
     t,
   ]);
 
@@ -1711,9 +1714,6 @@ export function TournamentDetailPage(props: TournamentDetailPageProps): JSX.Elem
           </Typography>
           <Typography variant="body2" sx={{ mt: 1.5 }}>
             {t('tournament_detail.submit_dialog.images_description')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {t('tournament_detail.submit_dialog.fallback_note')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {t('tournament_detail.submit_dialog.delivery_note')}

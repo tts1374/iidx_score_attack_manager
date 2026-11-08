@@ -662,7 +662,7 @@
     },
     "note": {
       "local_only": "Images are saved only on this device.",
-      "local_only_inline": "The image you select is saved on this device. To submit it, use “Submit scores” in the tournament details.",
+      "local_only_inline": "Saved on this device. Submit from the tournament details.",
       "not_sent": "Images are not sent to other people.",
       "replace_effect": "This replaces the saved image and resets its status to Unshared."
     },
@@ -1081,14 +1081,14 @@
         "mark_completed_failed": "Failed to update sent status.",
         "fallback_completed": "Started image downloads and copied the message. Marked {{count}} image(s) as Shared in this app. Send the saved images and message to the destination.",
         "canceled": "Sharing canceled. Status was not changed.",
-        "image_load_failed": "Could not read the saved images. Add the images again, then retry submission."
+        "image_load_failed": "Could not read the saved images. Add the images again, then retry submission.",
+        "image_load_failed_outside_period": "Could not read the images. Images cannot be added outside the tournament period. If you have the originals, send them directly to the destination."
       },
       "error": {
         "no_sendable_images": "There are no unshared images available for sharing."
       },
       "resubmit_title": "Score resubmission",
-      "fallback_note": "If sharing is unavailable or fails, image downloads and message copying will be used instead.",
-      "delivery_note": "Shared is a record within this app. Check posting and receipt at the destination."
+      "delivery_note": "Check posting and receipt at the destination."
     }
   },
   "whats_new": {

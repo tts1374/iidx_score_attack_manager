@@ -643,6 +643,17 @@ describe('TournamentDetailPage', () => {
     expect(screen.queryByTestId('tournament-detail-submit-undo-button')).toBeNull();
   });
 
+  it.each(['2026-01-31', '2026-02-13'])('does not recommend unavailable image registration on %s', async (today) => {
+    serviceMocks.opfs.readFile.mockRejectedValueOnce(new Error('image missing'));
+    renderPage({}, today);
+    expect(screen.queryByTestId('tournament-detail-chart-submit-button')).toBeNull();
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-open-button'));
+    await userEvent.click(screen.getByTestId('tournament-detail-submit-share-button'));
+    expect((await screen.findByRole('alert')).textContent).toBe('画像を読み込めませんでした。開催期間外は再登録できません。元の画像があれば提出先へ直接送ってください。');
+    expect(serviceMocks.appDb.markEvidenceSendCompleted).not.toHaveBeenCalled();
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+  });
+
   it('keeps submission unavailable while image collection is in progress', async () => {
     let finishRead!: (value: Uint8Array) => void;
     serviceMocks.opfs.readFile.mockReturnValueOnce(new Promise<Uint8Array>(resolve => { finishRead = resolve; }));

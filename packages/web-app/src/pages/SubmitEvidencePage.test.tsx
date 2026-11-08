@@ -65,7 +65,7 @@ describe('SubmitEvidencePage', () => {
     const badge = screen.queryByTestId('submit-evidence-header-state-badge');
     if (state === 'shared') expect(badge).toBeNull();
     else expect(badge?.getAttribute('data-chart-state')).toBe(state);
-    expect(screen.getByText(/この端末に保存します/)).toBeTruthy();
+    expect(screen.getByText('端末内に保存します。提出は大会詳細から。')).toBeTruthy();
     expect(screen.getByRole('button', { name: '画像を選んで保存' })).toBeTruthy();
     if (overrides.updateSeq && !overrides.fileDeleted) expect(screen.getByText(/保存済みの画像を置き換え/)).toBeTruthy();
     else expect(screen.queryByText(/保存済みの画像を置き換え/)).toBeNull();
