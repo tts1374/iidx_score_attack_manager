@@ -201,7 +201,7 @@
       "public_catalog": "공개 카탈로그",
       "create": "스코어 어택 생성",
       "detail": "스코어 어택 상세",
-      "submit": "점수 제출"
+      "submit": "이미지 등록"
     },
     "create": {
       "require_song_master": "곡 마스터가 없어 스코어 어택 생성을 사용할 수 없습니다."
@@ -649,7 +649,7 @@
       "review_image": "Step 2) 이미지 확인"
     },
     "images": {
-      "preview_alt": "제출 이미지 미리보기",
+      "preview_alt": "이 기기에 등록한 스코어 이미지",
       "updated_at": "최종 업데이트: {{date}}",
       "action": {
         "tap_to_select": "탭해서 이미지 선택",
@@ -660,14 +660,15 @@
     },
     "note": {
       "local_only": "이미지는 이 기기 안에만 저장됩니다.",
-      "local_only_inline": "* 이미지는 이 기기 안에만 저장됩니다",
-      "not_sent": "다른 사람에게 이미지는 전송되지 않습니다."
+      "local_only_inline": "선택한 이미지는 이 기기에 저장됩니다. 제출하려면 대회 상세에서 “스코어 제출”을 눌러 주세요.",
+      "not_sent": "다른 사람에게 이미지는 전송되지 않습니다.",
+      "replace_effect": "저장된 이미지를 교체하고 미공유 상태로 되돌립니다."
     },
     "action": {
       "processing": "저장 중",
       "saving": "저장 중",
-      "take_photo": "촬영하기",
-      "select_image": "이미지 선택",
+      "take_photo": "촬영 후 저장",
+      "select_image": "이미지 선택 후 저장",
       "update": "업데이트",
       "save": "저장"
     },
@@ -679,9 +680,9 @@
     },
     "error": {
       "submit_failed": "제출에 실패했습니다",
-      "quota_exceeded": "저장 공간이 부족합니다",
-      "save_failed": "저장에 실패했습니다",
-      "camera_unavailable": "이 기기에서는 촬영 기능을 사용할 수 없습니다",
+      "quota_exceeded": "기기의 저장 공간이 부족합니다. 불필요한 데이터를 정리한 후 이미지를 다시 선택해 주세요.",
+      "save_failed": "이미지를 저장하지 못했습니다. 다른 이미지를 선택하거나 다시 시도해 주세요.",
+      "camera_unavailable": "이 기기에서는 촬영할 수 없습니다. “이미지 선택 후 저장”을 이용해 주세요.",
       "delete_failed": "삭제에 실패했습니다"
     },
     "delete_dialog": {
@@ -947,18 +948,18 @@
   },
   "tournament_detail": {
     "action": {
-      "share_tournament": "대회를 공유(QR)",
+      "share_tournament": "대회 정보 공유(QR)",
       "open_settings": "설정",
-      "register": "등록",
-      "replace": "교체",
+      "register": "이미지 등록",
+      "replace": "이미지 교체",
       "zoom_preview": "확대 보기",
       "export_image": "이미지 저장",
       "copy_text": "게시 문구 복사",
       "copy_logs": "로그 복사",
       "save_to_device": "기기에 저장",
       "mark_send_completed": "삭제",
-      "submit": "제출하기",
-      "resubmit": "재제출하기"
+      "submit": "스코어 제출",
+      "resubmit": "스코어 재제출"
     },
     "status": {
       "upcoming": "미개최",
@@ -1006,7 +1007,7 @@
     },
     "share_dialog": {
       "close_aria_label": "공유 대화상자 닫기",
-      "definition_only": "대회 정보만 공유합니다",
+      "definition_only": "대회 정보와 가져오기 링크를 공유합니다",
       "preview_title": "미리보기",
       "preview_image_size": "생성 이미지(1080x1920)",
       "preview_alt": "공유 이미지 미리보기",
@@ -1045,13 +1046,13 @@
       "cta": "공유하기({{count}})"
     },
     "submit_dialog": {
-      "title": "제출",
+      "title": "스코어 제출",
       "confirm_message": "미공유 곡을 공유합니다({{count}}건)",
-      "confirm_message_submit": "저장된 미제출 채보를 제출합니다({{count}}건)",
-      "confirm_message_resubmit": "저장된 채보를 재제출합니다({{count}}건)",
-      "resubmit_overwrite": "재제출은 기존 제출 내용을 덮어씁니다.",
+      "confirm_message_submit": "미공유 스코어 이미지 {{count}}개를 공유합니다.",
+      "confirm_message_resubmit": "저장된 스코어 이미지 {{count}}개를 모두 다시 공유합니다.",
+      "resubmit_overwrite": "이 기기의 이미지와 공유 완료 상태는 바뀌지 않습니다.",
       "images_title": "전송할 이미지",
-      "images_description": "이미지가 기기 외부로 공유됩니다",
+      "images_description": "이미지와 메시지를 기기 외부로 공유합니다.",
       "target_count": "미공유 대상: {{count}}건",
       "message_title": "전송할 메시지",
       "complete_title": "전송 완료로 표시",
@@ -1062,7 +1063,7 @@
         "save_images_failed": "이미지 저장에 실패했습니다.",
         "shared_images_fallback_saved": "이 환경에서는 공유할 수 없어 이미지를 기기에 저장했습니다.",
         "shared_images": "전송할 이미지를 공유했습니다.",
-        "share_images_failed": "이미지 공유에 실패했습니다.",
+        "share_images_failed": "제출 작업을 완료하지 못했습니다. 등록 이미지를 확인하고 다시 시도해 주세요.",
         "message_copied": "전송할 메시지를 복사했습니다.",
         "message_copy_failed": "메시지 복사에 실패했습니다.",
         "message_share_unsupported": "이 환경에서는 메시지 공유를 지원하지 않습니다.",
@@ -1070,16 +1071,22 @@
         "message_share_failed": "메시지 공유에 실패했습니다.",
         "no_pending": "미공유가 없습니다.",
         "no_local_saved": "이 기기에 저장된 이미지가 없습니다.",
-        "marked_shared": "공유 완료로 처리했습니다.",
-        "fallback_copy_failed": "이미지는 저장했지만 메시지 복사에 실패했습니다.",
-        "undo_applied": "미공유로 되돌렸습니다.",
-        "undo_failed": "되돌리기에 실패했습니다.",
+        "marked_shared": "공유 작업을 완료하고 앱에서 이미지 {{count}}개를 공유 완료로 표시했습니다.",
+        "fallback_copy_failed": "이미지 저장을 시작했지만 메시지를 복사하지 못했습니다. 상태는 바뀌지 않았습니다. 다시 제출하거나 저장한 이미지에 {{message}} 을(를) 첨부해 보내 주세요.",
+        "undo_applied": "앱 내 상태를 미공유로 되돌렸습니다. 공유한 곳의 이미지나 게시물은 취소되지 않습니다.",
+        "undo_failed": "미공유로 되돌리지 못했습니다. 대회 상세에서 상태를 확인해 주세요.",
         "completed_count": "{{count}}건을 전송 완료로 처리했습니다.",
-        "mark_completed_failed": "전송 완료 상태 업데이트에 실패했습니다."
+        "mark_completed_failed": "전송 완료 상태 업데이트에 실패했습니다.",
+        "fallback_completed": "이미지 저장을 시작하고 메시지를 복사했습니다. 앱에서 이미지 {{count}}개를 공유 완료로 표시했습니다. 저장한 이미지와 메시지를 제출할 곳에 보내 주세요.",
+        "canceled": "공유를 취소했습니다. 상태는 바뀌지 않았습니다.",
+        "image_load_failed": "저장된 이미지를 읽을 수 없습니다. 이미지를 다시 등록한 뒤 제출해 주세요."
       },
       "error": {
         "no_sendable_images": "공유할 수 있는 미공유 이미지가 없습니다."
-      }
+      },
+      "resubmit_title": "스코어 재제출",
+      "fallback_note": "공유할 수 없거나 공유에 실패하면 이미지 저장과 메시지 복사로 전환합니다.",
+      "delivery_note": "공유 완료는 앱 내 기록입니다. 게시 및 수신 여부는 공유한 곳에서 확인해 주세요."
     }
   },
   "whats_new": {

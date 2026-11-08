@@ -201,7 +201,7 @@
       "public_catalog": "公開スコアタ",
       "create": "スコアタ作成",
       "detail": "スコアタ詳細",
-      "submit": "スコア提出"
+      "submit": "画像登録"
     },
     "create": {
       "require_song_master": "曲マスタが未取得のためスコアタ作成は利用できません。"
@@ -649,7 +649,7 @@
       "review_image": "Step 2) 画像を確認"
     },
     "images": {
-      "preview_alt": "提出画像プレビュー",
+      "preview_alt": "端末に登録したスコア画像",
       "updated_at": "最終更新: {{date}}",
       "action": {
         "tap_to_select": "タップして画像を選ぶ",
@@ -660,14 +660,15 @@
     },
     "note": {
       "local_only": "画像はこの端末の中だけに保存されます",
-      "local_only_inline": "※画像はこの端末内にのみ保存されます",
-      "not_sent": "他の人に画像は送られません"
+      "local_only_inline": "選んだ画像をこの端末に保存します。提出は大会詳細の「スコアを提出」から行います。",
+      "not_sent": "他の人に画像は送られません",
+      "replace_effect": "保存済みの画像を置き換え、未共有に戻します。"
     },
     "action": {
       "processing": "保存中",
       "saving": "保存中",
-      "take_photo": "撮影する",
-      "select_image": "画像を選ぶ",
+      "take_photo": "撮影して保存",
+      "select_image": "画像を選んで保存",
       "update": "更新する",
       "save": "保存する"
     },
@@ -679,9 +680,9 @@
     },
     "error": {
       "submit_failed": "提出に失敗しました",
-      "quota_exceeded": "容量不足",
-      "save_failed": "保存に失敗しました",
-      "camera_unavailable": "この端末では撮影機能を利用できません",
+      "quota_exceeded": "端末の空き容量が不足しています。不要なデータを整理して、画像を選び直してください。",
+      "save_failed": "画像を保存できませんでした。別の画像を選ぶか、もう一度お試しください。",
+      "camera_unavailable": "この端末では撮影できません。「画像を選んで保存」をご利用ください。",
       "delete_failed": "削除に失敗しました"
     },
     "delete_dialog": {
@@ -947,18 +948,18 @@
   },
   "tournament_detail": {
     "action": {
-      "share_tournament": "大会を共有（QR）",
+      "share_tournament": "大会情報を共有（QR）",
       "open_settings": "設定",
-      "register": "登録する",
-      "replace": "差し替え",
+      "register": "画像を登録",
+      "replace": "画像を差し替え",
       "zoom_preview": "拡大表示",
       "export_image": "画像を保存",
       "copy_text": "投稿文をコピー",
       "copy_logs": "ログコピー",
       "save_to_device": "端末に保存",
       "mark_send_completed": "削除",
-      "submit": "提出する",
-      "resubmit": "再提出する"
+      "submit": "スコアを提出",
+      "resubmit": "スコアを再提出"
     },
     "status": {
       "upcoming": "未開催",
@@ -1006,7 +1007,7 @@
     },
     "share_dialog": {
       "close_aria_label": "共有ダイアログを閉じる",
-      "definition_only": "大会の情報のみ共有します",
+      "definition_only": "大会情報と取込リンクを共有します",
       "preview_title": "プレビュー",
       "preview_image_size": "生成画像（1080x1920）",
       "preview_alt": "共有画像プレビュー",
@@ -1045,13 +1046,13 @@
       "cta": "共有する（{{count}}）"
     },
     "submit_dialog": {
-      "title": "提出",
+      "title": "スコア提出",
       "confirm_message": "未共有の曲を共有します（{{count}}件）",
-      "confirm_message_submit": "保存済みの未提出譜面を提出します（{{count}}件）",
-      "confirm_message_resubmit": "保存済みの譜面を再提出します（{{count}}件）",
-      "resubmit_overwrite": "再提出は提出内容の上書きになります。",
+      "confirm_message_submit": "未共有のスコア画像を{{count}}件共有します。",
+      "confirm_message_resubmit": "保存済みのスコア画像を{{count}}件すべて共有し直します。",
+      "resubmit_overwrite": "端末内の画像と共有済の状態は変わりません。",
       "images_title": "送信する画像",
-      "images_description": "画像が端末外に共有されます",
+      "images_description": "画像とメッセージを端末外へ共有します。",
       "target_count": "未共有対象: {{count}}件",
       "message_title": "送信するメッセージ",
       "complete_title": "送信完了にする",
@@ -1062,7 +1063,7 @@
         "save_images_failed": "画像の保存に失敗しました。",
         "shared_images_fallback_saved": "この環境では共有できないため、画像を端末に保存しました。",
         "shared_images": "送信する画像を共有しました。",
-        "share_images_failed": "画像共有に失敗しました。",
+        "share_images_failed": "提出処理を完了できませんでした。登録画像を確認して再度提出してください。",
         "message_copied": "送信するメッセージをコピーしました。",
         "message_copy_failed": "メッセージのコピーに失敗しました。",
         "message_share_unsupported": "この環境ではメッセージ共有に対応していません。",
@@ -1070,16 +1071,22 @@
         "message_share_failed": "メッセージ共有に失敗しました。",
         "no_pending": "未共有はありません。",
         "no_local_saved": "この端末に保存済みの画像がありません。",
-        "marked_shared": "共有済にしました",
-        "fallback_copy_failed": "画像を保存しましたが、メッセージのコピーに失敗しました。",
-        "undo_applied": "未共有に戻しました。",
-        "undo_failed": "元に戻す処理に失敗しました。",
+        "marked_shared": "共有操作が完了し、アプリ内で{{count}}件を共有済にしました。",
+        "fallback_copy_failed": "画像の保存を開始しましたが、メッセージをコピーできませんでした。状態は変更していません。再度提出するか、保存した画像に {{message}} を添えて送ってください。",
+        "undo_applied": "アプリ内の状態を未共有に戻しました。共有先の画像や投稿は取り消されません。",
+        "undo_failed": "未共有に戻せませんでした。大会詳細で状態を確認してください。",
         "completed_count": "{{count}}件を送信完了にしました。",
-        "mark_completed_failed": "送信完了の更新に失敗しました。"
+        "mark_completed_failed": "送信完了の更新に失敗しました。",
+        "fallback_completed": "画像の保存を開始し、メッセージをコピーしました。アプリ内で{{count}}件を共有済にしました。保存した画像とメッセージを提出先へ送ってください。",
+        "canceled": "共有をキャンセルしました。状態は変更していません。",
+        "image_load_failed": "保存済みの画像を読み込めませんでした。画像を登録し直して再度提出してください。"
       },
       "error": {
         "no_sendable_images": "共有できる未共有画像がありません。"
-      }
+      },
+      "resubmit_title": "スコア再提出",
+      "fallback_note": "共有できない場合は、画像の保存とメッセージのコピーに切り替えます。",
+      "delivery_note": "共有済はアプリ内の記録です。投稿・受領は共有先で確認してください。"
     }
   },
   "whats_new": {

@@ -264,6 +264,8 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
       </section>
 
       <section className="detailCard submitPickerCard">
+        <p className="submitLocalStorageNote">{t('submit_evidence.note.local_only_inline')}</p>
+        {localSaved ? <p className="submitLocalStorageNote">{t('submit_evidence.note.replace_effect')}</p> : null}
         <div className="submitPickerButtonStack">
           {showCameraAction ? (
             <button
@@ -316,11 +318,8 @@ export function SubmitEvidencePage(props: SubmitEvidencePageProps): JSX.Element 
         </section>
       ) : null}
 
-      <p className="submitLocalStorageNote">{t('submit_evidence.note.local_only_inline')}</p>
-
       {submitState === SubmitState.ERROR && errorReasonKey ? (
-        <p className="submitActionError submitActionErrorStandalone">
-          {t('submit_evidence.error.save_failed')}
+        <p className="submitActionError submitActionErrorStandalone" role="alert">
           <span>{t(errorReasonKey)}</span>
         </p>
       ) : null}
