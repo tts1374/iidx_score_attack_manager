@@ -2,6 +2,7 @@ import React from 'react';
 import type { TournamentPayload } from '@iidx/shared';
 import type { ImportTargetTournament, SongMasterChartDetail } from '@iidx/db';
 import { useTranslation } from 'react-i18next';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 
 import { ChartCard } from '../components/ChartCard';
 import { TournamentSummaryCard } from '../components/TournamentSummaryCard';
@@ -79,6 +80,8 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
   const [validationState, setValidationState] = React.useState<ImportConfirmState>({ status: 'loading' });
   const [applying, setApplying] = React.useState(false);
   const [diagnosticMessage, setDiagnosticMessage] = React.useState<string | null>(null);
+  const errorTitleId = React.useId();
+  const errorDescriptionId = React.useId();
 
   const [locationPayload] = React.useState<ImportLocationPayloadResult>(() =>
     resolveImportPayloadFromLocation({
@@ -300,25 +303,43 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
       ) : null}
 
       {validationState.status === 'error' ? (
-        <section className="warningBox importConfirmErrorCard">
-          <div role="alert">
-            <p>{validationState.error.message}</p>
-            <p>{t(showOpenSettingsAction ? 'import.remedy.song_data' : 'import.remedy.open_link')}</p>
-          </div>
-          {showOpenSettingsAction ? (
-            <button onClick={props.onOpenSettings} disabled={props.busy}>
-              {t('import.action.open_settings')}
-            </button>
-          ) : null}
-          <details>
-            <summary>{t('import.confirm.technical_details')}</summary>
-            <p className="importConfirmErrorCode">{validationState.error.code}</p>
-            {diagnosticMessage ? <p>{diagnosticMessage}</p> : null}
-            {preview?.charts.some((chart) => chart.missing) && validationState.error.code === 'CHART_NOT_FOUND' ? (
-              <p>{preview.charts.filter((chart) => chart.missing).map((chart) => `chart:${chart.chartId}`).join(', ')}</p>
+        <Dialog
+          open
+          maxWidth="xs"
+          fullWidth
+          aria-labelledby={errorTitleId}
+          aria-describedby={errorDescriptionId}
+          slotProps={{ paper: { role: 'alertdialog' } }}
+          onClose={() => {
+            if (!props.busy) props.onBack();
+          }}
+        >
+          <DialogTitle id={errorTitleId}>{t('import.confirm.error_title')}</DialogTitle>
+          <DialogContent>
+            <div id={errorDescriptionId}>
+              <p>{validationState.error.message}</p>
+              <p>{t(showOpenSettingsAction ? 'import.remedy.song_data' : 'import.remedy.open_link')}</p>
+            </div>
+            <details>
+              <summary>{t('import.confirm.technical_details')}</summary>
+              <p className="importConfirmErrorCode">{validationState.error.code}</p>
+              {diagnosticMessage ? <p>{diagnosticMessage}</p> : null}
+              {preview?.charts.some((chart) => chart.missing) && validationState.error.code === 'CHART_NOT_FOUND' ? (
+                <p>{preview.charts.filter((chart) => chart.missing).map((chart) => `chart:${chart.chartId}`).join(', ')}</p>
+              ) : null}
+            </details>
+          </DialogContent>
+          <DialogActions>
+            {showOpenSettingsAction ? (
+              <Button onClick={props.onOpenSettings} disabled={props.busy}>
+                {t('import.action.open_settings')}
+              </Button>
             ) : null}
-          </details>
-        </section>
+            <Button onClick={props.onBack} disabled={props.busy} autoFocus>
+              {t('import.action.ok')}
+            </Button>
+          </DialogActions>
+        </Dialog>
       ) : null}
 
       {preview ? (
@@ -334,11 +355,12 @@ export function ImportConfirmPage(props: ImportConfirmPageProps): JSX.Element {
           />
           {validationState.status === 'ready' ? (
             <section className="detailCard">
-              <h3>{importDiffSummaryText}</h3>
+              <h3>{t('import.confirm.summary.title')}</h3>
+              <p>{importDiffSummaryText}</p>
               {preview.existing ? (
                 <>
                   <p>{t('import.confirm.summary.target', { name: preview.existing.tournamentName })}</p>
-                  <p>{t('import.confirm.merge.note')}</p>
+                  <p className="hintText">{t('import.confirm.merge.note')}</p>
                 </>
               ) : null}
             </section>

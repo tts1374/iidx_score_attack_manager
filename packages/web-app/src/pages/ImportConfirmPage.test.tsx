@@ -111,16 +111,18 @@ describe.each(['ja', 'en', 'ko'] as const)('ImportConfirmPage (%s)', (language) 
       if (scenario === 'expired') vi.mocked(resolveImportPayloadFromLocation).mockReturnValue({ status: 'ready', rawPayloadParam: 'test', payload: { ...payload, end: '2026-11-07' } });
       if (scenario === 'link') vi.mocked(resolveImportPayloadFromLocation).mockReturnValue({ status: 'invalid', error: { code: 'DECOMPRESS_ERROR', message: 'gzip' } });
       const { container, onOpenSettings, onConfirmImport, onBack } = mount();
-      const alert = await screen.findByRole('alert');
-      expect(importButton().disabled).toBe(true);
-      await userEvent.click(importButton());
+      const dialog = await screen.findByRole('alertdialog', { name: i18n.t('import.confirm.error_title') });
+      const alert = document.getElementById(dialog.getAttribute('aria-describedby')!)!;
+      const disabledImport = container.querySelector<HTMLButtonElement>('.primaryActionButton')!;
+      expect(disabledImport.disabled).toBe(true);
+      await userEvent.click(disabledImport);
       expect(onConfirmImport).not.toHaveBeenCalled();
       const needsSettings = scenario === 'master' || scenario === 'chart';
       expect(alert.textContent).toContain(i18n.t(needsSettings ? 'import.remedy.song_data' : 'import.remedy.open_link'));
       expect(alert.textContent).not.toMatch(/UUID|gzip|payload|페이로드|ペイロード|1001|internal diagnostic/);
       expect(screen.queryByText(i18n.t('import.confirm.summary.create_new'))).toBeNull();
       expect(screen.queryByText(i18n.t('import.confirm.summary.update_existing', { count: 1 }))).toBeNull();
-      const details = container.querySelector('details')!;
+      const details = dialog.querySelector('details')!;
       expect(details.open).toBe(false);
       expect(details.querySelector('summary')?.textContent).toBe(i18n.t('import.confirm.technical_details'));
       if (scenario === 'chart') {
@@ -134,10 +136,18 @@ describe.each(['ja', 'en', 'ko'] as const)('ImportConfirmPage (%s)', (language) 
         await userEvent.click(screen.getByRole('button', { name: i18n.t('import.action.open_settings') }));
         expect(onOpenSettings).toHaveBeenCalledOnce();
       }
-      await userEvent.click(screen.getByRole('button', { name: i18n.t('common.cancel') }));
+      await userEvent.click(screen.getByRole('button', { name: i18n.t('import.action.ok') }));
       expect(onBack).toHaveBeenCalledOnce();
     },
   );
+});
+
+it('returns through the same cancel callback when dismissing the error dialog with Escape', async () => {
+  vi.mocked(resolveImportPayloadFromLocation).mockReturnValue({ status: 'invalid', error: { code: 'INVALID_PARAM', message: 'invalid' } });
+  const { onBack } = mount();
+  await screen.findByRole('alertdialog');
+  await userEvent.keyboard('{Escape}');
+  expect(onBack).toHaveBeenCalledOnce();
 });
 
 it('disables import while busy and prevents duplicate submissions while applying', async () => {

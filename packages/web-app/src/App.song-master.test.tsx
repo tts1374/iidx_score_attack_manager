@@ -256,7 +256,7 @@ describe('App song master automation', () => {
     fixture.mount();
     await waitFor(() => expect(fixture.appDb.hasSongMaster).toHaveBeenCalledTimes(1));
     expect(fixture.updateIfNeeded).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'back' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(fixture.updateIfNeeded).toHaveBeenCalledTimes(1));
   });
 });

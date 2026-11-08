@@ -310,7 +310,8 @@
       "import_file": "ファイル取込",
       "open_settings": "設定を開く",
       "import": "取り込む",
-      "importing": "取り込み中..."
+      "importing": "取り込み中...",
+      "ok": "OK"
     },
     "state": {
       "loading": "取り込みデータを検証しています...",
@@ -350,9 +351,10 @@
       "chart_missing": "曲データで確認できません",
       "summary": {
         "create_new": "新しいスコアタをこの端末に追加します",
-        "update_existing": "保存済みのスコアタに不足している譜面を{{count}}件追加します",
+        "update_existing": "不足している譜面を{{count}}件追加します",
         "unchanged": "追加する譜面はありません。保存済みの内容は変わりません",
-        "target": "取込先：{{name}}"
+        "target": "取込先：{{name}}",
+        "title": "取込内容"
       },
       "merge": {
         "mode": "適用方式: マージ（譜面のみ）",
@@ -365,11 +367,12 @@
         "update_existing": "・同一大会は更新されます"
       },
       "chart_unknown": "不明な譜面",
-      "technical_details": "技術情報"
+      "technical_details": "技術情報",
+      "error_title": "取り込めません"
     },
     "remedy": {
       "song_data": "「設定を開く」から曲データを取得・更新し、元の取込リンクをもう一度開いてください。",
-      "open_link": "キャンセルで戻り、共有元の最新の取込リンクを開いてください。"
+      "open_link": "共有元の最新の取込リンクを開いてください。"
     }
   },
   "error": {
