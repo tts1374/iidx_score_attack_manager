@@ -15,6 +15,7 @@ import { ko as koDateLocale } from 'date-fns/locale/ko';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
+import { ContextHelp } from '../components/ContextHelp';
 import { useAppServices } from '../services/context';
 import { difficultyColor, versionLabel } from '../utils/iidx';
 import {
@@ -402,12 +403,16 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   const stepStatusText =
     currentStep === 0
       ? basicMissingCount > 0
-        ? t('create_tournament.status.missing_count', { count: basicMissingCount })
-        : t('create_tournament.status.completed')
+        ? t('create_tournament.status.basic_missing', { count: basicMissingCount })
+        : validation.periodError
+          ? t(validation.periodError)
+          : t('create_tournament.status.completed')
       : currentStep === 1
         ? chartMissingCount > 0
-          ? t('create_tournament.status.missing_count', { count: chartMissingCount })
-          : t('create_tournament.status.completed')
+          ? t('create_tournament.status.charts_missing', { count: chartMissingCount })
+          : validation.chartStepError
+            ? t(validation.chartStepError)
+            : t('create_tournament.status.charts_completed')
         : null;
   const showCopySnackbar = React.useCallback((message: string) => {
     setCopySnackbar((current) => ({
@@ -435,12 +440,14 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
   }, [showCopySnackbar, t]);
 
   const scrollFirstInvalidChartCard = React.useCallback(() => {
-    const invalidRow = rows.find((row) => row.selectedSong === null || row.selectedChartId === null);
+    const invalidRow = rows.find((row) =>
+      row.selectedSong === null || row.selectedChartId === null || validation.duplicateChartIds.has(row.selectedChartId),
+    );
     if (!invalidRow) {
       return;
     }
     chartRowRefs.current[invalidRow.key]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [rows]);
+  }, [rows, validation.duplicateChartIds]);
 
   return (
     <div className="page createTournamentPage">
@@ -460,6 +467,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               className={stepClassName}
               onClick={() => setCurrentStep(stepIndex)}
               disabled={stepIndex > maxSelectableStep}
+              aria-current={stepIndex === currentStep ? 'step' : undefined}
               aria-label={t('create_tournament.wizard.nav_item', { index: index + 1, label: stepLabel })}
             >
               {stepLabel}
@@ -467,17 +475,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           );
         })}
       </nav>
-      {stepStatusText ? (
-        <p className="createStepStatusLine" role="status">
-          {stepStatusText}
-        </p>
-      ) : null}
-
       {currentStep === 0 ? (
         <section className="createSection">
           <h2 className="createSectionTitle">
             {t('create_tournament.step.basic_title')}
           </h2>
+          <p className="createStepStatusLine" role="status">{stepStatusText}</p>
           <div className="createFieldStack">
             <label className="createField">
               <span className="createFieldLabel">{t('create_tournament.field.name.label')}</span>
@@ -608,10 +611,9 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
         <section className="createSection">
           <div className="createSectionHeading">
             <h2 className="createSectionTitle">
-              {t('create_tournament.step.charts_title', { current: rows.length, max: MAX_CHART_ROWS })}
+              {t('create_tournament.step.charts_title')}
             </h2>
             <div className="createSectionAction">
-              {!canAddRow ? <p className="hintText createButtonReason">{t('create_tournament.chart.max_limit', { max: MAX_CHART_ROWS })}</p> : null}
               <button
                 type="button"
                 className="addRowButton"
@@ -630,7 +632,15 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               </button>
             </div>
           </div>
-
+          <div className="createSelectionStatus">
+            <p className="createSelectionCount">
+              {t('create_tournament.chart.row_count', { count: rows.length, max: MAX_CHART_ROWS })}
+            </p>
+            <p className="createStepStatusLine" role="status">{stepStatusText}</p>
+          </div>
+          {rows.some((row) => row.selectedSong === null) ? (
+            <p className="createChartGuidance" id="create-song-guidance">{t('create_tournament.chart.select_song_hint')}</p>
+          ) : null}
           <div className="chartRows">
             {rows.map((row, index) => {
               const selectableChartCount = row.chartOptions.filter(
@@ -715,6 +725,10 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                         <TextField
                           {...(params as any)}
                           placeholder={t('create_tournament.field.song.placeholder')}
+                          inputProps={{
+                            ...params.inputProps,
+                            'aria-label': t('create_tournament.chart.song_search_aria', { index: index + 1 }),
+                          }}
                           InputProps={{
                             ...params.InputProps,
                             endAdornment: (
@@ -755,8 +769,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
                   <div className="createField">
                     <span className="createFieldLabel">{t('create_tournament.field.play_style.label')}</span>
-                    {!row.selectedSong ? <span className="hintText">{t('create_tournament.field.play_style.disabled_hint')}</span> : null}
-                    <div className="styleRadioGroup">
+                    <div
+                      className="styleRadioGroup"
+                      role="radiogroup"
+                      aria-label={t('create_tournament.field.play_style.label')}
+                      aria-describedby={!row.selectedSong ? 'create-song-guidance' : undefined}
+                    >
                       <label className={`styleOption ${row.playStyle === 'SP' ? 'selected' : ''} ${!row.selectedSong ? 'disabled' : ''}`}>
                         <input
                           type="radio"
@@ -794,13 +812,12 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
 
                   <div className="createField">
                     <span className="createFieldLabel">{t('create_tournament.field.difficulty.label')}</span>
-                    {!row.selectedSong ? <span className="hintText">{t('create_tournament.field.difficulty.select_song_hint')}</span> : null}
                     {row.selectedSong && row.chartOptions.length === 0 ? (
-                      <span className="hintText">{t('create_tournament.field.difficulty.no_available')}</span>
+                      <span className="createChartGuidance">{t('create_tournament.field.difficulty.no_available')}</span>
                     ) : null}
                     {row.selectedSong && row.chartOptions.length > 0 ? (
                       <>
-                        {selectableChartCount === 0 ? <span className="hintText">{t('create_tournament.field.difficulty.used_in_other')}</span> : null}
+                        {selectableChartCount === 0 ? <span className="createChartGuidance">{t('create_tournament.field.difficulty.used_in_other')}</span> : null}
                         <div className="difficultyButtons">
                           {row.chartOptions.map((chart) => {
                             const active = row.selectedChartId === chart.chartId;
@@ -866,7 +883,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               <dl className="createConfirmInfoList">
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.name.label_plain')}</dt>
-                  <dd>{draft.name.trim() || t('common.not_available')}</dd>
+                  <dd className="createConfirmName">{draft.name.trim() || t('common.not_available')}</dd>
                 </div>
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.hashtag.label_plain')}</dt>
@@ -875,21 +892,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 <div className="createConfirmInfoItem">
                   <dt>{t('create_tournament.field.period.label_plain')}</dt>
                   <dd>{periodText}</dd>
-                </div>
-                <div className="createConfirmInfoItem">
-                  <dt>{t('create_tournament.field.tournament_id.label_plain')}</dt>
-                  <dd className="createConfirmTournamentIdRow">
-                    <span className="createConfirmTournamentIdText">{shortTournamentDefHash}</span>
-                    <button
-                      type="button"
-                      className="createInlineIconCopyButton"
-                      aria-label={t('common.copy')}
-                      onClick={() => void copyToClipboard(tournamentDefHash ?? '')}
-                      disabled={!tournamentDefHash}
-                    >
-                      <ContentCopyIcon fontSize="inherit" />
-                    </button>
-                  </dd>
                 </div>
               </dl>
             </article>
@@ -910,6 +912,7 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                 <EditOutlinedIcon fontSize="small" />
               </button>
             </div>
+            <p className="createSelectionCount">{t('create_tournament.confirm.chart_count', { count: validation.selectedChartIds.length })}</p>
             <div className="chartRows createConfirmChartRows">
               {rows.map((row, index) => {
                 const selectedChart = resolveSelectedChartOption(row);
@@ -931,6 +934,24 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
               })}
             </div>
           </section>
+
+          <div className="createSupplement">
+            <span>{t('create_tournament.field.tournament_id.label_plain')}</span>
+            <ContextHelp title={t('create_tournament.confirm.tournament_id_help')}>
+              <p className="createConfirmTournamentIdRow">
+                <span className="createConfirmTournamentIdText">{shortTournamentDefHash}</span>
+                <button
+                  type="button"
+                  className="iconOnlyButton"
+                  aria-label={t('create_tournament.confirm.copy_tournament_id')}
+                  onClick={() => void copyToClipboard(tournamentDefHash ?? '')}
+                  disabled={!tournamentDefHash}
+                >
+                  <ContentCopyIcon fontSize="small" />
+                </button>
+              </p>
+            </ContextHelp>
+          </div>
 
           {wizardDebugEnabled ? (
             <section className="createSection">

@@ -505,9 +505,9 @@
       "nav_item": "{{index}}. {{label}}"
     },
     "step": {
-      "basic_title": "1) 스코어 어택 기본 정보",
-      "charts_title": "2) 대상 채보 ({{current}} / {{max}})",
-      "confirm_title": "3) 확인"
+      "basic_title": "기본 정보",
+      "charts_title": "채보",
+      "confirm_title": "내용 확인"
     },
     "field": {
       "name": {
@@ -550,8 +550,8 @@
       "difficulty": {
         "label": "난이도",
         "select_song_hint": "곡을 선택하면 고를 수 있습니다.",
-        "no_available": "선택 가능한 채보가 없습니다.",
-        "used_in_other": "다른 선택에서 이 채보를 이미 사용 중입니다.",
+        "no_available": "이 플레이 스타일에는 선택 가능한 채보가 없습니다. SP/DP를 전환하거나 다른 곡을 선택해 주세요.",
+        "used_in_other": "다른 선곡에서 사용 중입니다. 다른 채보를 선택하거나 이 행을 삭제해 주세요.",
         "value": "{{difficulty}} Lv{{level}}"
       }
     },
@@ -573,6 +573,9 @@
       "creating": "생성 중..."
     },
     "status": {
+      "charts_completed": "선곡 완료",
+      "charts_missing": "미완성 선곡: {{count}}행",
+      "basic_missing": "미입력 항목: {{count}}개",
       "missing_count": "미입력: {{count}}건",
       "completed": "입력 완료 ✔"
     },
@@ -582,6 +585,9 @@
       "none": "없음"
     },
     "chart": {
+      "song_search_aria": "선곡 {{index}}의 곡명",
+      "select_song_hint": "곡을 선택하면 SP/DP와 난이도를 선택할 수 있습니다.",
+      "row_count": "선곡: {{count}}행 (최대 {{max}}행)",
       "max_limit": "최대 {{max}}개 채보까지 가능합니다.",
       "add": "+ 추가",
       "selection_label": "선곡 {{index}}",
@@ -600,12 +606,15 @@
       "chart_difficulty_required": "각 채보의 난이도를 선택해 주세요.",
       "chart_difficulty_required_row": "난이도를 선택해 주세요",
       "chart_duplicate": "동일 채보를 중복 등록할 수 없습니다.",
-      "chart_duplicate_on_page": "동일 채보가 중복 선택되었습니다.",
+      "chart_duplicate_on_page": "동일한 채보가 중복 선택되었습니다. 다른 채보를 선택하거나 이 행을 삭제해 주세요.",
       "check_input": "입력 내용을 확인해 주세요.",
       "check_chart_input": "채보 입력 내용을 확인해 주세요.",
       "missing_items": "미입력 항목: {{items}}"
     },
     "confirm": {
+      "copy_tournament_id": "대회 ID 복사",
+      "tournament_id_help": "대회 ID 확인 및 복사",
+      "chart_count": "등록할 채보: {{count}}개",
       "chart_list_title": "채보 목록",
       "chart_title": "채보 {{index}}",
       "final_notice": "확정 후에는 내용을 수정할 수 없습니다.",

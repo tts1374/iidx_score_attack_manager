@@ -507,9 +507,9 @@
       "nav_item": "{{index}}. {{label}}"
     },
     "step": {
-      "basic_title": "1) Basic Score Attack info",
-      "charts_title": "2) Target charts ({{current}} / {{max}})",
-      "confirm_title": "3) Confirm"
+      "basic_title": "Basic info",
+      "charts_title": "Charts",
+      "confirm_title": "Review"
     },
     "field": {
       "name": {
@@ -552,8 +552,8 @@
       "difficulty": {
         "label": "Difficulty",
         "select_song_hint": "Select a song to choose difficulty.",
-        "no_available": "No selectable charts are available.",
-        "used_in_other": "This chart is already used in another selection.",
+        "no_available": "No charts are available for this play style. Switch SP/DP or select another song.",
+        "used_in_other": "These charts are used in other selections. Choose another chart or delete this row.",
         "value": "{{difficulty}} Lv{{level}}"
       }
     },
@@ -575,6 +575,9 @@
       "creating": "Creating..."
     },
     "status": {
+      "charts_completed": "Chart selection complete",
+      "charts_missing": "Incomplete selections: {{count}} rows",
+      "basic_missing": "Missing fields: {{count}}",
       "missing_count": "Missing: {{count}}",
       "completed": "Input complete ✔"
     },
@@ -584,6 +587,9 @@
       "none": "None"
     },
     "chart": {
+      "song_search_aria": "Song for selection {{index}}",
+      "select_song_hint": "Select a song to choose SP/DP and difficulty.",
+      "row_count": "Selection rows: {{count}} (maximum {{max}})",
       "max_limit": "Up to {{max}} charts.",
       "add": "+ Add",
       "selection_label": "Selection {{index}}",
@@ -602,12 +608,15 @@
       "chart_difficulty_required": "Select a difficulty for each chart.",
       "chart_difficulty_required_row": "Select a difficulty.",
       "chart_duplicate": "Duplicate chart registration is not allowed.",
-      "chart_duplicate_on_page": "The same chart is selected more than once.",
+      "chart_duplicate_on_page": "This chart is selected more than once. Choose another chart or delete this row.",
       "check_input": "Please review your input.",
       "check_chart_input": "Please review chart input.",
       "missing_items": "Missing: {{items}}"
     },
     "confirm": {
+      "copy_tournament_id": "Copy tournament ID",
+      "tournament_id_help": "View and copy tournament ID",
+      "chart_count": "Charts to register: {{count}}",
       "chart_list_title": "Chart list",
       "chart_title": "Chart {{index}}",
       "final_notice": "You cannot edit this after finalizing.",
