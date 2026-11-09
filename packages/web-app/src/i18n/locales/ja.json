@@ -505,9 +505,9 @@
       "nav_item": "{{index}}. {{label}}"
     },
     "step": {
-      "basic_title": "1) スコアタ基本情報",
-      "charts_title": "2) 対象譜面 ({{current}} / {{max}})",
-      "confirm_title": "3) 確認"
+      "basic_title": "基本情報",
+      "charts_title": "譜面",
+      "confirm_title": "確認内容"
     },
     "field": {
       "name": {
@@ -550,8 +550,8 @@
       "difficulty": {
         "label": "難易度",
         "select_song_hint": "曲を選択すると選べます。",
-        "no_available": "選択可能な譜面がありません。",
-        "used_in_other": "他の選曲で譜面が使用中です。",
+        "no_available": "このプレイスタイルに選択可能な譜面がありません。SP/DPを切り替えるか、別の曲を選んでください。",
+        "used_in_other": "他の選曲で使用中です。別の譜面を選ぶか、この行を削除してください。",
         "value": "{{difficulty}} Lv{{level}}"
       }
     },
@@ -573,6 +573,9 @@
       "creating": "作成中..."
     },
     "status": {
+      "charts_completed": "選曲完了",
+      "charts_missing": "未完成の選曲：{{count}}行",
+      "basic_missing": "未入力：{{count}}項目",
       "missing_count": "未入力：{{count}}件",
       "completed": "入力完了 ✔"
     },
@@ -582,6 +585,9 @@
       "none": "なし"
     },
     "chart": {
+      "song_search_aria": "選曲 {{index}} の曲名",
+      "select_song_hint": "曲を選ぶと、SP/DP・難易度を選べます。",
+      "row_count": "選曲：{{count}}行（最大{{max}}行）",
       "max_limit": "最大{{max}}譜面までです。",
       "add": "＋追加",
       "selection_label": "選曲 {{index}}",
@@ -600,12 +606,15 @@
       "chart_difficulty_required": "各譜面で難易度を選択してください。",
       "chart_difficulty_required_row": "難易度を選択してください",
       "chart_duplicate": "同一譜面を重複登録できません。",
-      "chart_duplicate_on_page": "同一譜面が重複しています。",
+      "chart_duplicate_on_page": "同一譜面が重複しています。別の譜面を選ぶか、この行を削除してください。",
       "check_input": "入力内容を確認してください。",
       "check_chart_input": "譜面の入力内容を確認してください。",
       "missing_items": "未入力項目: {{items}}"
     },
     "confirm": {
+      "copy_tournament_id": "大会IDをコピー",
+      "tournament_id_help": "大会IDの確認・コピー",
+      "chart_count": "登録する譜面：{{count}}件",
       "chart_list_title": "譜面一覧",
       "chart_title": "譜面 {{index}}",
       "final_notice": "確定後は内容を編集できません。",
