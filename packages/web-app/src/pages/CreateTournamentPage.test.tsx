@@ -183,10 +183,10 @@ describe('CreateTournamentPage guidance', () => {
     expect(within(dialog).getByText(`${expectedHash.slice(0, 30)}…`)).toBeTruthy();
     await user.click(within(dialog).getByRole('button', { name: i18n.t('create_tournament.confirm.copy_tournament_id') }));
     expect(clipboard).toHaveBeenCalledWith(expectedHash);
-    expect(await screen.findByText(i18n.t('create_tournament.confirm.tournament_id_copied'))).toBeTruthy();
+    expect((await within(dialog).findByRole('alert')).textContent).toBe(i18n.t('create_tournament.confirm.tournament_id_copied'));
     clipboard.mockRejectedValueOnce(new Error('denied'));
     await user.click(within(dialog).getByRole('button', { name: i18n.t('create_tournament.confirm.copy_tournament_id') }));
-    expect(await screen.findByText(i18n.t('create_tournament.confirm.tournament_id_copy_failed'))).toBeTruthy();
+    await waitFor(() => expect(within(dialog).getByRole('alert').textContent).toBe(i18n.t('create_tournament.confirm.tournament_id_copy_failed')));
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(document.activeElement).toBe(help);

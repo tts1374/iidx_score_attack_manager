@@ -950,6 +950,13 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
                   <ContentCopyIcon fontSize="small" />
                 </button>
               </p>
+              <Snackbar
+                key={copySnackbar.key}
+                open={copySnackbar.open}
+                autoHideDuration={2000}
+                onClose={closeCopySnackbar}
+                message={copySnackbar.message}
+              />
             </ContextHelp>
           </div>
 
@@ -1063,13 +1070,6 @@ export function CreateTournamentPage(props: CreateTournamentPageProps): JSX.Elem
           </>
         ) : null}
       </footer>
-      <Snackbar
-        key={copySnackbar.key}
-        open={copySnackbar.open}
-        autoHideDuration={2000}
-        onClose={closeCopySnackbar}
-        message={copySnackbar.message}
-      />
     </div>
   );
 }
