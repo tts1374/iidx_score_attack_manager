@@ -399,6 +399,33 @@ label {
   justify-content: center;
 }
 
+.startupFailureCard h1 {
+  font-size: clamp(24px, 4vw, 30px);
+}
+
+.startupFailureCard .primaryActionButton {
+  width: auto;
+}
+
+.startupFailureCard button {
+  min-height: 44px;
+}
+
+.startupDiagnostics {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.startupRecoveryGuide:not([hidden]) {
+  display: grid;
+  gap: 12px;
+}
+
+.startupRecoveryGuide .warningBox {
+  display: grid;
+  gap: 8px;
+}
+
 .startupLoadingSpinner {
   width: 58px;
   height: 58px;

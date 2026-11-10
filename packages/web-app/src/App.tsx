@@ -44,6 +44,7 @@ import { useTranslation } from 'react-i18next';
 import { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage, type AppLanguage } from './i18n';
 import { ImportQrScannerDialog } from './components/ImportQrScannerDialog';
 import { UnsupportedScreen } from './components/UnsupportedScreen';
+import type { UnsupportedScreenProps } from './components/UnsupportedScreen';
 import { CreateTournamentPage } from './pages/CreateTournamentPage';
 import { HomePage, sortForActiveTab, type HomeListAnimationMode } from './pages/HomePage';
 import { ImportConfirmPage } from './pages/ImportConfirmPage';
@@ -3626,7 +3627,6 @@ export function App({ webLockAcquired = false }: AppProps = {}): JSX.Element {
   );
 }
 
-export function AppFallbackUnsupported({ reasons }: { reasons: string[] }): JSX.Element {
-  const { t } = useTranslation();
-  return <UnsupportedScreen title={t('common.unsupported_browser_title')} reasons={reasons} />;
+export function AppFallbackUnsupported(props: UnsupportedScreenProps): JSX.Element {
+  return <UnsupportedScreen {...props} />;
 }
