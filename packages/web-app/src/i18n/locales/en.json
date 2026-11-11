@@ -49,24 +49,63 @@
       "understood": "I understand the above",
       "start": "Start"
     },
+    "startup_failure": {
+      "try_title": "What you can try",
+      "no_details": "No additional diagnostic information is available.",
+      "capabilities": {
+        "title": "Required features are unavailable",
+        "reason": "Some features needed by the app are unavailable in this browser environment.",
+        "action": "Try updating your browser or opening the app in a regular window of another supported browser."
+      },
+      "other_tab": {
+        "title": "Already running in another tab",
+        "reason": "You can use this app in one tab at a time.",
+        "action": "Check the tab that is already open. To use this tab, close the other tabs running the app, then reload."
+      },
+      "timeout": {
+        "title": "Startup took too long",
+        "reason": "The app did not finish getting ready within the time limit.",
+        "action": "Try reloading. If this keeps happening, restart your browser and open the app again."
+      },
+      "storage": {
+        "title": "Could not prepare local storage",
+        "reason": "The app could not initialize the feature that saves data in this browser.",
+        "action": "Try reloading. If you are using private browsing, open the app in a regular window."
+      },
+      "unexpected": {
+        "title": "Could not start the app",
+        "reason": "An unexpected error occurred during preparation. The cause has not been identified.",
+        "action": "Try reloading. If this keeps happening, check the technical information and include it when asking for support."
+      },
+      "isolation": {
+        "title": "The startup environment is not ready",
+        "reason": "The environment required to run the app is still unavailable after setup.",
+        "action": "Try reloading. If this keeps happening, update your browser and open the app again."
+      }
+    },
     "service_worker_failure": {
-      "title": "Failed to enable Service Worker",
-      "description": "Initial setup could not be completed.",
+      "title": "Could not complete setup",
       "reason": {
-        "unsupported": "This browser does not support Service Worker.",
-        "register_error": "An error occurred while registering Service Worker.",
-        "controller_timeout": "Service Worker could not control this page in time."
+        "unsupported": "This browser environment cannot use the page preparation feature required to start the app.",
+        "register_error": "An error occurred while preparing the page needed to start the app.",
+        "controller_timeout": "Page preparation did not finish within the time limit."
       },
-      "checklist": {
-        "unsupported": "Browser does not support SW",
-        "private_mode": "Private mode or restrictions",
-        "cache_corruption": "Cache corruption"
+      "action": {
+        "unsupported": "Try updating your browser or opening the app in a regular window of another supported browser.",
+        "register_error": "Try reloading. If that does not help, open the app in a regular window or restart your browser.",
+        "controller_timeout": "Try reloading. If that does not help, restart your browser and open the app again."
       },
-      "guide_toggle": "How to clear data/cache",
+      "diagnostic": {
+        "unsupported": "Service Worker: unavailable",
+        "register_error": "Service Worker: registration failed",
+        "controller_timeout": "Service Worker: timed out waiting for page control"
+      },
+      "guide_toggle": "Site data deletion guide",
+      "delete_warning_title": "Before deleting",
+      "delete_warning": "Deleting site data removes score attacks, images, settings, and other data saved in this browser. The app cannot restore them. This is different from clearing only the cache. Consider this only if other steps have not helped and you can accept losing the saved data.",
       "guide_steps": {
-        "clear_site_data": "Delete site data and cache in browser settings",
-        "exit_private_mode": "Exit private mode and reopen in normal mode",
-        "restart_browser": "If still unresolved, restart your browser and access again"
+        "clear_site_data": "In your browser settings, delete the data for this site.",
+        "reopen": "Open this site again in a regular window. This may not resolve the problem."
       }
     },
     "invalid_import_link": {

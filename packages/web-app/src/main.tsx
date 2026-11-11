@@ -6,6 +6,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 
 import { App, AppFallbackUnsupported } from './App';
+import { ServiceWorkerFailureScreen, type ServiceWorkerFailureReason } from './components/ServiceWorkerFailureScreen';
 import i18n, { APP_LANGUAGE_SETTING_KEY, ensureI18n, normalizeLanguage } from './i18n';
 import { createAppServices } from './services/app-services';
 import { AppServicesProvider } from './services/context';
@@ -28,8 +29,6 @@ const TUTORIAL_DONE_KEY = 'tutorial_done';
 const COI_RELOAD_ATTEMPT_KEY = 'coi_reload_attempt';
 const SW_CONTROLLER_TIMEOUT_MS = 9000;
 
-type ServiceWorkerFailureReason = 'unsupported' | 'register_error' | 'controller_timeout';
-
 interface ServiceWorkerRegisterAttempt {
   registration: ServiceWorkerRegistration | null;
   errorMessage: string | null;
@@ -44,11 +43,6 @@ type ImportDelegationResult = { status: 'ack'; via: 'broadcast' | 'storage' } | 
 
 interface LocalConsentScreenProps {
   onStart: () => void;
-}
-
-interface ServiceWorkerFailureScreenProps {
-  reason: ServiceWorkerFailureReason;
-  errorMessage: string | null;
 }
 
 interface ImportDelegationScreenProps {
@@ -375,49 +369,6 @@ function SetupLoadingScreen(): JSX.Element {
   );
 }
 
-function ServiceWorkerFailureScreen(props: ServiceWorkerFailureScreenProps): JSX.Element {
-  const { t } = useTranslation();
-  const [guideOpen, setGuideOpen] = React.useState(false);
-
-  const failureHint =
-    props.reason === 'unsupported'
-      ? t('common.service_worker_failure.reason.unsupported')
-      : props.reason === 'register_error'
-        ? t('common.service_worker_failure.reason.register_error')
-        : t('common.service_worker_failure.reason.controller_timeout');
-
-  return (
-    <main className="page startupShell">
-      <section className="unsupported startupCard">
-        <h1>{t('common.service_worker_failure.title')}</h1>
-        <p>{t('common.service_worker_failure.description')}</p>
-        <p className="errorText">{failureHint}</p>
-        {props.errorMessage ? <p className="hintText">{t('common.detail_with_value', { value: props.errorMessage })}</p> : null}
-        <ul>
-          <li>{t('common.service_worker_failure.checklist.unsupported')}</li>
-          <li>{t('common.service_worker_failure.checklist.private_mode')}</li>
-          <li>{t('common.service_worker_failure.checklist.cache_corruption')}</li>
-        </ul>
-        <div className="actions startupActionRow">
-          <button type="button" onClick={() => window.location.reload()}>
-            {t('common.reload')}
-          </button>
-          <button type="button" onClick={() => setGuideOpen((current) => !current)}>
-            {t('common.service_worker_failure.guide_toggle')}
-          </button>
-        </div>
-        {guideOpen ? (
-          <ol className="startupGuide">
-            <li>{t('common.service_worker_failure.guide_steps.clear_site_data')}</li>
-            <li>{t('common.service_worker_failure.guide_steps.exit_private_mode')}</li>
-            <li>{t('common.service_worker_failure.guide_steps.restart_browser')}</li>
-          </ol>
-        ) : null}
-      </section>
-    </main>
-  );
-}
-
 function InvalidImportLinkScreen(props: InvalidImportLinkScreenProps): JSX.Element {
   const { t } = useTranslation();
 
@@ -600,6 +551,7 @@ async function bootstrap(): Promise<void> {
       renderWithMuiTheme(
         root,
         <AppFallbackUnsupported
+          kind="isolation"
           reasons={[
             'Cross-Origin-Isolation (COOP/COEP)',
             i18n.t('common.bootstrap.cross_origin_isolated_unavailable_after_setup'),
@@ -629,7 +581,7 @@ async function bootstrap(): Promise<void> {
   }
 
   if (reasons.length > 0) {
-    renderWithMuiTheme(root, <AppFallbackUnsupported reasons={reasons} />);
+    renderWithMuiTheme(root, <AppFallbackUnsupported kind="capabilities" reasons={reasons} />);
     return;
   }
 
@@ -651,15 +603,16 @@ async function bootstrap(): Promise<void> {
       );
       return;
     }
-    renderWithMuiTheme(root, <AppFallbackUnsupported reasons={[i18n.t('common.bootstrap.already_running_in_other_tab')]} />);
+    renderWithMuiTheme(root, <AppFallbackUnsupported kind="other_tab" reasons={[i18n.t('common.bootstrap.already_running_in_other_tab')]} />);
     return;
   }
 
+  const initializationTimeout = new Error(i18n.t('common.bootstrap.initialization_timeout'));
   try {
     const services = await Promise.race([
       createAppServices(),
       new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error(i18n.t('common.bootstrap.initialization_timeout'))), 20000);
+        window.setTimeout(() => reject(initializationTimeout), 20000);
       }),
     ]);
     const persistedLanguage = await services.appDb.getSetting(APP_LANGUAGE_SETTING_KEY).catch(() => null);
@@ -685,7 +638,8 @@ async function bootstrap(): Promise<void> {
       ? i18n.t('common.bootstrap.opfs_vfs_init_failed')
       : i18n.t('common.bootstrap.initialization_error', { message });
 
-    renderWithMuiTheme(root, <AppFallbackUnsupported reasons={[reason]} />);
+    const kind = error === initializationTimeout ? 'timeout' : message.includes('no such vfs: opfs') ? 'storage' : 'unexpected';
+    renderWithMuiTheme(root, <AppFallbackUnsupported kind={kind} reasons={[reason]} />);
   }
 }
 

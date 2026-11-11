@@ -49,24 +49,63 @@
       "understood": "위 내용을 이해했습니다",
       "start": "시작하기"
     },
+    "startup_failure": {
+      "try_title": "시도할 수 있는 조치",
+      "no_details": "추가 진단 정보가 없습니다.",
+      "capabilities": {
+        "title": "시작에 필요한 기능을 사용할 수 없습니다",
+        "reason": "이 브라우저 환경에서는 앱에 필요한 일부 기능을 사용할 수 없습니다.",
+        "action": "브라우저를 최신 버전으로 업데이트하거나 다른 지원 브라우저의 일반 모드에서 열어 보세요."
+      },
+      "other_tab": {
+        "title": "다른 탭에서 실행 중입니다",
+        "reason": "이 앱은 한 번에 하나의 탭에서 사용할 수 있습니다.",
+        "action": "이미 열려 있는 탭을 확인하세요. 이 탭에서 사용하려면 앱을 실행 중인 다른 탭을 닫은 후 새로고침하세요."
+      },
+      "timeout": {
+        "title": "시작 대기 시간을 초과했습니다",
+        "reason": "제한 시간 안에 앱 준비를 완료하지 못했습니다.",
+        "action": "새로고침을 시도하세요. 계속 발생하면 브라우저를 다시 시작한 후 앱을 다시 여세요."
+      },
+      "storage": {
+        "title": "저장 기능을 준비하지 못했습니다",
+        "reason": "이 브라우저에 데이터를 저장하는 기능을 초기화하지 못했습니다.",
+        "action": "새로고침을 시도하세요. 비공개 모드를 사용 중이라면 일반 모드에서 다시 여세요."
+      },
+      "unexpected": {
+        "title": "앱을 시작하지 못했습니다",
+        "reason": "준비 중에 예기치 않은 오류가 발생했습니다. 원인은 확인되지 않았습니다.",
+        "action": "새로고침을 시도하세요. 계속 발생하면 기술 정보를 확인하여 문의할 때 함께 알려 주세요."
+      },
+      "isolation": {
+        "title": "실행 환경 준비가 완료되지 않았습니다",
+        "reason": "설정 후에도 앱 실행에 필요한 환경을 사용할 수 없습니다.",
+        "action": "새로고침을 시도하세요. 계속 발생하면 브라우저를 최신 버전으로 업데이트한 후 다시 여세요."
+      }
+    },
     "service_worker_failure": {
-      "title": "Service Worker를 활성화할 수 없습니다",
-      "description": "초기 설정을 완료할 수 없었습니다.",
+      "title": "설정을 완료하지 못했습니다",
       "reason": {
-        "unsupported": "이 브라우저는 Service Worker를 지원하지 않습니다.",
-        "register_error": "Service Worker 등록 처리 중 오류가 발생했습니다.",
-        "controller_timeout": "일정 시간 내에 Service Worker가 페이지를 제어하지 못했습니다."
+        "unsupported": "이 브라우저 환경에서는 시작에 필요한 페이지 준비 기능을 사용할 수 없습니다.",
+        "register_error": "시작에 필요한 페이지를 준비하는 중에 오류가 발생했습니다.",
+        "controller_timeout": "제한 시간 안에 페이지 준비가 완료되지 않았습니다."
       },
-      "checklist": {
-        "unsupported": "브라우저가 SW를 지원하지 않음",
-        "private_mode": "프라이빗 모드/제한",
-        "cache_corruption": "캐시 손상"
+      "action": {
+        "unsupported": "브라우저를 최신 버전으로 업데이트하거나 다른 지원 브라우저의 일반 모드에서 열어 보세요.",
+        "register_error": "새로고침을 시도하세요. 해결되지 않으면 일반 모드에서 다시 열거나 브라우저를 다시 시작하세요.",
+        "controller_timeout": "새로고침을 시도하세요. 해결되지 않으면 브라우저를 다시 시작한 후 앱을 다시 여세요."
       },
-      "guide_toggle": "데이터/캐시 삭제 안내",
+      "diagnostic": {
+        "unsupported": "Service Worker: 사용 불가",
+        "register_error": "Service Worker: 등록 실패",
+        "controller_timeout": "Service Worker: 페이지 제어 대기 시간 초과"
+      },
+      "guide_toggle": "사이트 데이터 삭제 안내",
+      "delete_warning_title": "삭제하기 전에",
+      "delete_warning": "사이트 데이터를 삭제하면 이 브라우저에 저장한 스코어 어택·이미지·설정 등의 데이터가 사라지며 앱에서 복원할 수 없습니다. 캐시만 삭제하는 것과는 다릅니다. 다른 조치로도 해결되지 않고 저장 데이터를 잃어도 괜찮은 경우에만 고려하세요.",
       "guide_steps": {
-        "clear_site_data": "브라우저 설정에서 이 사이트의 데이터와 캐시를 삭제합니다",
-        "exit_private_mode": "프라이빗 모드를 종료하고 일반 모드로 다시 엽니다",
-        "restart_browser": "그래도 해결되지 않으면 브라우저를 재시작한 뒤 다시 접속합니다"
+        "clear_site_data": "브라우저 설정에서 이 사이트의 데이터를 삭제합니다.",
+        "reopen": "이 사이트를 일반 모드에서 다시 엽니다. 문제가 해결되지 않을 수도 있습니다."
       }
     },
     "invalid_import_link": {
