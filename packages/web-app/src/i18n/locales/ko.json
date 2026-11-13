@@ -321,8 +321,17 @@
         "open_public_catalog": "공개 대회 찾기"
       }
     },
+    "publication": {
+      "unpublished": "대회 정보: 미공개",
+      "publishing": "대회 정보: 공개 처리 중",
+      "published": "대회 정보: 공개됨",
+      "retryable": "대회 정보: 미공개 (재시도 가능)"
+    },
     "remaining_days": "{{days}}일 남음",
     "progress": {
+      "registered": "이미지 등록 {{registered}}/{{total}}",
+      "all_shared": "모두 공유됨",
+      "description": "이미지 등록 {{registered}}/{{total}}. 공유됨 {{shared}}, 미공유 {{unshared}}, 미등록 {{unregistered}}.",
       "send_waiting_count": "미공유 {{count}}",
       "badge": {
         "send_waiting": "미공유",

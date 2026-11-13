@@ -321,9 +321,18 @@
         "open_public_catalog": "公開スコアタを探す"
       }
     },
+    "publication": {
+      "unpublished": "大会情報：未公開",
+      "publishing": "大会情報：公開処理中",
+      "published": "大会情報：公開済み",
+      "retryable": "大会情報：未公開（再試行可）"
+    },
     "remaining_days": "残{{days}}日",
     "progress": {
       "send_waiting_count": "未共有 {{count}}",
+      "registered": "画像登録 {{registered}}/{{total}}",
+      "all_shared": "すべて共有済",
+      "description": "画像登録 {{registered}}/{{total}}。共有済 {{shared}}、未共有 {{unshared}}、未登録 {{unregistered}}。",
       "badge": {
         "send_waiting": "未共有",
         "pending": "未登録",

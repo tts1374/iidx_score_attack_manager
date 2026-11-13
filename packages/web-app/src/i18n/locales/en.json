@@ -321,8 +321,17 @@
         "open_public_catalog": "Browse public tournaments"
       }
     },
+    "publication": {
+      "unpublished": "Tournament information: unpublished",
+      "publishing": "Tournament information: publishing",
+      "published": "Tournament information: published",
+      "retryable": "Tournament information: unpublished (retry available)"
+    },
     "remaining_days": "{{days}} days left",
     "progress": {
+      "registered": "Images registered {{registered}}/{{total}}",
+      "all_shared": "All shared",
+      "description": "Images registered {{registered}}/{{total}}. Shared {{shared}}, not shared {{unshared}}, not registered {{unregistered}}.",
       "send_waiting_count": "Unshared {{count}}",
       "badge": {
         "send_waiting": "Unshared",

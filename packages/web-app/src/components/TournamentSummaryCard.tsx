@@ -2,6 +2,12 @@ import React from 'react';
 import { daysUntilStart } from '@iidx/shared';
 import type { TournamentPublicationStatus } from '@iidx/db';
 import { useTheme } from '@mui/material/styles';
+import Tooltip from '@mui/material/Tooltip';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
+import PublicOffOutlinedIcon from '@mui/icons-material/PublicOffOutlined';
+import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
+import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import { useTranslation } from 'react-i18next';
 
 import type { TournamentStatus } from '../utils/tournament-status';
@@ -68,6 +74,7 @@ function resolvePublicationLabelKey(status: TournamentPublicationStatus): string
 
 export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.Element {
   const { t } = useTranslation();
+  const progressDescriptionId = React.useId();
   const theme = useTheme();
   const prefersReducedMotion = props.prefersReducedMotion ?? false;
   const progressBarTransition = React.useMemo(
@@ -112,10 +119,16 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
   const shouldAnimateProgress = Boolean(props.animateProgress ?? (props.variant === 'list')) && !prefersReducedMotion;
   const submittedCount = safeSharedCount + safeUnsharedCount;
   const progressValueText = `${submittedCount}/${totalCount}`;
+  const registeredLabel = t('home.progress.registered', { registered: submittedCount, total: totalCount });
+  const allShared = props.variant === 'list' && totalCount > 0 && safeSharedCount === totalCount;
   const showDetailLink = props.variant === 'list';
   const showShareAction = props.variant === 'detail' && Boolean(props.shareAction);
   const publicationStatus = props.publicationStatus ?? 'unpublished';
   const showPublicationStatus = Boolean(props.showPublicationStatus);
+  const publicationLabel = t(`home.publication.${publicationStatus}`);
+  const PublicationIcon = publicationStatus === 'published' ? PublicOutlinedIcon
+    : publicationStatus === 'publishing' ? SyncOutlinedIcon
+      : publicationStatus === 'retryable' ? ErrorOutlineOutlinedIcon : PublicOffOutlinedIcon;
   const [displayedProgress, setDisplayedProgress] = React.useState(() => ({
     shared: shouldAnimateProgress ? 0 : sharedPercent,
     unshared: shouldAnimateProgress ? 0 : unsharedPercent,
@@ -178,10 +191,21 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
             </span>
           ) : null}
         </div>
-        {title}
+        {props.variant === 'list' ? (
+          <div className="tournamentSummaryTitleRow">
+            {title}
+            {showPublicationStatus ? (
+              <span className={`tournamentPublicationIcon tournamentPublicationIcon-${publicationStatus}`}
+                role="img" aria-label={publicationLabel} title={publicationLabel}
+                data-testid="tournament-summary-publication-list">
+                <PublicationIcon fontSize="inherit" />
+              </span>
+            ) : null}
+          </div>
+        ) : title}
         {showPeriod ? <p className="periodLine tournamentSummaryPeriod">{periodText}</p> : null}
         {showIncompleteLabels ? (
-          <div className="tournamentStatusLabelRow" data-testid={`tournament-summary-incomplete-row-${props.variant}`}>
+          <div className="tournamentStatusLabelRow" data-testid={`tournament-summary-incomplete-row-${props.variant}`} aria-hidden={props.variant === 'list' || undefined}>
             {safeUnregisteredCount > 0 ? (
               <span
                 className="tournamentStatusLabel tournamentStatusLabel-unregistered"
@@ -200,7 +224,12 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
             ) : null}
           </div>
         ) : null}
-        {showPublicationStatus ? (
+        {allShared ? (
+          <div className="tournamentStatusLabelRow" aria-hidden>
+            <span className="tournamentStatusLabel tournamentStatusLabel-shared">{t('home.progress.all_shared')}</span>
+          </div>
+        ) : null}
+        {showPublicationStatus && props.variant !== 'list' ? (
           <div className="tournamentStatusLabelRow" data-testid={`tournament-summary-publication-row-${props.variant}`}>
             <span
               className={joinClasses(
@@ -224,8 +253,10 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
             <span
               className={joinClasses('tournamentProgressValue', progressValueVisible && 'tournamentProgressValue-visible')}
               style={{ transition: progressValueTransition }}
+              title={props.variant === 'list' ? registeredLabel : undefined}
               aria-hidden
             >
+              {props.variant === 'list' ? <ImageOutlinedIcon fontSize="inherit" /> : null}
               {progressValueText}
             </span>
           </div>
@@ -245,9 +276,22 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
 
   if (props.variant === 'list') {
     return (
-      <button type="button" className={rootClassName} onClick={props.onOpenDetail}>
-        {content}
-      </button>
+      <Tooltip describeChild disableHoverListener title={
+        <span>{showPublicationStatus ? <>{publicationLabel}<br /></> : null}{registeredLabel}</span>
+      }>
+        <button type="button" className={rootClassName} onClick={props.onOpenDetail} aria-describedby={progressDescriptionId}>
+          {content}
+          <span id={progressDescriptionId} hidden>
+            {t('home.progress.description', {
+              registered: submittedCount,
+              total: totalCount,
+              shared: safeSharedCount,
+              unshared: safeUnsharedCount,
+              unregistered: safeUnregisteredCount,
+            })}
+          </span>
+        </button>
+      </Tooltip>
     );
   }
 
