@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { HomePage } from './HomePage';
@@ -32,11 +32,56 @@ describe.each([
       name: /テスト大会/,
       description: new RegExp(`${visibleProgress}.*${labels[0]} ${counts.shared}.*${labels[1]} ${counts.unshared}.*${labels[2]} ${counts.unregistered}`),
     });
-    expect(container.querySelector('.tournamentProgressValue')?.textContent).toBe(visibleProgress);
+    expect(container.querySelector('.tournamentProgressValue')?.textContent).toBe(`${counts.registered}/${counts.total}`);
+    expect(container.querySelector('.tournamentProgressValue')?.getAttribute('title')).toBe(visibleProgress);
     expect(card.getAttribute('aria-describedby')).toBeTruthy();
     expect(Boolean(screen.queryByText(completed))).toBe(counts.total > 0 && counts.shared === counts.total);
     // Progress has one accessible description; visual badges and values do not repeat it in the name.
     expect(screen.queryByRole('button', { name: new RegExp(registeredLabel) })).toBeNull();
+    cleanup();
+  });
+});
+
+describe('Home icon help', () => {
+  it.each([
+    { language: 'ja' as const, labels: ['大会情報：未公開', '大会情報：公開処理中', '大会情報：公開済み', '大会情報：未公開（再試行可）'] },
+    { language: 'en' as const, labels: ['Tournament information: unpublished', 'Tournament information: publishing', 'Tournament information: published', 'Tournament information: unpublished (retry available)'] },
+    { language: 'ko' as const, labels: ['대회 정보: 미공개', '대회 정보: 공개 처리 중', '대회 정보: 공개됨', '대회 정보: 미공개 (재시도 가능)'] },
+  ])('keeps all publication states distinct from image progress ($language)', async ({ language, labels }) => {
+    await ensureI18n(language);
+    for (const [index, publicationStatus] of (['unpublished', 'publishing', 'published', 'retryable'] as const).entries()) {
+      const { container } = render(<TournamentSummaryCard variant="list" title="テスト大会"
+        startDate="2026-02-01" endDate="2026-02-12" todayDate="2026-02-10" prefersReducedMotion
+        showPublicationStatus publicationStatus={publicationStatus} sharedCount={4} />);
+      const label = labels[index]!;
+      const icon = screen.getByRole('img', { name: label });
+      expect(icon.getAttribute('title')).toBe(label);
+      expect(icon.textContent).toBe('');
+      expect(screen.getByRole('button', { name: /テスト大会/ }).textContent).not.toContain(label);
+      expect(container.querySelector('.tournamentStatusLabel-shared')?.textContent).toBeTruthy();
+      cleanup();
+    }
+  });
+
+  it('shows icon meanings on keyboard focus, dismisses help with Escape and still opens details', async () => {
+    const onOpenDetail = vi.fn();
+    const { container } = render(<TournamentSummaryCard variant="list" title="テスト大会"
+      startDate="2026-02-01" endDate="2026-02-12" todayDate="2026-02-10" prefersReducedMotion
+      showPublicationStatus publicationStatus="published" sharedCount={1} unsharedCount={1}
+      unregisteredCount={2} onOpenDetail={onOpenDetail} />);
+    const card = screen.getByRole('button', { name: /テスト大会.*大会情報：公開済み/,
+      description: '画像登録 2/4。共有済 1、未共有 1、未登録 2。' });
+    // Supply layout dimensions for the tooltip's browser anchor in jsdom.
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 320, 180));
+    await userEvent.tab();
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip.textContent).toContain('大会情報：公開済み');
+    expect(tooltip.textContent).toContain('画像登録 2/4');
+    expect(card.getAttribute('aria-describedby')).toBe(container.querySelector('span[hidden]')?.id);
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+    await userEvent.keyboard('{Enter}');
+    expect(onOpenDetail).toHaveBeenCalledTimes(1);
     cleanup();
   });
 });
@@ -55,10 +100,11 @@ describe('Home progress updates', () => {
     );
     const { container, rerender } = render(renderHome(0, 0));
     const card = screen.getByRole('button', { name: new RegExp(item.tournamentName), description: /画像登録 0\/4。共有済 0、未共有 0、未登録 4/ });
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 320, 180));
     const descriptionId = card.getAttribute('aria-describedby');
     rerender(renderHome(4, 4));
     expect(screen.getByRole('button', { description: /画像登録 4\/4。共有済 0、未共有 4、未登録 0/ })).toBe(card);
-    expect(container.querySelector('.tournamentProgressValue')?.textContent).toBe('画像登録 4/4');
+    expect(container.querySelector('.tournamentProgressValue')?.textContent).toBe('4/4');
     rerender(renderHome(4, 0));
     expect(screen.getByRole('button', { description: /画像登録 4\/4。共有済 4、未共有 0、未登録 0/ })).toBe(card);
     expect(card.getAttribute('aria-describedby')).toBe(descriptionId);
@@ -282,7 +328,8 @@ describe('HomePage', () => {
       />,
     );
 
-    expect(container.querySelector('[data-testid="tournament-summary-publication-list"]')?.textContent).toBe('未公開（再試行可）');
+    expect(screen.getByRole('img', { name: '大会情報：未公開（再試行可）' })).toBeTruthy();
+    expect(container.querySelector('[data-testid="tournament-summary-publication-list"]')?.textContent).toBe('');
 
     rerender(
       <HomePage

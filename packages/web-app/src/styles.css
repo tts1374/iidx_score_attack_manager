@@ -802,6 +802,33 @@ label {
   font-size: 20px;
 }
 
+.tournamentSummaryTitleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tournamentSummaryTitleRow .tournamentSummaryTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.tournamentPublicationIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 3px;
+  font-size: 20px;
+  color: var(--text-subtle);
+}
+
+.tournamentPublicationIcon-published {
+  color: var(--status-shared-text);
+}
+
+.tournamentPublicationIcon-retryable {
+  color: var(--status-warning-text);
+}
+
 .tournamentSummaryCard-detail .tournamentSummaryTitle,
 .tournamentSummaryCard-preview .tournamentSummaryTitle {
   font-size: 24px;
@@ -841,6 +868,11 @@ label {
   background: var(--status-unshared-bg);
   border-color: var(--status-unshared-border);
   color: var(--status-unshared-text);
+}
+
+.tournamentStatusLabel-shared {
+  background: var(--status-shared-bg);
+  color: var(--status-shared-text);
 }
 
 .tournamentStatusLabel-publication-unpublished {
@@ -1081,8 +1113,15 @@ label {
 }
 
 .tournamentSummaryCard-list .tournamentProgressValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+.tournamentSummaryCard-list .tournamentProgressValue svg {
+  font-size: 16px;
 }
 
 .cardNavigationHint {

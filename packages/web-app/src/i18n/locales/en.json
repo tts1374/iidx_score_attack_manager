@@ -321,6 +321,12 @@
         "open_public_catalog": "Browse public tournaments"
       }
     },
+    "publication": {
+      "unpublished": "Tournament information: unpublished",
+      "publishing": "Tournament information: publishing",
+      "published": "Tournament information: published",
+      "retryable": "Tournament information: unpublished (retry available)"
+    },
     "remaining_days": "{{days}} days left",
     "progress": {
       "registered": "Images registered {{registered}}/{{total}}",
