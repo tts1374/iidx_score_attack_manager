@@ -1080,6 +1080,11 @@ label {
   opacity: 1;
 }
 
+.tournamentSummaryCard-list .tournamentProgressValue {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .cardNavigationHint {
   display: inline-flex;
   justify-self: end;

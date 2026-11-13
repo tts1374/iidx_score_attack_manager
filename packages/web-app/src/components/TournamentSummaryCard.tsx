@@ -68,6 +68,7 @@ function resolvePublicationLabelKey(status: TournamentPublicationStatus): string
 
 export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.Element {
   const { t } = useTranslation();
+  const progressDescriptionId = React.useId();
   const theme = useTheme();
   const prefersReducedMotion = props.prefersReducedMotion ?? false;
   const progressBarTransition = React.useMemo(
@@ -111,7 +112,10 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
   const showProgress = props.variant === 'list' || props.variant === 'detail';
   const shouldAnimateProgress = Boolean(props.animateProgress ?? (props.variant === 'list')) && !prefersReducedMotion;
   const submittedCount = safeSharedCount + safeUnsharedCount;
-  const progressValueText = `${submittedCount}/${totalCount}`;
+  const progressValueText = props.variant === 'list'
+    ? t('home.progress.registered', { registered: submittedCount, total: totalCount })
+    : `${submittedCount}/${totalCount}`;
+  const allShared = props.variant === 'list' && totalCount > 0 && safeSharedCount === totalCount;
   const showDetailLink = props.variant === 'list';
   const showShareAction = props.variant === 'detail' && Boolean(props.shareAction);
   const publicationStatus = props.publicationStatus ?? 'unpublished';
@@ -181,7 +185,7 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
         {title}
         {showPeriod ? <p className="periodLine tournamentSummaryPeriod">{periodText}</p> : null}
         {showIncompleteLabels ? (
-          <div className="tournamentStatusLabelRow" data-testid={`tournament-summary-incomplete-row-${props.variant}`}>
+          <div className="tournamentStatusLabelRow" data-testid={`tournament-summary-incomplete-row-${props.variant}`} aria-hidden={props.variant === 'list' || undefined}>
             {safeUnregisteredCount > 0 ? (
               <span
                 className="tournamentStatusLabel tournamentStatusLabel-unregistered"
@@ -198,6 +202,11 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
                 {t('home.progress.badge.send_waiting', { count: safeUnsharedCount })} {safeUnsharedCount}
               </span>
             ) : null}
+          </div>
+        ) : null}
+        {allShared ? (
+          <div className="tournamentStatusLabelRow" aria-hidden>
+            <span className="tournamentStatusLabel">{t('home.progress.all_shared')}</span>
           </div>
         ) : null}
         {showPublicationStatus ? (
@@ -245,8 +254,17 @@ export function TournamentSummaryCard(props: TournamentSummaryCardProps): JSX.El
 
   if (props.variant === 'list') {
     return (
-      <button type="button" className={rootClassName} onClick={props.onOpenDetail}>
+      <button type="button" className={rootClassName} onClick={props.onOpenDetail} aria-describedby={progressDescriptionId}>
         {content}
+        <span id={progressDescriptionId} hidden>
+          {t('home.progress.description', {
+            registered: submittedCount,
+            total: totalCount,
+            shared: safeSharedCount,
+            unshared: safeUnsharedCount,
+            unregistered: safeUnregisteredCount,
+          })}
+        </span>
       </button>
     );
   }

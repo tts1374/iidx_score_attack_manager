@@ -4,6 +4,85 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { HomePage } from './HomePage';
+import { TournamentSummaryCard } from '../components/TournamentSummaryCard';
+import { ensureI18n } from '../i18n';
+
+const progressCases = [
+  { shared: 0, unshared: 0, unregistered: 4, registered: 0, total: 4 },
+  { shared: 0, unshared: 4, unregistered: 0, registered: 4, total: 4 },
+  { shared: 1, unshared: 1, unregistered: 2, registered: 2, total: 4 },
+  { shared: 4, unshared: 0, unregistered: 0, registered: 4, total: 4 },
+  { shared: 0, unshared: 0, unregistered: 0, registered: 0, total: 0 },
+];
+
+describe.each([
+  { language: 'ja' as const, registeredLabel: '画像登録', completed: 'すべて共有済', labels: ['共有済', '未共有', '未登録'] },
+  { language: 'en' as const, registeredLabel: 'Images registered', completed: 'All shared', labels: ['Shared', 'not shared', 'not registered'] },
+  { language: 'ko' as const, registeredLabel: '이미지 등록', completed: '모두 공유됨', labels: ['공유됨', '미공유', '미등록'] },
+])('Home progress ($language)', ({ language, registeredLabel, completed, labels }) => {
+  it.each(progressCases)('exposes registration and all counts: $registered/$total ($shared shared)', async (counts) => {
+    await ensureI18n(language);
+    const { container } = render(
+      <TournamentSummaryCard variant="list" title="テスト大会" startDate="2026-02-01" endDate="2026-02-12"
+        todayDate="2026-02-10" prefersReducedMotion sharedCount={counts.shared}
+        unsharedCount={counts.unshared} unregisteredCount={counts.unregistered} />,
+    );
+    const visibleProgress = `${registeredLabel} ${counts.registered}/${counts.total}`;
+    const card = screen.getByRole('button', {
+      name: /テスト大会/,
+      description: new RegExp(`${visibleProgress}.*${labels[0]} ${counts.shared}.*${labels[1]} ${counts.unshared}.*${labels[2]} ${counts.unregistered}`),
+    });
+    expect(container.querySelector('.tournamentProgressValue')?.textContent).toBe(visibleProgress);
+    expect(card.getAttribute('aria-describedby')).toBeTruthy();
+    expect(Boolean(screen.queryByText(completed))).toBe(counts.total > 0 && counts.shared === counts.total);
+    // Progress has one accessible description; visual badges and values do not repeat it in the name.
+    expect(screen.queryByRole('button', { name: new RegExp(registeredLabel) })).toBeNull();
+    cleanup();
+  });
+});
+
+describe('Home progress updates', () => {
+  it('updates the same card after registration and sharing and keeps mouse/keyboard navigation', async () => {
+    const onOpenDetail = vi.fn();
+    const item = {
+      tournamentUuid: 'progress-card', sourceTournamentUuid: null, tournamentName: '長いスコアタ名'.repeat(6),
+      owner: 'owner', hashtag: 'tag', startDate: '2026-02-01', endDate: '2026-02-12', isImported: false,
+      chartCount: 4, submittedCount: 0, sendWaitingCount: 0, pendingCount: 4,
+    };
+    const renderHome = (submittedCount: number, sendWaitingCount: number) => (
+      <HomePage todayDate="2026-02-10" state="active" prefersReducedMotion
+        items={[{ ...item, submittedCount, sendWaitingCount }]} onOpenDetail={onOpenDetail} />
+    );
+    const { container, rerender } = render(renderHome(0, 0));
+    const card = screen.getByRole('button', { name: new RegExp(item.tournamentName), description: /画像登録 0\/4。共有済 0、未共有 0、未登録 4/ });
+    const descriptionId = card.getAttribute('aria-describedby');
+    rerender(renderHome(4, 4));
+    expect(screen.getByRole('button', { description: /画像登録 4\/4。共有済 0、未共有 4、未登録 0/ })).toBe(card);
+    expect(container.querySelector('.tournamentProgressValue')?.textContent).toBe('画像登録 4/4');
+    rerender(renderHome(4, 0));
+    expect(screen.getByRole('button', { description: /画像登録 4\/4。共有済 4、未共有 0、未登録 0/ })).toBe(card);
+    expect(card.getAttribute('aria-describedby')).toBe(descriptionId);
+    expect(screen.getByText('すべて共有済')).toBeTruthy();
+    await userEvent.click(card);
+    await userEvent.keyboard('{Enter}');
+    await userEvent.keyboard(' ');
+    expect(onOpenDetail.mock.calls).toEqual([[item.tournamentUuid], [item.tournamentUuid], [item.tournamentUuid]]);
+    cleanup();
+  });
+
+  it('leaves the detail and import preview progress summaries unchanged', () => {
+    const props = { title: 'テスト大会', startDate: '2026-02-01', endDate: '2026-02-12', todayDate: '2026-02-10',
+      prefersReducedMotion: true, sharedCount: 1, unsharedCount: 1, unregisteredCount: 2 };
+    const { container, rerender } = render(<TournamentSummaryCard {...props} variant="detail" />);
+    expect(container.querySelector('.tournamentProgressValue')?.textContent).toBe('2/4');
+    expect(screen.getByTestId('tournament-summary-incomplete-row-detail').getAttribute('aria-hidden')).toBeNull();
+    expect(container.querySelector('[aria-describedby]')).toBeNull();
+    rerender(<TournamentSummaryCard {...props} variant="preview" />);
+    expect(container.querySelector('.tournamentSummaryProgressWrap')).toBeNull();
+    expect(container.querySelector('[aria-describedby]')).toBeNull();
+    cleanup();
+  });
+});
 
 describe('HomePage', () => {
   it('renders active tournament card with remaining days', () => {

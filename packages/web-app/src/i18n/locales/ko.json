@@ -323,6 +323,9 @@
     },
     "remaining_days": "{{days}}일 남음",
     "progress": {
+      "registered": "이미지 등록 {{registered}}/{{total}}",
+      "all_shared": "모두 공유됨",
+      "description": "이미지 등록 {{registered}}/{{total}}. 공유됨 {{shared}}, 미공유 {{unshared}}, 미등록 {{unregistered}}.",
       "send_waiting_count": "미공유 {{count}}",
       "badge": {
         "send_waiting": "미공유",
