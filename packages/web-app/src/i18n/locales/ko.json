@@ -489,21 +489,21 @@
     },
     "search_title": "공개 스코어 어택 찾기",
     "description": "공개된 스코어 어택을 검색하고 기존 import 흐름으로 가져올 수 있습니다.",
-    "search_placeholder": "대회명 / 주최자 / 해시태그",
+    "search_placeholder": "스코어 어택 이름 / 해시태그",
     "result_count": "{{count}}건 표시 중",
     "loading": "공개 카탈로그를 불러오는 중...",
     "loading_more": "추가 항목을 불러오는 중...",
     "load_more": "더 보기",
     "empty": "아직 공개된 스코어 어택이 없습니다.",
     "empty_search": "검색 조건에 맞는 공개 스코어 어택이 없습니다.",
-    "song_master_required": "공개 카탈로그에서 가져오려면 먼저 곡 데이터를 받아오세요.",
+    "song_master_required": "가져오려면 설정에서 곡 데이터를 받아오세요.",
     "action": {
       "retry": "공개 다시 시도",
       "retrying": "재시도 중...",
       "explore": "서버에서 찾기",
       "search": "검색",
-      "import": "Import",
-      "delete": "삭제"
+      "import": "가져오기 확인",
+      "delete": "공개 삭제"
     },
     "status": {
       "unpublished": "미공개",
@@ -539,7 +539,7 @@
     },
     "delete_dialog": {
       "title": "공개 스코어 어택을 삭제할까요?",
-      "description": "\"{{name}}\"을 공개 카탈로그에서 삭제합니다. 이 기기에 저장된 스코어 어택은 삭제되지 않습니다."
+      "description": "\"{{name}}\"을 공개 목록에서 삭제합니다. 이 기기의 스코어 어택과 이미지는 유지됩니다."
     }
   },
   "create_tournament": {

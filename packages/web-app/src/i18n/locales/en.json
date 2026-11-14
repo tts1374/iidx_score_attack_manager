@@ -491,21 +491,21 @@
     },
     "search_title": "Find a public score attack",
     "description": "Browse public score attacks and import them into the existing import flow.",
-    "search_placeholder": "Tournament name / owner / hashtag",
+    "search_placeholder": "Score attack name / hashtag",
     "result_count": "Showing {{count}} item(s)",
     "loading": "Loading the public catalog...",
     "loading_more": "Loading more...",
     "load_more": "Load more",
     "empty": "There are no public score attacks yet.",
     "empty_search": "No public score attacks matched your search.",
-    "song_master_required": "Fetch song data before importing from the public catalog.",
+    "song_master_required": "Get song data in Settings before importing.",
     "action": {
       "retry": "Retry publish",
       "retrying": "Retrying...",
       "explore": "Browse server catalog",
       "search": "Search",
-      "import": "Import",
-      "delete": "Delete"
+      "import": "Review import",
+      "delete": "Delete from catalog"
     },
     "status": {
       "unpublished": "Unpublished",
@@ -541,7 +541,7 @@
     },
     "delete_dialog": {
       "title": "Delete this public score attack?",
-      "description": "Delete \"{{name}}\" from the public catalog. The score attack stored on this device will not be deleted."
+      "description": "Delete \"{{name}}\" from the public catalog. The score attack and images on this device will be kept."
     }
   },
   "create_tournament": {
