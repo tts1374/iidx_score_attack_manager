@@ -23,6 +23,7 @@ import {
   parseImportAckStorageValue,
 } from './utils/import-delegation';
 import { HOME_PATH } from './utils/payload-url';
+import { ContextHelp } from './components/ContextHelp';
 import './styles.css';
 
 const TUTORIAL_DONE_KEY = 'tutorial_done';
@@ -422,68 +423,58 @@ function ImportDelegationScreen(props: ImportDelegationScreenProps): JSX.Element
     };
   }, [attemptCount, props.rawPayloadParam, t]);
 
-  if (state === 'sending') {
-    return (
-      <main className="page startupShell">
-        <section className="unsupported startupCard">
-          <h1>{t('common.import_delegation.sending.title')}</h1>
-          <p>{t('common.import_delegation.sending.description')}</p>
-          <div className="startupLoading" role="status" aria-live="polite" aria-label={t('common.import_delegation.sending.aria_label')}>
-            <span className="startupLoadingSpinner" aria-hidden="true" />
+  return (
+    <main className="page startupShell">
+      <section className={`${state === 'failed' ? 'warningBox' : 'unsupported'} startupCard importDelegationCard`}>
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <h1>{t(`common.import_delegation.${state}.title`)}</h1>
+          <p>{t(`common.import_delegation.${state}.description`)}</p>
+        </div>
+        {state === 'sending' ? (
+          <div className="startupLoading" aria-hidden="true">
+            <span className="startupLoadingSpinner" />
           </div>
-        </section>
-      </main>
-    );
-  }
-
-  if (state === 'success') {
-    return (
-      <main className="page startupShell">
-        <section className="unsupported startupCard">
-          <h1>{t('common.import_delegation.success.title')}</h1>
-          <p>{t('common.import_delegation.success.description')}</p>
-          {statusHint ? <p className="hintText">{statusHint}</p> : null}
+        ) : null}
+        {state === 'success' ? (
           <div className="actions startupActionRow">
             <button type="button" className="primaryActionButton" onClick={tryCloseTab}>
               {t('common.close_this_tab')}
             </button>
+            <ContextHelp title={t('common.technical_info')}>
+              <p className="startupDiagnostics">{statusHint}</p>
+            </ContextHelp>
           </div>
-        </section>
-      </main>
-    );
-  }
-
-  return (
-    <main className="page startupShell">
-      <section className="warningBox startupCard">
-        <h1>{t('common.import_delegation.failed.title')}</h1>
-        <p>{t('common.import_delegation.failed.description')}</p>
-        <section className="detailCard">
-          <h2>{t('common.import_delegation.preview.title')}</h2>
-          <p>{t('common.import_delegation.preview.tournament_name', { value: props.payloadPreview.name })}</p>
-          <p>{t('common.import_delegation.preview.owner', { value: props.payloadPreview.owner })}</p>
-          <p>
-            {t('common.import_delegation.preview.period', {
-              start: props.payloadPreview.start,
-              end: props.payloadPreview.end,
-            })}
-          </p>
-          <p>{t('common.import_delegation.preview.chart_count', { count: props.payloadPreview.charts.length })}</p>
-          <p className="hintText">{t('common.import_delegation.preview.hint')}</p>
-        </section>
-        <div className="actions startupActionRow">
-          <button type="button" className="primaryActionButton" onClick={navigateToHome}>
-            {t('common.open_app')}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAttemptCount((current) => current + 1);
-            }}
-          >
-            {t('common.import_delegation.retry')}
-          </button>
-        </div>
+        ) : null}
+        {state === 'failed' ? (
+          <>
+            <section className="detailCard">
+              <h2>{t('common.import_delegation.preview.title')}</h2>
+              <p>{t('common.import_delegation.preview.tournament_name', { value: props.payloadPreview.name })}</p>
+              <p>{t('common.import_delegation.preview.owner', { value: props.payloadPreview.owner || t('common.not_available') })}</p>
+              <p>
+                {t('common.import_delegation.preview.period', {
+                  start: props.payloadPreview.start,
+                  end: props.payloadPreview.end,
+                })}
+              </p>
+              <p>{t('common.import_delegation.preview.chart_count', { count: props.payloadPreview.charts.length })}</p>
+              <p className="hintText">{t('common.import_delegation.preview.hint')}</p>
+            </section>
+            <div className="actions startupActionRow">
+              <button type="button" className="primaryActionButton" onClick={navigateToHome}>
+                {t('common.import_delegation.open_home')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAttemptCount((current) => current + 1);
+                }}
+              >
+                {t('common.import_delegation.retry')}
+              </button>
+            </div>
+          </>
+        ) : null}
       </section>
     </main>
   );
