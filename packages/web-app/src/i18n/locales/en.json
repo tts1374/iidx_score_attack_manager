@@ -37,7 +37,7 @@
     "unsupported_browser_environment_message": "This browser environment is not supported.",
     "local_consent": {
       "app_name": "Score Attack Log",
-      "welcome": "Welcome! This app helps manage beatmania IIDX score attacks.",
+      "welcome": "Manage beatmania IIDX score attacks.",
       "data_title": "About this app data",
       "items": {
         "saved_in_browser": "Data is stored in your browser.",

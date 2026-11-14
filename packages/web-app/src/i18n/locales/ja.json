@@ -37,7 +37,7 @@
     "unsupported_browser_environment_message": "このブラウザ環境では起動できません。",
     "local_consent": {
       "app_name": "スコアタログ",
-      "welcome": "ようこそ！このアプリはbeatmania IIDXのスコアタの管理をするアプリです！",
+      "welcome": "beatmania IIDXのスコアタを管理できます。",
       "data_title": "このアプリのデータについて",
       "items": {
         "saved_in_browser": "データはご利用中のブラウザ内に保存されます",
