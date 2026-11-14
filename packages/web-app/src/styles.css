@@ -361,6 +361,24 @@ label {
 }
 
 .startupCard ul,
+.importDelegationCard {
+  overflow-wrap: anywhere;
+}
+
+.importDelegationCard h1 {
+  font-size: clamp(24px, 4vw, 30px);
+}
+
+.importDelegationCard .primaryActionButton {
+  width: auto;
+}
+
+.importDelegationCard button {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+}
+
 .startupGuide {
   margin: 0;
   padding-left: 20px;

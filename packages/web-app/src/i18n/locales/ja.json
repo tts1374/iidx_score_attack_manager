@@ -113,21 +113,21 @@
     },
     "import_delegation": {
       "status": {
-        "ack_broadcast": "既存タブから受領応答を確認しました。",
-        "ack_storage": "既存タブから受領応答を確認しました（storageフォールバック）。"
+        "ack_broadcast": "受領応答の通信方式: BroadcastChannel",
+        "ack_storage": "受領応答の通信方式: storage event（フォールバック）"
       },
       "sending": {
-        "title": "既存タブに送信中...",
-        "description": "取り込み要求を送信しています。しばらくお待ちください。",
+        "title": "別タブへ送信中…",
+        "description": "開いているアプリへ取込要求を送っています。",
         "aria_label": "送信中"
       },
       "success": {
-        "title": "既存タブに送信しました",
-        "description": "既存タブに送信しました。そちらをご確認ください。"
+        "title": "別タブが取込要求を受け取りました",
+        "description": "取込内容と結果は、開いているアプリのタブで確認してください。このタブは閉じてかまいません。"
       },
       "failed": {
-        "title": "既存タブが見つかりませんでした",
-        "description": "既存タブが起動していないか、この環境ではタブ間通信が利用できませんでした。"
+        "title": "別タブからの応答を確認できませんでした",
+        "description": "開いているアプリのタブで取込画面を確認してください。届いていない場合は、もう一度送信を試してください。"
       },
       "preview": {
         "title": "取り込み内容プレビュー",
@@ -135,9 +135,10 @@
         "owner": "開催者: {{value}}",
         "period": "期間: {{start}} 〜 {{end}}",
         "chart_count": "譜面数: {{count}}",
-        "hint": "このタブでは確定保存できません。既存タブへの送信またはアプリ本体での取り込みが必要です。"
+        "hint": "このタブでは取込を確定・保存できません。"
       },
-      "retry": "もう一度送信を試す"
+      "retry": "もう一度送信を試す",
+      "open_home": "ホームを開く"
     },
     "import_qr_dialog": {
       "title": "QR読み取り",

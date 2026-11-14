@@ -113,21 +113,21 @@
     },
     "import_delegation": {
       "status": {
-        "ack_broadcast": "Acknowledgement received from existing tab.",
-        "ack_storage": "Acknowledgement received from existing tab (storage fallback)."
+        "ack_broadcast": "Acknowledgment transport: BroadcastChannel",
+        "ack_storage": "Acknowledgment transport: storage event (fallback)"
       },
       "sending": {
-        "title": "Sending to existing tab...",
-        "description": "Sending import request. Please wait.",
+        "title": "Sending to another tab…",
+        "description": "Sending the import request to the open app.",
         "aria_label": "Sending"
       },
       "success": {
-        "title": "Sent to existing tab",
-        "description": "The request was sent to the existing tab. Please check that tab."
+        "title": "Another tab received the import request",
+        "description": "Check the import details and result in the open app tab. You can close this tab."
       },
       "failed": {
-        "title": "Existing tab was not found",
-        "description": "No existing tab is running, or inter-tab communication is unavailable in this environment."
+        "title": "No response confirmed from another tab",
+        "description": "Check the import screen in the open app tab. If the request has not arrived, try sending it again."
       },
       "preview": {
         "title": "Import preview",
@@ -135,9 +135,10 @@
         "owner": "Owner: {{value}}",
         "period": "Period: {{start}} to {{end}}",
         "chart_count": "Charts: {{count}}",
-        "hint": "This tab cannot finalize save. Send to an existing tab or import in the main app."
+        "hint": "You cannot confirm or save the import in this tab."
       },
-      "retry": "Try sending again"
+      "retry": "Try sending again",
+      "open_home": "Open Home"
     },
     "import_qr_dialog": {
       "title": "QR scan",
