@@ -334,8 +334,6 @@ function LocalConsentScreen(props: LocalConsentScreenProps): JSX.Element {
           <li>{t('common.local_consent.items.saved_in_browser')}</li>
           <li>{t('common.local_consent.items.no_auto_sync')}</li>
           <li>{t('common.local_consent.items.may_be_lost')}</li>
-          <li>{t('common.local_consent.items.import_available')}</li>
-          <li>{t('common.local_consent.items.consider_backup')}</li>
         </ul>
         <label className="startupConsentCheck">
           <input
