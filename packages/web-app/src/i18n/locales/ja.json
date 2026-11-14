@@ -489,21 +489,21 @@
     },
     "search_title": "公開スコアタを探す",
     "description": "公開されているスコアタを検索して取り込めます。",
-    "search_placeholder": "大会名 / ハッシュタグ",
+    "search_placeholder": "スコアタ名 / ハッシュタグ",
     "result_count": "{{count}}件表示中",
     "loading": "公開スコアタを読み込み中...",
     "loading_more": "続きを読み込み中...",
     "load_more": "続きを読む",
     "empty": "公開中のスコアタはまだありません。",
     "empty_search": "条件に一致する公開スコアタが見つかりませんでした。",
-    "song_master_required": "Import するには先に曲マスタを取得してください。",
+    "song_master_required": "取り込むには、設定で曲データを取得してください。",
     "action": {
       "retry": "公開を再試行",
       "retrying": "再試行中...",
       "explore": "サーバーから探す",
       "search": "検索",
-      "import": "Import",
-      "delete": "削除"
+      "import": "取り込み確認",
+      "delete": "公開を削除"
     },
     "status": {
       "unpublished": "未公開",
@@ -539,7 +539,7 @@
     },
     "delete_dialog": {
       "title": "公開スコアタを削除しますか？",
-      "description": "「{{name}}」を公開カタログから削除します。この端末に保存されているスコアタは削除されません。"
+      "description": "「{{name}}」を公開一覧から削除します。この端末のスコアタ・画像は残ります。"
     }
   },
   "create_tournament": {

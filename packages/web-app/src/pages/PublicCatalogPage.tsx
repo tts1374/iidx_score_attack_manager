@@ -282,6 +282,7 @@ function EmptyCatalogState(props: {
 
   return (
     <Paper
+      role="status"
       elevation={0}
       sx={{
         p: { xs: 3, sm: 4 },
@@ -692,7 +693,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
     !loadErrorMessage;
 
   return (
-    <Box className="page" sx={{ gap: 2.5 }}>
+    <Box className="page" sx={{ gap: 2.5, minWidth: 0, overflowWrap: 'anywhere' }}>
       <Paper
         elevation={0}
         sx={{
@@ -707,18 +708,8 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       >
         <Stack spacing={2}>
           <Stack spacing={1}>
-            <Chip
-              icon={<TravelExploreIcon />}
-              label={t('public_catalog.title')}
-              color="primary"
-              variant="outlined"
-              sx={{ alignSelf: 'flex-start' }}
-            />
             <Typography variant="h5" sx={{ fontWeight: 800 }}>
               {t('public_catalog.search_title')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t('public_catalog.description')}
             </Typography>
           </Stack>
 
@@ -785,12 +776,15 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
         <Alert severity="warning">{t('public_catalog.error.unavailable')}</Alert>
       ) : null}
 
-      {bannerMessage ? (
+      {bannerMessage && !deleteDialogItem ? (
         <Alert severity={bannerMessage.severity}>{bannerMessage.text}</Alert>
       ) : null}
 
       {initialLoading ? (
         <Stack spacing={2}>
+          <Typography role="status" variant="body2" color="text.secondary">
+            {t('public_catalog.loading')}
+          </Typography>
           {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
             <CatalogSkeletonCard key={index} />
           ))}
@@ -821,9 +815,6 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
               ? t('public_catalog.empty_search')
               : t('public_catalog.empty')
           }
-          description={
-            currentQuery.length > 0 ? t('public_catalog.description') : undefined
-          }
           searchMode={currentQuery.length > 0}
           action={
             currentQuery.length > 0 ? (
@@ -846,7 +837,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
               flexWrap: 'wrap',
             }}
           >
-            <Typography variant="body2" color="text.secondary">
+            <Typography role="status" variant="body2" color="text.secondary">
               {t('public_catalog.result_count', { count: items.length })}
             </Typography>
           </Box>
@@ -877,10 +868,13 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
               );
               return (
                 <Paper
+                  component="article"
+                  aria-label={item.name}
                   key={item.publicId}
                   elevation={0}
                   sx={{
                     p: { xs: 2, sm: 2.5 },
+                    minWidth: 0,
                     borderRadius: 3,
                     border: '1px solid',
                     borderColor: 'divider',
@@ -898,7 +892,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                         alignItems={{ xs: 'flex-start', sm: 'center' }}
                         spacing={1}
                       >
-                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 800, minWidth: 0 }}>
                           {item.name}
                         </Typography>
                         <Chip
@@ -949,7 +943,14 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                                 label={formatChartPreviewLabel(previewItem)}
                                 size="small"
                                 variant="outlined"
-                                sx={{ maxWidth: '100%' }}
+                                sx={{
+                                  maxWidth: '100%',
+                                  height: 'auto',
+                                  '& .MuiChip-label': {
+                                    whiteSpace: 'normal',
+                                    overflowWrap: 'anywhere',
+                                  },
+                                }}
                               />
                             ))}
                             {hiddenChartPreviewCount > 0 ? (
@@ -991,7 +992,10 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
                               <DeleteIcon />
                             )
                           }
-                          onClick={() => setDeleteDialogItem(item)}
+                          onClick={() => {
+                            setBannerMessage(null);
+                            setDeleteDialogItem(item);
+                          }}
                         >
                           {isDeleting
                             ? t('common.loading')
@@ -1052,6 +1056,7 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
 
       <Dialog
         open={deleteDialogItem !== null}
+        aria-describedby="public-catalog-delete-description"
         onClose={() => {
           if (!deletingPublicId) {
             setDeleteDialogItem(null);
@@ -1062,14 +1067,20 @@ export function PublicCatalogPage(props: PublicCatalogPageProps): JSX.Element {
       >
         <DialogTitle>{t('public_catalog.delete_dialog.title')}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">
+          <Typography id="public-catalog-delete-description" variant="body2" sx={{ overflowWrap: 'anywhere' }}>
             {t('public_catalog.delete_dialog.description', {
               name: deleteDialogItem?.name ?? '',
             })}
           </Typography>
+          {bannerMessage && deleteDialogItem ? (
+            <Alert severity={bannerMessage.severity} sx={{ mt: 2 }}>
+              {bannerMessage.text}
+            </Alert>
+          ) : null}
         </DialogContent>
         <DialogActions>
           <Button
+            autoFocus
             onClick={() => setDeleteDialogItem(null)}
             disabled={deletingPublicId !== null}
           >
