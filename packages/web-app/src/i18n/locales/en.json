@@ -1169,13 +1169,14 @@
   },
   "whats_new": {
     "modal": {
-      "title": "Update Notice (v1.3.0)",
+      "title": "Update Notice (v1.3.1)",
       "description": "What's changed"
     },
     "items": [
-      "Song data is now downloaded and updated automatically on startup and when returning to the home screen or app.",
-      "Updates wait until you finish interacting. If a download fails, you can continue using previously downloaded data.",
-      "Fixed toast notifications blocking the + button and app update controls."
+      "Home now makes image registration, sharing progress, and tournament publication status easier to distinguish",
+      "Improved guidance and error messages for creation, imports, image registration, submissions, and settings",
+      "Clarified important notices and next steps during first use, startup failures, and imports in another tab",
+      "Improved accessibility information and narrow-screen layouts"
     ]
   }
 }
